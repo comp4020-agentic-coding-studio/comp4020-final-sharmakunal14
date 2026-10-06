@@ -225,6 +225,8 @@ async function handle(req: IncomingMessage, res: ServerResponse) {
     res.writeHead(200, {
       "content-type": "text/event-stream", "cache-control": "no-cache", connection: "keep-alive",
     });
+    // Node holds headers until the first body write; without this the client waits for the first event.
+    res.write(": open\n\n");
     const after = Number(req.headers["last-event-id"] ?? url.searchParams.get("after") ?? event.seq);
     const missed = db.prepare("SELECT seq, payload FROM history WHERE event_id = ? AND seq > ? ORDER BY seq LIMIT 500")
       .all(eventId, after) as { seq: number; payload: string }[];
