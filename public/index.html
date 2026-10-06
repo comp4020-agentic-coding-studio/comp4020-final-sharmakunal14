@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Shared Space — plan an event layout together</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="site">
+    <a class="brand" href="/">Shared Space</a>
+    <nav aria-label="Site"><ul><li><a href="/" aria-current="page">Plans</a></li><li><a href="/readme/">About</a></li></ul></nav>
+  </header>
+  <main>
+    <h1>Plan an event layout together</h1>
+    <p class="muted">Arrange stalls in a shared room, see clashes as they happen, and come back to find the plan where you left it. <a href="/readme/">Read what this is for</a>.</p>
+
+    <section class="card" id="who" hidden>
+      <h2>Choose a display name</h2>
+      <p class="muted">No account or password. Your name is kept in a cookie on this browser; clearing cookies gives you a new identity.</p>
+      <form id="name-form" class="row">
+        <label>Display name <input id="name" name="name" maxlength="40" required autocomplete="nickname"></label>
+        <button type="submit">Continue</button>
+      </form>
+      <p id="name-error" class="notice" role="alert" hidden></p>
+    </section>
+
+    <section class="card" id="mine" hidden>
+      <h2>Your plans</h2>
+      <p id="hello" class="muted"></p>
+      <button id="create">Create example event</button>
+      <ul id="events"></ul>
+    </section>
+  </main>
+  <script type="module" src="/index.js"></script>
+</body>
+</html>

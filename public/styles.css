@@ -1,0 +1,64 @@
+:root {
+  --bg: #f7f6f2; --fg: #1d1d1b; --muted: #5d5b55; --panel: #ffffff; --line: #d6d3ca;
+  --accent: #1f5fbf; --accent-fg: #fff; --activity: #dbe7f8; --activity-line: #1f5fbf;
+  --keepclear: #f3e3b5; --problem: #b3261e; --problem-bg: #fbe4e2; --ok: #1e6b35;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #161614; --fg: #ecebe6; --muted: #aaa79e; --panel: #22221f; --line: #3d3c37;
+    --accent: #7fb0ff; --accent-fg: #0d1b30; --activity: #22344f; --activity-line: #7fb0ff;
+    --keepclear: #4a3f1c; --problem: #ff8a80; --problem-bg: #3b1d1b; --ok: #7fd18f;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); line-height: 1.5; }
+a { color: var(--accent); }
+header.site { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .75rem 1rem; border-bottom: 1px solid var(--line); background: var(--panel); flex-wrap: wrap; }
+header.site a.brand { font-weight: 700; text-decoration: none; color: var(--fg); }
+nav ul { list-style: none; display: flex; gap: 1rem; margin: 0; padding: 0; }
+main { max-width: 72rem; margin: 0 auto; padding: 1rem; }
+main.prose { max-width: 44rem; }
+h1 { font-size: 1.6rem; margin: .5rem 0 1rem; }
+button, input { font: inherit; }
+button { border: 1px solid var(--accent); background: var(--accent); color: var(--accent-fg); padding: .5rem .9rem; border-radius: .4rem; cursor: pointer; min-height: 2.5rem; }
+button.secondary { background: transparent; color: var(--accent); }
+button:disabled { opacity: .5; cursor: not-allowed; }
+input { padding: .45rem .6rem; border: 1px solid var(--line); border-radius: .4rem; background: var(--panel); color: var(--fg); min-height: 2.5rem; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: .6rem; padding: 1rem; margin-bottom: 1rem; }
+.row { display: flex; gap: .5rem; flex-wrap: wrap; align-items: end; }
+label { display: grid; gap: .25rem; font-weight: 600; font-size: .95rem; }
+.muted { color: var(--muted); }
+.status { font-size: .9rem; padding: .2rem .6rem; border-radius: 1rem; border: 1px solid var(--line); }
+.status[data-state="live"] { color: var(--ok); }
+.status[data-state="offline"] { color: var(--problem); }
+
+.workspace { display: grid; grid-template-columns: minmax(0, 1fr) 20rem; gap: 1rem; align-items: start; }
+@media (max-width: 52rem) { .workspace { grid-template-columns: 1fr; } }
+.plan { background: var(--panel); border: 1px solid var(--line); border-radius: .6rem; padding: .5rem; }
+.plan svg { width: 100%; height: auto; display: block; touch-action: none; }
+.room { fill: var(--bg); stroke: var(--fg); stroke-width: 40; }
+.grid line { stroke: var(--line); stroke-width: 10; }
+.keepclear { fill: var(--keepclear); stroke: none; }
+.keepclear-label { fill: var(--muted); font-size: 300px; }
+.activity rect { fill: var(--activity); stroke: var(--activity-line); stroke-width: 40; cursor: grab; }
+.activity.problem rect { fill: var(--problem-bg); stroke: var(--problem); stroke-dasharray: 160 80; }
+.activity.selected rect { stroke-width: 100; }
+.activity text { fill: var(--fg); font-size: 340px; font-weight: 600; pointer-events: none; }
+.activity.pending rect { opacity: .6; }
+.target-hint { fill: none; stroke: var(--accent); stroke-width: 30; stroke-dasharray: 100 100; }
+
+.side h2 { font-size: 1.05rem; margin: 0 0 .5rem; }
+.objects { list-style: none; margin: 0; padding: 0; display: grid; gap: .35rem; }
+.objects button { width: 100%; text-align: left; background: transparent; color: var(--fg); border-color: var(--line); }
+.objects button[aria-pressed="true"] { border-color: var(--accent); border-width: 2px; font-weight: 700; }
+.pad { display: grid; grid-template-columns: repeat(3, 3rem); gap: .3rem; justify-content: start; margin: .5rem 0; }
+.pad button { padding: 0; }
+.issues { margin: 0; padding-left: 1.1rem; }
+.issues li { color: var(--problem); }
+.notice { border-left: 4px solid var(--problem); padding: .5rem .75rem; background: var(--problem-bg); margin: .5rem 0; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.prose img { max-width: 100%; }
+.prose pre { overflow-x: auto; background: var(--panel); padding: .75rem; border-radius: .4rem; }
