@@ -47,8 +47,11 @@ Having these controls is not evidence of full accessibility conformance.
 
 The automated application checks cover a saved move read by another session,
 rejection of an outdated move, and receipt of a streamed update within one
-second. They test HTTP behaviour, not what two people see in their browsers.
-The supplied checks also cover the home page and this page's headings.
+second. They also cover who has a plan open, a drag in progress reaching the
+other plan within a second without being saved, an abandoned or outdated drag
+being withdrawn, and a reconnecting plan receiving the moves it missed. They
+test HTTP behaviour, not what two people see in their browsers. The supplied
+checks also cover the home page and this page's headings.
 
 Focus preservation, clear conflict messages, keyboard and touch usability,
 and whether the tool helps a team negotiate need direct observation. Those
