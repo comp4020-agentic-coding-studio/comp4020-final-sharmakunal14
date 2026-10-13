@@ -299,17 +299,19 @@ async function handle(req: IncomingMessage, res: ServerResponse) {
   if (previewMatch && method === "POST") {
     const objectId = previewMatch[1];
     const body = await readJson(req);
-    const target = db.prepare("SELECT kind FROM objects WHERE id = ? AND event_id = ?").get(objectId, eventId) as
-      | { kind: string }
+    const target = db.prepare("SELECT kind, version FROM objects WHERE id = ? AND event_id = ?").get(objectId, eventId) as
+      | { kind: string; version: number }
       | undefined;
     if (!target || target.kind !== "activity") return send(res, 404, { code: "NOT_FOUND", message: "No such activity." });
     if (body.cancel === true) {
       cancelPreview(eventId, objectId, actor);
       return send(res, 202, { ok: true });
     }
-    if (!intIn(body.cx, -100_000, 100_000) || !intIn(body.cy, -100_000, 100_000)) {
-      return send(res, 400, { code: "VALIDATION_FAILED", message: "Preview needs whole-millimetre cx and cy." });
+    if (!intIn(body.cx, -100_000, 100_000) || !intIn(body.cy, -100_000, 100_000) || !intIn(body.baseVersion, 1, 1e9)) {
+      return send(res, 400, { code: "VALIDATION_FAILED", message: "Preview needs whole-millimetre cx, cy and baseVersion." });
     }
+    // A preview that arrives after the object was saved again (by anyone) would resurrect a stale ghost.
+    if (body.baseVersion !== target.version) return send(res, 409, { code: "STALE_VERSION", message: "This activity has moved since." });
     // A preview is advisory and the next one replaces it, so a flood is thinned rather than refused.
     const key = `${eventId}:${actor.id}`;
     const t = Date.now();
@@ -342,6 +344,7 @@ async function handle(req: IncomingMessage, res: ServerResponse) {
     });
     if (result.status === 404) return send(res, 404, { code: "NOT_FOUND", message: "No such activity." });
     if (result.status === 409) {
+      cancelPreview(eventId, moveMatch[1], actor);
       log({ action: "object.move", outcome: "conflict", actor: actor.id, event: eventId, object: moveMatch[1] });
       return send(res, 409, { code: "STALE_VERSION", message: "Someone else moved this first.", current: result.current });
     }

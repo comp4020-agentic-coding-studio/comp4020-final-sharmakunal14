@@ -123,7 +123,7 @@ describe("two people on one plan", () => {
     const { id, robotics } = await exampleEvent(alice);
     const b = await open(ben, id);
 
-    const res = await api(alice, `/api/events/${id}/objects/${robotics.id}/preview`, { cx: 6500, cy: robotics.cy });
+    const res = await api(alice, `/api/events/${id}/objects/${robotics.id}/preview`, { cx: 6500, cy: robotics.cy, baseVersion: robotics.version });
     expect(res.status).toBe(202);
     const frame = await b.next((f) => f.event === "preview" && f.data.objectId === robotics.id);
     expect(frame.data).toMatchObject({ cx: 6500, by: { name: "Alice" } });
@@ -141,7 +141,7 @@ describe("two people on one plan", () => {
     const { id, robotics } = await exampleEvent(alice);
     const b = await open(ben, id);
 
-    await api(alice, `/api/events/${id}/objects/${robotics.id}/preview`, { cx: 6500, cy: robotics.cy });
+    await api(alice, `/api/events/${id}/objects/${robotics.id}/preview`, { cx: 6500, cy: robotics.cy, baseVersion: robotics.version });
     await api(alice, `/api/events/${id}/objects/${robotics.id}/preview`, { cancel: true });
     const frame = await b.next((f) => f.event === "preview" && f.data.cancel === true);
     expect(frame.data.objectId).toBe(robotics.id);
@@ -151,8 +151,17 @@ describe("two people on one plan", () => {
   it("a preview of something that can't be moved is refused", async () => {
     const alice = await person("Alice");
     const { id } = await exampleEvent(alice);
-    const res = await api(alice, `/api/events/${id}/objects/nope/preview`, { cx: 1000, cy: 1000 });
+    const res = await api(alice, `/api/events/${id}/objects/nope/preview`, { cx: 1000, cy: 1000, baseVersion: 1 });
     expect(res.status).toBe(404);
+  });
+
+  it("a late preview from before a saved move is refused, so no stale ghost appears", async () => {
+    const alice = await person("Alice");
+    const { id, robotics } = await exampleEvent(alice);
+    const moved = await api(alice, `/api/events/${id}/objects/${robotics.id}/move`, { expectedVersion: robotics.version, cx: 7000, cy: robotics.cy });
+    expect(moved.status).toBe(200);
+    const late = await api(alice, `/api/events/${id}/objects/${robotics.id}/preview`, { cx: 6500, cy: robotics.cy, baseVersion: robotics.version });
+    expect(late.status).toBe(409);
   });
 
   it("a plan that reconnects is sent the moves it missed, in order", async () => {
