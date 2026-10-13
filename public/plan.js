@@ -412,6 +412,9 @@ async function start() {
   objects = new Map(data.objects.map((o) => [o.id, o]));
   $("title").textContent = event.name;
   document.title = `${event.name} — Shared Space`;
+  if (event.named) {
+    $("join-hint").textContent = `Others can join from the home page by typing the room name “${event.name}”, or with this page's address, in their own browser.`;
+  }
   render();
   connect();
 }

@@ -25,11 +25,21 @@
       <p id="name-error" class="notice" role="alert" hidden></p>
     </section>
 
+    <section class="card" id="room" hidden>
+      <h2>Open a room</h2>
+      <p class="muted">Type a room name. If someone has already made a room with that name, you join them; otherwise a new room starts with the example layout. Anyone who types the same name joins as an editor.</p>
+      <form id="room-form" class="row">
+        <label>Room name <input id="room-name" name="room" maxlength="60" required autocomplete="off"></label>
+        <button type="submit">Create or join</button>
+      </form>
+      <p id="room-error" class="notice" role="alert" hidden></p>
+    </section>
+
     <section class="card" id="mine" hidden>
       <h2>Your plans</h2>
       <p id="hello" class="muted"></p>
-      <button id="create">Create example event</button>
       <ul id="events"></ul>
+      <p><button id="create" class="secondary">Create a private plan (link only)</button></p>
     </section>
   </main>
   <script type="module" src="/index.js"></script>
