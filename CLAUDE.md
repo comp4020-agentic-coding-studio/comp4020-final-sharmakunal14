@@ -17,6 +17,13 @@ wins and this file gets fixed.
   fields. No feature ships drag-only.
 - Remote updates must not steal focus, clear an input being typed in, or reset
   the selection.
+- A drag in progress is shown to others as a preview, never saved. Previews and
+  presence are SSE named events without an `id:`, so they are never replayed;
+  only saved changes carry the history seq.
+- A preview carries the version it was based on; one that no longer matches is
+  refused so a stale ghost never reappears.
+- The page must recover from a closed stream by itself and resume after the
+  last applied seq. The machine stops when idle, so a restart is normal.
 
 ## How to work
 
