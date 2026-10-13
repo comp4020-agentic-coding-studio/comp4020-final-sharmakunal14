@@ -31,6 +31,12 @@ db.exec(`
     type TEXT NOT NULL, payload TEXT NOT NULL, at TEXT NOT NULL, PRIMARY KEY (event_id, seq));
 `);
 
+// Rooms found by name. Plans made before this column existed keep NULL and are
+// reachable only by link; a UNIQUE index allows any number of NULLs.
+const eventCols = db.prepare("PRAGMA table_info(events)").all() as { name: string }[];
+if (!eventCols.some((c) => c.name === "room_key")) db.exec("ALTER TABLE events ADD COLUMN room_key TEXT");
+db.exec("CREATE UNIQUE INDEX IF NOT EXISTS events_room_key ON events(room_key)");
+
 type Actor = { id: string; name: string };
 type Obj = {
   id: string; event_id: string; kind: string; label: string;
@@ -116,21 +122,38 @@ const EXAMPLE = [
   { kind: "activity", label: "Music", x: 8, y: 5, w: 3, d: 2 },
 ];
 
-function createExampleEvent(actor: Actor): string {
+const EXAMPLE_NAME = "Campus Clubs Fair (example)";
+
+// Callers wrap this in tx().
+function insertExampleEvent(actor: Actor, name: string, roomKey: string | null): string {
   const id = randomUUID();
-  tx(() => {
-    db.prepare("INSERT INTO events (id, name, owner_id, room_w, room_d, created_at) VALUES (?, ?, ?, 12000, 8000, ?)")
-      .run(id, "Campus Clubs Fair (example)", actor.id, now());
-    db.prepare("INSERT INTO members (event_id, actor_id, role) VALUES (?, ?, 'owner')").run(id, actor.id);
-    const insert = db.prepare(
-      "INSERT INTO objects (id, event_id, kind, label, cx, cy, w, d) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-    );
-    for (const o of EXAMPLE) {
-      insert.run(randomUUID(), id, o.kind, o.label, (o.x + o.w / 2) * 1000, (o.y + o.d / 2) * 1000, o.w * 1000, o.d * 1000);
-    }
-    appendHistory(id, actor.id, "event.created", { name: "Campus Clubs Fair (example)" });
-  });
+  db.prepare("INSERT INTO events (id, name, owner_id, room_w, room_d, created_at, room_key) VALUES (?, ?, ?, 12000, 8000, ?, ?)")
+    .run(id, name, actor.id, now(), roomKey);
+  db.prepare("INSERT INTO members (event_id, actor_id, role) VALUES (?, ?, 'owner')").run(id, actor.id);
+  const insert = db.prepare(
+    "INSERT INTO objects (id, event_id, kind, label, cx, cy, w, d) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+  );
+  for (const o of EXAMPLE) {
+    insert.run(randomUUID(), id, o.kind, o.label, (o.x + o.w / 2) * 1000, (o.y + o.d / 2) * 1000, o.w * 1000, o.d * 1000);
+  }
+  appendHistory(id, actor.id, "event.created", { name });
   return id;
+}
+
+const roomKeyOf = (name: string) => name.normalize("NFKC").trim().replace(/\s+/g, " ").toLowerCase();
+
+// The lookup and insert share one IMMEDIATE transaction, so two people typing a
+// new name at the same moment get one room, not two.
+function openRoom(actor: Actor, name: string): { id: string; created: boolean } {
+  return tx(() => {
+    const key = roomKeyOf(name);
+    const found = db.prepare("SELECT id FROM events WHERE room_key = ?").get(key) as { id: string } | undefined;
+    if (found) {
+      db.prepare("INSERT OR IGNORE INTO members (event_id, actor_id, role) VALUES (?, ?, 'editor')").run(found.id, actor.id);
+      return { id: found.id, created: false };
+    }
+    return { id: insertExampleEvent(actor, name, key), created: true };
+  });
 }
 
 // --- http helpers -----------------------------------------------------------
@@ -231,17 +254,25 @@ async function handle(req: IncomingMessage, res: ServerResponse) {
     return send(res, 200, rows);
   }
   if (path === "/api/events" && method === "POST") {
-    const id = createExampleEvent(actor);
+    const id = tx(() => insertExampleEvent(actor, EXAMPLE_NAME, null));
     log({ action: "event.created", actor: actor.id, event: id });
     return send(res, 201, { id });
+  }
+  if (path === "/api/rooms" && method === "POST") {
+    const { name } = await readJson(req);
+    const clean = typeof name === "string" ? name.normalize("NFKC").trim().replace(/\s+/g, " ").slice(0, 60) : "";
+    if (!clean) return send(res, 400, { code: "NAME_REQUIRED", message: "Type a room name." });
+    const room = openRoom(actor, clean);
+    log({ action: room.created ? "room.created" : "room.joined", outcome: "ok", actor: actor.id, event: room.id });
+    return send(res, room.created ? 201 : 200, room);
   }
 
   const eventMatch = /^\/api\/events\/([\w-]+)(\/.*)?$/.exec(path);
   if (!eventMatch) return send(res, 404, { code: "NOT_FOUND", message: "Not found." });
   const eventId = eventMatch[1];
   const rest = eventMatch[2] ?? "";
-  const event = db.prepare("SELECT id, name, room_w, room_d, seq FROM events WHERE id = ?").get(eventId) as
-    | { id: string; name: string; room_w: number; room_d: number; seq: number }
+  const event = db.prepare("SELECT id, name, room_w, room_d, seq, room_key IS NOT NULL AS named FROM events WHERE id = ?").get(eventId) as
+    | { id: string; name: string; room_w: number; room_d: number; seq: number; named: number }
     | undefined;
   if (!event) return send(res, 404, { code: "NOT_FOUND", message: "No such event." });
 
