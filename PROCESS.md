@@ -1,62 +1,84 @@
-# Shared Space: process at crit 8
+# Shared Space: process at crit 9
 
-Shared Space is a room-layout tool for a small team arranging an event. For
-this first version, I narrowed the work to a Campus Clubs Fair: create an
-example room, move its activities, share the plan, and return to the saved
-positions. The first implementation includes browser identities, a shared
-editor, clash messages, persistent moves and live updates
+Shared Space now lets people join a room by name, arrange its activities
+together, see who else is present and watch a drag before it is saved. I
+kept this week's scope to any two users without account registration; login
+can come later. Requirements review and code inspection established that
+saved moves already travelled live. The work therefore extended the existing
+interaction with presence, previews, reconnect recovery and preserved keyboard
+focus ([`2956543`](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/commit/2956543),
+[`7293ebc`](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/commit/7293ebc)).
+The [Crit 9 brief](https://comp.anu.edu.au/courses/comp4020-agentic-coding-studio/crits/09-all-at-once/)
+asks for a defended decision about several people using the app. That made
+their interaction, rather than a new transport, the behaviour to explain.
+
+I retained Node 24, built-in SQLite and plain HTML, CSS and JavaScript. One
+process and the `/data` volume suit the supplied 256 MB machine without a
+separate database service or framework build
 ([`f30ad92`](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/commit/f30ad92)).
-This gives the project a concrete interaction to examine before adding
-equipment allocation, publishing or a more general drawing tool.
+This reduces infrastructure, but synchronous database work and a handwritten
+interface still need scrutiny. HTTP carries moves and throttled previews to
+the server; server-sent events distribute them. That remains sufficient for
+this interaction. Saved changes have replayable sequence numbers; presence
+and previews are temporary state, excluded from durable history
+([`2956543`](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/commit/2956543)).
 
-The stack is Node 24, its built-in SQLite database, and plain HTML, CSS and
-JavaScript. The deployment provides one 256 MB machine and a persistent
-volume. Keeping the application in one process avoids a separate database
-service and a framework build; the Dockerfile runs the TypeScript server
-directly and stores its database under `/data`
-([`f30ad92`](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/commit/f30ad92)).
-This is a simplicity choice, not a measured performance result. Synchronous
-database work shares the server's process, and the handwritten interface and
-Markdown renderer leave more behaviour for me to maintain and verify.
+The existing harness required checks before implementation. The session record
+reports four of six new live checks initially failing; catch-up already
+worked. The test commit explicitly records that distinction
+([`c92d6d7`](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/commit/c92d6d7)).
+Later, all three named-room checks initially failed
+([`186f940`](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/commit/186f940)).
+Separate commits for checks, implementation and corrections make the work
+inspectable. `CLAUDE.md` now requires previews to stay out of replay history
+and the page to recover after a closed stream
+([`553c7ac`](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/commit/553c7ac)).
 
-Moves use ordinary HTTP requests; server-sent events carry saved changes back
-to open plans. That fits an interaction where the server accepts discrete
-moves rather than broadcasting every pointer movement. Each move carries the
-object version the participant saw. A transaction checks that version, saves
-the new position and records history; an outdated move receives a conflict
-response. Rejecting that move protects the saved position, but asks the
-participant to reconsider and try again. It does not automatically reconcile
-competing intentions ([`f30ad92`](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/commit/f30ad92)).
+One correction came from the agent itself. A preview posted after a saved
+move could restore an outline nobody was still dragging. The fix checks the
+preview's base version against the saved object and withdraws a rejected
+mover's preview ([`ca963f9`](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/commit/ca963f9)).
+I did not discover this bug. Its connection to the existing version rule is
+the useful lesson: temporary feedback must not contradict accepted state.
 
-The most useful correction is visible in the next two commits. HTTP checks
-were added for a later participant reading a saved move, rejection of a stale
-move, and delivery of a live update. The test commit records that the stream
-check failed because the response headers were buffered until an event arrived
-([`7059a6a`](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/commit/7059a6a)).
-The fix writes an opening comment immediately
-([`4937674`](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/commit/4937674)).
-This was a failure in the interaction between client and server, despite both
-pieces existing in the implementation.
+My own test exposed a different problem. Twelve automated checks and the
+earlier two-browser runs had passed, yet two windows appeared unable to
+exchange changes. The Fly-log investigation showed separate plan IDs; the
+windows also shared a cookie, so they were not independent identities. Separate
+browsers or profiles are still needed to test distinct participants. Each
+window had created its own plan. The existing tests started with participants already
+in one plan and missed the difficulty of getting there. The home-page commit
+records that diagnosis ([`570a815`](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/commit/570a815)).
 
-The agent-assisted workflow now has a specific acceptance standard: connect
-product promises to checks against the running application, and turn observed
-failures into rules. `CLAUDE.md` records the stream correction alongside rules
-for stale edits, confirmed saves, non-drag controls and preserving focus
-([`fe9496e`](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/commit/fe9496e)).
-The implementation, tests and fix have separate commits, making that correction
-traceable. Their existence does not prove every product rule is already met.
+I chose named rooms from three alternatives: names, join codes and a public
+list. A shared name makes joining explicit without maintaining a directory.
+It also makes rooms guessable, an accepted limitation of this prototype.
+Normalised names, a unique database index and a transaction keep simultaneous
+creation requests in one room; existing plans remain reachable by link
+([`78d7972`](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/commit/78d7972)).
+The stream was unchanged by this fix. Asking the agent to check completeness
+before deployment also exposed stale README instructions and led to the
+room-name hint and a browser check of my two-window scenario
+([`570a815`](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/commit/570a815),
+[`2a626ff`](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/commit/2a626ff)).
 
-For this first written definition of good, I use Gutwin and Greenberg's
-[workspace-awareness framework](https://hcitang.org/uploads/Teaching/2002-DescriptiveFramework.JCSCW.pdf)
-to question whether participants can understand changes, and W3C's
-[dragging guidance](https://www.w3.org/WAI/WCAG22/Understanding/dragging-movements.html)
-to distinguish keyboard access from a clickable or tappable alternative.
-These sources help evaluate the current design; I am not claiming the commits
-document a prior literature-led design process.
+The [multi-user decision](docs/decisions/0001-refuse-outdated-moves.md)
+retains refusal of outdated saves. The version check and save share a
+transaction. Compared with locking, this avoids holding an activity while a
+person pauses or disconnects; the cost is that a refused mover must reconsider
+and retry. Previews provide awareness, not exclusive ownership. The guarantee
+is rejection of a stale save, not that an activity can never be moved again
+([`f30ad92`](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/commit/f30ad92),
+[`ca963f9`](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/commit/ca963f9)).
 
-The current evidence remains limited. The three application tests do not
-exercise browser rendering, focus, restart durability or redeployment. Link
-holders can join as editors; private membership, recovery controls and a
-publication workflow are not implemented. The next acceptance work is a
-two-browser walkthrough, keyboard and touch checks, and a restart test using
-retained data. These are outstanding checks, not completed user evaluation.
+The session record reports 15/15 HTTP checks locally and live, plus browser
+runs passing 10/10 live-feature, 4/4 restart/reconnect and 8/8 named-room checks.
+It also records testing the database change on copied data before deployment.
+These browser results and the migration rehearsal come from session notes;
+their raw outputs are not committed. The two-browser and restart work is
+therefore completed development verification, not independent user evaluation.
+
+Next I need to observe whether people understand a refused move, retain
+browser regressions in the repository, and test sustained contention. `spec/`
+does not exercise drag outlines in a browser. Anyone knowing a room name or
+link can edit; accounts and private permissions remain deliberately deferred.
