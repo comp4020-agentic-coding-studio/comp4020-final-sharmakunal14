@@ -9,8 +9,10 @@ without losing one another's changes.
 ## Try the current version
 
 Open [Shared Space](https://comp4020-final-sharmakunal14.fly.dev/), choose a
-display name, and select **Create example event**. Share the plan's address
-with someone using another browser or browser profile. Select an activity
+display name, and type a room name. Someone using another browser or browser
+profile who types the same name joins the same room; a new name starts a room
+with the example layout. A private plan reachable only by its address is also
+available. Select an activity
 and drag it, use the arrow keys or movement buttons, enter its coordinates,
 or use **Tap the plan to place**. Move Robotics into the walkway to see a
 named problem, then move it clear. Reopen the plan to inspect the saved
