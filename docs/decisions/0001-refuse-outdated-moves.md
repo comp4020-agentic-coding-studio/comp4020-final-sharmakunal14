@@ -1,76 +1,87 @@
-# 1. When two people move the same activity, refuse the outdated move
+# 1. Refuse an outdated move when people move the same activity
 
-Status: accepted (crit 9, week 10)
+Status: accepted for Crit 9, 14 October 2026. This retains the save rule
+implemented at Crit 8 and explains how this week's live previews support it.
 
-## Context
+## The decision I need to make
 
-Shared Space lets anyone in a room move any activity. The question this record
-settles is what happens when two people move **the same activity at about the
-same time**, each starting from the position they last saw.
+Shared Space lets everyone in a room move its activities. If Alice and Ben
+both start from version 4 of Film and choose different positions, what should
+happen when both try to save?
 
-A move is a whole new position (`cx`, `cy`), not an edit to a document. Two
-moves of the same stall cannot be combined into something either person meant:
-taking Alice's x and Ben's y puts it somewhere nobody chose.
+The [README](../../README.md) says to respect saved work and make collaboration
+understandable. Competing changes should be visible, but the first mover does
+not own Film afterwards. Someone using its new position can move it again.
 
-The README's definition of good makes two promises that pull on this decision:
+The unit of change here is a complete position, `cx` and `cy`. Combining
+the participants' coordinates or averaging their destinations could produce
+a position neither chose.
 
-- **Respect saved work.** A move based on an outdated position must be refused
-  with an explanation.
-- **Make collaboration understandable.** People should see who moved what, and
-  recognise when their view is out of date.
+## Alternatives and what they cost
 
-## Options considered
+| Option | What it offers | Why I did not choose it for this version |
+| --- | --- | --- |
+| Accept every move in arrival order | Simple handling; neither participant retries | A delayed request can silently replace a newer position. Arrival order does not establish the group's intention. |
+| Lock an activity during an edit | Exclusive editing prevents competing saves while the lock is valid | Requires acquisition, release and expiry rules, including disconnected holders and consistent edit boundaries across input methods. |
+| Automatically combine concurrent moves | Replicas can converge under a merge policy | Convergence does not identify the intended destination. Preserving alternatives or combining movement deltas would change the current absolute-position interaction. |
+| Refuse an outdated move | The saved position survives the stale request; the second person sees a conflict | The second person loses their attempted placement and must reconsider it. I accept this cost for now. |
 
-1. **Last write wins.** The server applies every move in arrival order. Nobody
-   ever sees an error, and it is the least code. But the earlier mover's
-   position disappears silently; on a slow connection they may never notice it
-   was overwritten. That breaks "respect saved work" outright.
-2. **Lock the activity while someone has it.** Selecting or dragging takes an
-   exclusive lock; others cannot move it until it is released. Conflicts cannot
-   happen. But locks need expiry for closed tabs and dropped connections, a
-   forgotten selection blocks a teammate, and keyboard and button users hold
-   the lock for as long as the activity stays selected.
-3. **Merge automatically** (operational transforms or a CRDT). Suited to text,
-   where both edits can survive. For a single position there is nothing to
-   merge, so in practice this reduces to last write wins with more machinery.
-4. **Refuse the outdated move (chosen).** Every move carries the version it
-   was based on. The server applies it only if that is still the current
-   version; otherwise it answers 409 with where the activity actually is.
+Locking is the strongest counterproposal: if people repeatedly compete for the
+same stall, preventing wasted work may be better than rejecting it afterwards.
+A short lease acquired for an explicit edit could avoid holding a lock for an
+entire selection. Conflict frequency is unmeasured. For now, I prefer one rule
+for dragging, buttons and coordinate entry without ownership and expiry logic.
 
-## Decision
+## Chosen behaviour
 
-Option 4, paired with live awareness so that conflicts are rare and legible:
+Each save includes the object version it started from. The server compares
+that version inside the same SQLite transaction that updates the position,
+increments its version and records the change. With two otherwise valid
+requests based on the same current version, the first committed save succeeds;
+the other gets HTTP 409 and the current object
+([`f30ad92`](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/commit/f30ad92)).
 
-- The server checks the version inside the same transaction that saves the
-  move, so exactly one of two simultaneous moves wins
-  ([`f30ad92`](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/commit/f30ad92)).
-- The refused person's view jumps to the saved position, with a message naming
-  who moved it and inviting them to move it again if they still want to.
-- While someone drags, everyone else sees a dashed outline labelled with their
-  name, and the activity list says "Alice is moving it"
-  ([`2956543`](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/commit/2956543),
-  [`7293ebc`](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/commit/7293ebc)).
-  This is a soft signal, not a lock: it warns before the conflict instead of
-  forbidding the move. The point follows Gutwin and Greenberg's argument that
-  awareness of others' activity is what makes shared-workspace collaboration
-  work.
-- Drag outlines are never saved and carry their own version, so a late one
-  cannot resurrect a position that has since been superseded
-  ([`ca963f9`](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/commit/ca963f9)).
+The client restores the returned position and explains that the attempted move
+was not saved, inviting a retry. It says "someone else" when the conflict
+response lacks the display name carried by successful move updates.
 
-## Consequences
+Presence and labelled drag outlines let people notice activity before saving
+([`2956543`](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/commit/2956543),
+[`7293ebc`](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/commit/7293ebc)).
+They are advisory: an outline neither reserves the stall nor prevents another
+person moving it. Gutwin and Greenberg's
+[workspace-awareness framework](https://hcitang.org/uploads/Teaching/2002-DescriptiveFramework.JCSCW.pdf)
+(2002, pp. 412–413) supports examining how people understand others' actions;
+it does not establish that these particular outlines reduce conflicts.
 
-- Nobody's saved move is ever silently lost. The cost lands on the second
-  mover, who has to look again and redo their move. I accept that, because a
-  visible "someone moved this first" is a moment for the two people to
-  negotiate, which is what the tool is for.
-- Unlike a lock, nothing stops two people grabbing the same stall; the outline
-  only makes it unlikely. If conflicts turn out to be frequent, a soft lock
-  (warn, but allow override) is the next step, not a hard one.
-- Checked: `spec/shared-space.test.ts` refuses an outdated move and keeps the
-  saved position; `spec/live.test.ts` refuses an outdated drag preview. A
-  two-browser run where both people nudged Film at the same moment ended with
-  both screens showing the same position.
-- Not yet shown: whether people understand the refusal message, and how often
-  conflicts happen with a full room. Those need observation at the crit, not a
-  check.
+Preview requests also carry a base version. The server refuses one processed
+after that version has been superseded, and a rejected save withdraws its
+author's preview ([`ca963f9`](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/commit/ca963f9)).
+Previews and presence are not stored in durable history. A connecting view
+receives current temporary state, rather than replaying past drags. Saved
+moves remain eligible for catch-up; the current server caps that replay at
+500 records per connection. Recovery after a longer gap is not established.
+
+## Evidence and remaining uncertainty
+
+[The save checks](../../spec/shared-space.test.ts) verify that a stale request
+receives 409 and leaves the accepted position intact.
+[The live checks](../../spec/live.test.ts) cover stale-preview rejection,
+preview cancellation, presence, delivery and replay of missed saved moves.
+The stale-save test sends requests sequentially; it is not a stress test of
+many simultaneous writers.
+
+The development-session record reports two browsers nudging Film together
+converging on one position, plus passing live-feature, restart/reconnect and
+named-room browser runs. These are author/agent checks; raw outputs are not
+committed, and `spec/` does not run a browser.
+
+The bounded guarantee is that a save based on an outdated version cannot
+overwrite the current position. A later valid move can change it. This is
+neither undo nor protection against a disruptive participant: anyone with the
+room name or link can currently join as an editor.
+
+At the crit I need to observe whether people understand the refusal and recover
+without losing track of the plan. Repeated interruptions would justify revisiting
+an edit lease or a warning with an override. I have no evidence yet that
+awareness makes conflicts rare.
