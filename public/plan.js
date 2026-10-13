@@ -10,6 +10,9 @@ let selectedId = null;
 let tapMode = false;
 let lastSeq = 0;
 const pending = new Set();
+// objectId -> { cx, cy, by } for someone else's drag in progress; never saved
+const ghosts = new Map();
+let people = null;
 
 const m = (mm) => (mm / 1000).toFixed(1).replace(/\.0$/, "");
 const snap = (v) => Math.round(v / SNAP) * SNAP;
@@ -79,17 +82,40 @@ function render() {
     svg.append(g);
   }
 
+  for (const [id, p] of ghosts) {
+    const o = objects.get(id);
+    if (!o) continue;
+    const g = document.createElementNS(SVG, "g");
+    g.setAttribute("class", "ghost");
+    const r = document.createElementNS(SVG, "rect");
+    Object.entries({ x: p.cx - o.w / 2, y: p.cy - o.d / 2, width: o.w, height: o.d }).forEach(([k, v]) => r.setAttribute(k, v));
+    const t = document.createElementNS(SVG, "text");
+    t.setAttribute("x", p.cx);
+    t.setAttribute("y", p.cy);
+    t.setAttribute("text-anchor", "middle");
+    t.setAttribute("dominant-baseline", "middle");
+    t.textContent = p.by.name;
+    g.append(r, t);
+    svg.append(g);
+  }
+
+  // Rebuilding the list would drop keyboard focus on every remote update; put it back.
+  const focusedId = $("objects").contains(document.activeElement) ? document.activeElement.dataset.id : null;
   $("objects").replaceChildren(...[...objects.values()].filter((o) => o.kind === "activity").map((o) => {
     const li = document.createElement("li");
     const b = document.createElement("button");
     b.type = "button";
     b.dataset.id = o.id;
     b.setAttribute("aria-pressed", String(o.id === selectedId));
-    b.textContent = `${o.label}${problemIds.has(o.id) ? " — has a problem" : ""}`;
+    const notes = [problemIds.has(o.id) && "has a problem", ghosts.has(o.id) && `${ghosts.get(o.id).by.name} is moving it`].filter(Boolean);
+    b.textContent = [o.label, ...notes].join(" — ");
     b.addEventListener("click", () => select(o.id));
     li.append(b);
     return li;
   }));
+  if (focusedId) $("objects").querySelector(`[data-id="${focusedId}"]`)?.focus({ preventScroll: true });
+
+  renderPeople();
 
   $("issues").replaceChildren(...problems.map((p) => {
     const li = document.createElement("li");
@@ -107,6 +133,16 @@ function render() {
     if (document.activeElement !== x) x.value = m(edges(sel).l);
     if (document.activeElement !== y) y.value = m(edges(sel).t);
   }
+}
+
+function renderPeople() {
+  const el = $("people");
+  if (!people) {
+    el.textContent = "";
+    return;
+  }
+  const others = people.filter((p) => p.id !== me.id).map((p) => p.name);
+  el.textContent = others.length ? `Also here now: ${others.join(", ")}.` : "Nobody else has this plan open right now.";
 }
 
 function line(x1, y1, x2, y2) {
@@ -166,6 +202,42 @@ function toPlan(evt) {
   return pt.matrixTransform($("svg").getScreenCTM().inverse());
 }
 
+// While dragging, tell others where it is now (at most every 80 ms, plus the last spot).
+const PREVIEW_EVERY_MS = 80;
+let previewTimer = null;
+let previewQueued = null;
+let previewSentAt = 0;
+
+function postPreview(id, body) {
+  fetch(`/api/events/${eventId}/objects/${id}/preview`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  }).catch(() => {});
+}
+
+function sendPreview(id, cx, cy, baseVersion) {
+  previewQueued = { id, cx, cy, baseVersion };
+  if (previewTimer) return;
+  const wait = Math.max(0, PREVIEW_EVERY_MS - (Date.now() - previewSentAt));
+  previewTimer = setTimeout(() => {
+    previewTimer = null;
+    if (!previewQueued) return;
+    const { id: qid, ...body } = previewQueued;
+    previewQueued = null;
+    previewSentAt = Date.now();
+    postPreview(qid, body);
+  }, wait);
+}
+
+function endPreview(id, cancel) {
+  clearTimeout(previewTimer);
+  previewTimer = null;
+  previewQueued = null;
+  // A committed move replaces the ghost for everyone when it's broadcast; only an abandoned drag needs withdrawing.
+  if (cancel) postPreview(id, { cancel: true });
+}
+
 let drag = null;
 $("svg").addEventListener("pointerdown", (evt) => {
   const g = evt.target.closest(".activity");
@@ -188,23 +260,39 @@ $("svg").addEventListener("pointermove", (evt) => {
   if (!drag) return;
   const p = toPlan(evt);
   const o = objects.get(drag.id);
+  const cx = snap(p.x - drag.dx), cy = snap(p.y - drag.dy);
+  if (cx === o.cx && cy === o.cy) return;
   drag.moved = true;
-  objects.set(drag.id, { ...o, cx: snap(p.x - drag.dx), cy: snap(p.y - drag.dy) });
+  objects.set(drag.id, { ...o, cx, cy });
+  sendPreview(drag.id, cx, cy, o.version);
   render();
 });
-$("svg").addEventListener("pointerup", () => {
+function endDrag() {
   if (!drag) return;
   const { id, start, moved } = drag;
   drag = null;
   const o = objects.get(id);
-  if (!moved || (o.cx === start.cx && o.cy === start.cy)) return render();
+  if (!moved || (o.cx === start.cx && o.cy === start.cy)) {
+    if (moved) endPreview(id, true);
+    return render();
+  }
+  endPreview(id, false);
   objects.set(id, { ...o, ...start });
   move(id, o.cx, o.cy);
+}
+$("svg").addEventListener("pointerup", endDrag);
+$("svg").addEventListener("pointercancel", () => {
+  if (!drag) return;
+  objects.set(drag.id, { ...objects.get(drag.id), ...drag.start });
+  if (drag.moved) endPreview(drag.id, true);
+  drag = null;
+  render();
 });
 
 document.addEventListener("keydown", (evt) => {
   if (evt.key === "Escape" && drag) {
     objects.set(drag.id, { ...objects.get(drag.id), ...drag.start });
+    if (drag.moved) endPreview(drag.id, true);
     drag = null;
     return render();
   }
@@ -246,27 +334,64 @@ $("copy").addEventListener("click", async () => {
   }
 });
 
+// EventSource retries a dropped connection itself, but gives up for good if a
+// retry gets a non-200 (e.g. Fly's proxy while the machine restarts). Then we
+// open a fresh one, resuming after the last saved change we applied.
+let es = null;
+let retryDelay = 1000;
+
+function setStatus(state, text) {
+  $("status").dataset.state = state;
+  $("status").textContent = text;
+}
+
 function connect() {
-  const es = new EventSource(`/api/events/${eventId}/stream?after=${lastSeq}`);
+  es = new EventSource(`/api/events/${eventId}/stream?after=${lastSeq}`);
   es.onopen = () => {
-    $("status").dataset.state = "live";
-    $("status").textContent = "Live";
+    retryDelay = 1000;
+    setStatus("live", "Live");
   };
   es.onerror = () => {
-    $("status").dataset.state = "offline";
-    $("status").textContent = "Reconnecting — plan may be out of date";
+    setStatus("offline", "Reconnecting — plan may be out of date");
+    // Whatever others were dragging may have ended while we couldn't hear it.
+    if (ghosts.size || people) {
+      ghosts.clear();
+      people = null;
+      render();
+    }
+    if (es.readyState === EventSource.CLOSED) {
+      es = null;
+      setTimeout(connect, retryDelay);
+      retryDelay = Math.min(retryDelay * 2, 15_000);
+    }
   };
   es.onmessage = (msg) => {
     lastSeq = Number(msg.lastEventId) || lastSeq;
     const data = JSON.parse(msg.data);
     if (data.type !== "object.moved") return;
+    ghosts.delete(data.object.id);
     const current = objects.get(data.object.id);
-    if (current && current.version >= data.object.version) return;
+    if (current && current.version >= data.object.version) return render();
     if (drag && drag.id === data.object.id) drag = null;
     objects.set(data.object.id, { ...current, ...data.object });
     if (data.object.updated_by !== me.id) announce(`${data.by} moved ${data.object.label}.`);
     render();
   };
+  es.addEventListener("preview", (msg) => {
+    const p = JSON.parse(msg.data);
+    if (p.by.id === me.id) return;
+    if (p.cancel) ghosts.delete(p.objectId);
+    else ghosts.set(p.objectId, p);
+    render();
+  });
+  es.addEventListener("presence", (msg) => {
+    const before = new Set((people ?? []).map((p) => p.id));
+    people = JSON.parse(msg.data).people;
+    const joined = people.filter((p) => p.id !== me.id && !before.has(p.id));
+    if (before.size && joined.length) announce(`${joined.map((p) => p.name).join(", ")} opened the plan.`);
+    for (const [id, g] of ghosts) if (!people.some((p) => p.id === g.by.id)) ghosts.delete(id);
+    render();
+  });
 }
 
 async function start() {

@@ -48,6 +48,11 @@ label { display: grid; gap: .25rem; font-weight: 600; font-size: .95rem; }
 .activity.selected rect { stroke-width: 100; }
 .activity text { fill: var(--fg); font-size: 340px; font-weight: 600; pointer-events: none; }
 .activity.pending rect { opacity: .6; }
+.ghost rect { fill: none; stroke: var(--muted); stroke-width: 40; stroke-dasharray: 120 80; }
+.ghost text { fill: var(--muted); font-size: 300px; font-style: italic; pointer-events: none; }
+.ghost { pointer-events: none; }
+.people { margin: -.5rem 0 1rem; font-weight: 600; }
+.people:empty { display: none; }
 .target-hint { fill: none; stroke: var(--accent); stroke-width: 30; stroke-dasharray: 100 100; }
 
 .side h2 { font-size: 1.05rem; margin: 0 0 .5rem; }
