@@ -182,3 +182,46 @@ describe("two people on one plan", () => {
     b.close();
   });
 });
+
+describe("named rooms", () => {
+  const room = (cookie: string, name: string) => api(cookie, "/api/rooms", { name });
+
+  it("two people who type the same room name end up in the same room and see each other's moves", async () => {
+    const alice = await person("Alice");
+    const ben = await person("Ben");
+    const name = `test ${Math.random().toString(36).slice(2, 8)}`;
+
+    const first = await room(alice, name);
+    expect(first.status).toBe(201);
+    const { id, created } = await first.json();
+    expect(created).toBe(true);
+
+    const second = await room(ben, `  ${name.toUpperCase()} `);
+    expect(second.status).toBe(200);
+    const joined = await second.json();
+    expect(joined).toMatchObject({ id, created: false });
+
+    const b = await open(ben, id);
+    const { objects } = await (await api(alice, `/api/events/${id}`)).json();
+    const robotics = (objects as Obj[]).find((o) => o.label === "Robotics")!;
+    await api(alice, `/api/events/${id}/objects/${robotics.id}/move`, { expectedVersion: robotics.version, cx: 7000, cy: robotics.cy });
+    const frame = await b.next((f) => f.data.type === "object.moved");
+    expect(frame.data.object.cx).toBe(7000);
+    b.close();
+  });
+
+  it("a room joined by name is listed among that person's plans", async () => {
+    const alice = await person("Alice");
+    const ben = await person("Ben");
+    const name = `list ${Math.random().toString(36).slice(2, 8)}`;
+    await room(alice, name);
+    await room(ben, name);
+    const plans = await (await api(ben, "/api/events")).json();
+    expect(plans.map((p: { name: string }) => p.name)).toContain(name);
+  });
+
+  it("a room needs a name", async () => {
+    const alice = await person("Alice");
+    expect((await room(alice, "   ")).status).toBe(400);
+  });
+});
