@@ -55,12 +55,47 @@ function tx<T>(fn: () => T): T {
 }
 
 // --- live updates -----------------------------------------------------------
-const streams = new Map<string, Set<ServerResponse>>();
+// Saved changes carry an `id:` (the history seq) so a reconnecting view can
+// ask for what it missed. Presence and drag previews are named events with no
+// id: they are never stored, and replaying them after a reconnect would be wrong.
+type Stream = { res: ServerResponse; actor: Actor };
+type Preview = { objectId: string; cx: number; cy: number; by: Actor };
+const streams = new Map<string, Set<Stream>>();
+// eventId -> objectId -> where someone is dragging it right now
+const previews = new Map<string, Map<string, Preview>>();
+// `${eventId}:${actorId}` -> time of their last accepted preview
+const lastPreviewAt = new Map<string, number>();
+const PREVIEW_MIN_GAP_MS = 40;
 
 function broadcast(eventId: string, seq: number, data: unknown) {
-  for (const res of streams.get(eventId) ?? []) {
+  for (const { res } of streams.get(eventId) ?? []) {
     res.write(`id: ${seq}\ndata: ${JSON.stringify(data)}\n\n`);
   }
+}
+
+function emit(eventId: string, name: string, data: unknown, skipActorId?: string) {
+  const frame = `event: ${name}\ndata: ${JSON.stringify(data)}\n\n`;
+  for (const { res, actor } of streams.get(eventId) ?? []) {
+    if (actor.id !== skipActorId) res.write(frame);
+  }
+}
+
+function people(eventId: string): Actor[] {
+  const byId = new Map<string, Actor>();
+  for (const { actor } of streams.get(eventId) ?? []) byId.set(actor.id, actor);
+  return [...byId.values()].sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function isPresent(eventId: string, actorId: string) {
+  for (const { actor } of streams.get(eventId) ?? []) if (actor.id === actorId) return true;
+  return false;
+}
+
+function cancelPreview(eventId: string, objectId: string, by: Actor) {
+  const held = previews.get(eventId);
+  if (held?.get(objectId)?.by.id !== by.id) return;
+  held.delete(objectId);
+  emit(eventId, "preview", { objectId, cancel: true, by }, by.id);
 }
 
 function appendHistory(eventId: string, actorId: string, type: string, payload: unknown): number {
@@ -231,14 +266,60 @@ async function handle(req: IncomingMessage, res: ServerResponse) {
     const missed = db.prepare("SELECT seq, payload FROM history WHERE event_id = ? AND seq > ? ORDER BY seq LIMIT 500")
       .all(eventId, after) as { seq: number; payload: string }[];
     for (const m of missed) res.write(`id: ${m.seq}\ndata: ${m.payload}\n\n`);
+    for (const p of previews.get(eventId)?.values() ?? []) {
+      if (p.by.id !== actor.id) res.write(`event: preview\ndata: ${JSON.stringify(p)}\n\n`);
+    }
+    const stream: Stream = { res, actor };
     if (!streams.has(eventId)) streams.set(eventId, new Set());
-    streams.get(eventId)!.add(res);
+    streams.get(eventId)!.add(stream);
+    emit(eventId, "presence", { people: people(eventId) });
+    log({ action: "stream.open", outcome: "ok", actor: actor.id, event: eventId, replayed: missed.length, open: streams.get(eventId)!.size });
     const ping = setInterval(() => res.write(": ping\n\n"), 25_000);
     req.on("close", () => {
       clearInterval(ping);
-      streams.get(eventId)?.delete(res);
+      const set = streams.get(eventId);
+      set?.delete(stream);
+      if (!isPresent(eventId, actor.id)) {
+        // Their last view closed mid-drag: withdraw the ghost from everyone else.
+        for (const p of [...(previews.get(eventId)?.values() ?? [])]) cancelPreview(eventId, p.objectId, actor);
+        lastPreviewAt.delete(`${eventId}:${actor.id}`);
+      }
+      if (set && set.size === 0) {
+        streams.delete(eventId);
+        previews.delete(eventId);
+      } else {
+        emit(eventId, "presence", { people: people(eventId) });
+      }
+      log({ action: "stream.close", outcome: "ok", actor: actor.id, event: eventId, open: set?.size ?? 0 });
     });
     return;
+  }
+
+  const previewMatch = /^\/objects\/([\w-]+)\/preview$/.exec(rest);
+  if (previewMatch && method === "POST") {
+    const objectId = previewMatch[1];
+    const body = await readJson(req);
+    const target = db.prepare("SELECT kind FROM objects WHERE id = ? AND event_id = ?").get(objectId, eventId) as
+      | { kind: string }
+      | undefined;
+    if (!target || target.kind !== "activity") return send(res, 404, { code: "NOT_FOUND", message: "No such activity." });
+    if (body.cancel === true) {
+      cancelPreview(eventId, objectId, actor);
+      return send(res, 202, { ok: true });
+    }
+    if (!intIn(body.cx, -100_000, 100_000) || !intIn(body.cy, -100_000, 100_000)) {
+      return send(res, 400, { code: "VALIDATION_FAILED", message: "Preview needs whole-millimetre cx and cy." });
+    }
+    // A preview is advisory and the next one replaces it, so a flood is thinned rather than refused.
+    const key = `${eventId}:${actor.id}`;
+    const t = Date.now();
+    if (t - (lastPreviewAt.get(key) ?? 0) < PREVIEW_MIN_GAP_MS) return send(res, 202, { ok: true, dropped: true });
+    lastPreviewAt.set(key, t);
+    const frame: Preview = { objectId, cx: body.cx as number, cy: body.cy as number, by: actor };
+    if (!previews.has(eventId)) previews.set(eventId, new Map());
+    previews.get(eventId)!.set(objectId, frame);
+    emit(eventId, "preview", frame, actor.id);
+    return send(res, 202, { ok: true });
   }
 
   const moveMatch = /^\/objects\/([\w-]+)\/move$/.exec(rest);
@@ -265,6 +346,8 @@ async function handle(req: IncomingMessage, res: ServerResponse) {
       return send(res, 409, { code: "STALE_VERSION", message: "Someone else moved this first.", current: result.current });
     }
     log({ action: "object.move", outcome: "ok", actor: actor.id, event: eventId, object: result.object.id, version: result.object.version });
+    // The saved position supersedes any drag preview of this object; clients drop the ghost on object.moved.
+    previews.get(eventId)?.delete(result.object.id);
     broadcast(eventId, result.seq, result.payload);
     return send(res, 200, { object: result.object, seq: result.seq });
   }
