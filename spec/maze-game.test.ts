@@ -1,24 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { advanceGame, COUNTDOWN_MS, DIRECTIONS, entrance, joinGame, MAZE, MOVE_INTERVAL_MS, movePlayer, newGame, RACE_LIMIT_MS, readyPlayer } from "../maze-game.ts";
-import type { Direction, Game } from "../maze-game.ts";
+import { advanceGame, COUNTDOWN_MS, entrance, joinGame, MAZE, MOVE_INTERVAL_MS, movePlayer, newGame, RACE_LIMIT_MS, readyPlayer } from "../maze-game.ts";
+import type { Game } from "../maze-game.ts";
+import { route } from "./maze-path.ts";
 
 const alice = { id: "alice", name: "Alice" }, bob = { id: "bob", name: "Bob" };
 const ready = () => readyPlayer(readyPlayer(joinGame(newGame("test", alice, 0), bob), alice.id, 0), bob.id, 0);
-
-function route(maze: readonly string[], start = entrance(0), end = entrance(1)): Direction[] {
-  const queue = [{ ...start, path: [] as Direction[] }];
-  const seen = new Set([`${start.x},${start.y}`]);
-  for (const point of queue) {
-    if (point.x === end.x && point.y === end.y) return point.path;
-    for (const [dir, [dx, dy]] of Object.entries(DIRECTIONS)) {
-      const x = point.x + dx, y = point.y + dy, key = `${x},${y}`;
-      if (maze[y]?.[x] !== "." || seen.has(key)) continue;
-      seen.add(key);
-      queue.push({ x, y, path: [...point.path, dir as Direction] });
-    }
-  }
-  throw new Error("No path to the goal");
-}
 
 describe("maze rules", () => {
   it("has a rotationally symmetric layout and every passage can reach either entrance", () => {

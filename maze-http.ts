@@ -3,6 +3,7 @@ import type { DatabaseSync } from "node:sqlite";
 import { GameError, isDirection, joinGame, MAZE, MOVE_INTERVAL_MS, movePlayer, readyPlayer } from "./maze-game.ts";
 import type { Game, Identity } from "./maze-game.ts";
 import { MazeStore } from "./maze-store.ts";
+import { MazeLive } from "./maze-live.ts";
 
 export function validateMazeMutation(req: IncomingMessage): void {
   if (!/^application\/json(?:;|$)/i.test(req.headers["content-type"] ?? "")) {
@@ -43,6 +44,7 @@ function send(res: ServerResponse, status: number, value: unknown): void {
 export function createMazeHandler(db: DatabaseSync) {
   const store = new MazeStore(db);
   store.interruptActiveGames();
+  const live = new MazeLive(store);
 
   const snapshot = (game: Game, actor: Identity) => ({ game, me: actor.id, serverNow: Date.now(), moveInterval: MOVE_INTERVAL_MS });
   const requireMember = (game: Game, actor: Identity) => {
@@ -61,15 +63,17 @@ export function createMazeHandler(db: DatabaseSync) {
       if (path === "/api/maze/matches" && req.method === "GET") {
         return send(res, 200, { matches: store.recent(actor.id).map((game) => ({ id: game.id, status: game.status, createdAt: game.createdAt })) });
       }
-      const match = /^\/api\/maze\/matches\/([a-f0-9-]{36})(?:\/(join|ready|move))?$/.exec(path);
+      const match = /^\/api\/maze\/matches\/([a-f0-9-]{36})(?:\/(join|ready|move|stream))?$/.exec(path);
       if (!match) throw new GameError("NOT_FOUND", "Unknown game address.", 404);
       const [, id, action] = match;
       if (req.method === "POST" && action === "join") {
         await body(req);
         const game = store.update(id, (current) => joinGame(current, actor));
+        live.publish(game);
         return send(res, 200, snapshot(game, actor));
       }
       requireMember(store.get(id), actor);
+      if (req.method === "GET" && action === "stream") return live.open(res, actor, store.current(id));
       if (req.method === "GET" && !action) return send(res, 200, snapshot(store.current(id), actor));
       if (req.method !== "POST" || !action) throw new GameError("NOT_FOUND", "Unknown game action.", 404);
       const input = await body(req);
@@ -84,6 +88,7 @@ export function createMazeHandler(db: DatabaseSync) {
         store.current(id);
         game = store.update(id, (current) => movePlayer(current, actor.id, direction, sequence, Date.now()));
       } else throw new GameError("NOT_FOUND", "Unknown game action.", 404);
+      live.publish(game);
       send(res, 200, snapshot(game, actor));
     } catch (error) {
       if (!(error instanceof GameError)) throw error;

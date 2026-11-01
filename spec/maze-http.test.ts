@@ -1,5 +1,7 @@
 import { describe, expect, inject, it } from "vitest";
 import type { Game } from "../maze-game.ts";
+import { entrance, MOVE_INTERVAL_MS } from "../maze-game.ts";
+import { route } from "./maze-path.ts";
 
 const base = inject("baseUrl");
 type View = { game: Game; me: string; serverNow: number };
@@ -24,6 +26,38 @@ async function create(cookie: string): Promise<View> {
   const response = await api(cookie, "matches", {});
   expect(response.status).toBe(201);
   return response.json() as Promise<View>;
+}
+
+async function stream(cookie: string, id: string) {
+  const controller = new AbortController();
+  const response = await fetch(new URL(`/api/maze/matches/${id}/stream`, base), { headers: { cookie }, signal: controller.signal });
+  expect(response.status).toBe(200);
+  const reader = response.body!.getReader(), decoder = new TextDecoder();
+  let buffer = "";
+  return {
+    close: () => controller.abort(),
+    async next(want: (view: View & { online: string[] }) => boolean, timeout = 1_000) {
+      const timer = setTimeout(() => controller.abort(), timeout);
+      try {
+        for (;;) {
+          const end = buffer.indexOf("\n\n");
+          if (end >= 0) {
+            const block = buffer.slice(0, end);
+            buffer = buffer.slice(end + 2);
+            const data = block.split("\n").find((line) => line.startsWith("data: "));
+            if (data) {
+              const view = JSON.parse(data.slice(6)) as View & { online: string[] };
+              if (want(view)) return view;
+            }
+          } else {
+            const part = await reader.read();
+            if (part.done) throw new Error("Stream ended before the expected state");
+            buffer += decoder.decode(part.value, { stream: true });
+          }
+        }
+      } finally { clearTimeout(timer); }
+    },
+  };
 }
 
 describe("maze HTTP boundary", () => {
@@ -76,4 +110,43 @@ describe("maze HTTP boundary", () => {
     expect(repeated.game.startsAt).toBe(started.game.startsAt);
     expect((await api(alice, `${path}/move`, { direction: "right", sequence: 1 })).status).toBe(409);
   });
+
+  it("streams presence, countdown, movement and one winning result; reconnect restores the final state", async () => {
+    const alice = await person("Alice"), bob = await person("Bob");
+    const { game } = await create(alice), path = `matches/${game.id}`;
+    await api(bob, `${path}/join`, {});
+    const a = await stream(alice, game.id), b = await stream(bob, game.id);
+    try {
+      await a.next((view) => view.online.length === 2);
+      await api(alice, `${path}/ready`, {});
+      await b.next((view) => view.game.players[0].ready);
+      await api(bob, `${path}/ready`, {});
+      await b.next((view) => view.game.status === "countdown");
+      await b.next((view) => view.game.status === "racing", 4_000);
+      const forward = route(game.maze), backward = route(game.maze, entrance(1), entrance(0));
+      for (let i = 0; i < forward.length; i++) {
+        const started = Date.now();
+        const responses = await Promise.all([
+          api(alice, `${path}/move`, { direction: forward[i], sequence: i + 1 }),
+          api(bob, `${path}/move`, { direction: backward[i], sequence: i + 1 }),
+        ]);
+        if (i === forward.length - 1) expect(responses.map((res) => res.status).sort()).toEqual([200, 409]);
+        else {
+          expect(responses.map((res) => res.status)).toEqual([200, 200]);
+          await b.next((view) => view.game.players.every((player) => player.sequence === i + 1));
+          expect(Date.now() - started).toBeLessThan(1_000);
+          await new Promise((resolve) => setTimeout(resolve, MOVE_INTERVAL_MS + 10));
+        }
+      }
+      const result = await b.next((view) => view.game.status === "finished");
+      expect(result.game.winnerId).not.toBeNull();
+      a.close();
+      await b.next((view) => view.online.length === 1);
+      const reconnected = await stream(alice, game.id);
+      try {
+        const restored = await reconnected.next((view) => view.game.status === "finished");
+        expect(restored.game).toEqual(result.game);
+      } finally { reconnected.close(); }
+    } finally { a.close(); b.close(); }
+  }, 20_000);
 });
