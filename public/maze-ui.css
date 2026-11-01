@@ -252,3 +252,17 @@ body[data-phase="countdown"] .topbar .brand, body[data-phase="racing"] .topbar .
 body[data-phase="countdown"] .topbar nav, body[data-phase="racing"] .topbar nav,
 body[data-phase="countdown"] .topbar .chip-live, body[data-phase="racing"] .topbar .chip-live { display: none; }
 body[data-phase="countdown"] .hud-pad, body[data-phase="racing"] .hud-pad { right: max(18px, env(safe-area-inset-right)); bottom: max(18px, env(safe-area-inset-bottom)); }
+
+.btn-danger { background: var(--warn); color: #2a0610; border: 0; }
+.exit-dialog { border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--bg-2); color: var(--text); max-width: min(420px, 90vw); padding: 20px; }
+.exit-dialog::backdrop { background: rgba(0, 0, 0, .65); }
+.dialog-actions { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
+.result-card { margin: 12px 0 0; padding: 10px 12px; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--glass); font-size: 14px; }
+/* In first and third person the forward button is the one you hold, so make it big. */
+body[data-view="first"] .dpad, body[data-view="third"] .dpad { grid-template-rows: 84px 56px 56px; }
+body[data-view="first"] .dpad [data-direction="up"], body[data-view="third"] .dpad [data-direction="up"] { background: rgba(61, 255, 168, .22); border-color: var(--a); }
+@media (max-width: 700px) {
+  body[data-phase="countdown"] .topbar, body[data-phase="racing"] .topbar { left: 10px; right: auto; top: 10px; }
+  body[data-phase="countdown"] .hud-title, body[data-phase="racing"] .hud-title { display: none; }
+  body[data-phase="countdown"] .hud-top, body[data-phase="racing"] .hud-top { top: 62px; }
+}

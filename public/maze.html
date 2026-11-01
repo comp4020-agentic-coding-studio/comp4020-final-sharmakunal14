@@ -71,6 +71,13 @@
         </div>
 
         <button id="exit-game" type="button" class="exit-btn" title="Leave the game">Exit</button>
+        <dialog id="exit-dialog" class="exit-dialog" aria-labelledby="exit-title">
+          <form method="dialog">
+            <h2 id="exit-title" class="display-sm">Leave this race?</h2>
+            <p class="muted">The race is cancelled for both of you. Nobody wins and no time is recorded.</p>
+            <div class="dialog-actions"><button class="btn btn-ghost" value="stay" autofocus>Keep racing</button><button class="btn btn-danger" value="leave">Leave and cancel</button></div>
+          </form>
+        </dialog>
 
         <div id="countdown" class="countdown" hidden><span>GET READY</span><strong id="countdown-number">3</strong><span>Reach the opposite portal</span></div>
 
@@ -119,7 +126,12 @@
           <p id="your-goal" class="goal"></p>
           <p id="position" class="fine center"></p>
           <button id="another-race" class="btn btn-primary" type="button" hidden><span>Create another race</span><svg aria-hidden="true"><use href="#i-arrow"/></svg></button>
+          <p id="result-card" class="result-card" hidden></p>
+          <button id="rematch" class="btn btn-primary" type="button" hidden><span>Rematch</span><svg aria-hidden="true"><use href="#i-arrow"/></svg></button>
+          <p id="rematch-note" class="fine center" role="status"></p>
           <a id="watch-replay" class="btn btn-ghost" href="#" hidden><span>Watch the replay</span><svg aria-hidden="true"><use href="#i-play"/></svg></a>
+          <button id="copy-replay" type="button" class="btn btn-ghost" hidden><span>Copy replay link</span><svg aria-hidden="true"><use href="#i-copy"/></svg></button>
+          <p id="replay-status" role="status" class="fine center"></p>
           <p class="fine race-note">A lost connection does not pause the clock. Reopen this link in the same browser to return.</p>
         </section>
 

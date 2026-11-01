@@ -9,7 +9,7 @@ const text = (id, value) => { if ($(id).textContent !== value) $(id).textContent
 export function mountRace(initial, mazeView, showError, audio) {
   let game = initial.game, connected = false, online = [], busy = false;
   let serverAt = initial.serverNow, observedAt = performance.now();
-  let countdownSecond = null;
+  let countdownSecond = null, rematching = false, resultShown = false;
   const me = initial.me, path = `/api/maze/matches/${game.id}`;
   const confirmed = () => game.players.find((player) => player.id === me);
   // The player as drawn: the server position plus unconfirmed predicted steps.
@@ -81,7 +81,10 @@ export function mountRace(initial, mazeView, showError, audio) {
       description = "Race complete. The result is saved, so you can return to this link later.";
     } else {
       title = game.interruption === "time_limit" ? "Time’s up." : "Race interrupted.";
-      description = game.interruption === "time_limit" ? "This race reached the ten-minute limit. No winner was awarded." : "The server restarted during the race. Your last positions are saved; no winner was awarded.";
+      const left = game.interruption === "forfeit" ? game.players.find((p) => p.id === game.forfeitedBy) : null;
+      if (left) title = left.id === me ? "You left the race." : `${left.name} left the race.`;
+      description = left ? "The race was cancelled. Nobody wins and no time is recorded."
+        : game.interruption === "time_limit" ? "This race reached the ten-minute limit. No winner was awarded." : "The server restarted during the race. Your last positions are saved; no winner was awarded.";
     }
     text("race-title", title);
     text("race-description", description);
@@ -101,6 +104,11 @@ export function mountRace(initial, mazeView, showError, audio) {
     $("movement").hidden = game.status !== "racing";
     for (const button of document.querySelectorAll("[data-direction]")) button.disabled = !canMove();
     $("another-race").hidden = !done;
+    $("rematch").hidden = !done || game.players.length < 2;
+    $("rematch").disabled = rematching;
+    text("rematch-note", done && game.rematchId ? "Your rival asked for a rematch. Press Rematch to join." : "");
+    $("copy-replay").hidden = game.status !== "finished";
+    if (game.status === "finished") showResult();
     $("watch-replay").hidden = !done;
     $("watch-replay").href = `/race/${game.id}/replay`;
     $("race-clock").hidden = game.startsAt === null || game.status === "interrupted";
@@ -114,6 +122,24 @@ export function mountRace(initial, mazeView, showError, audio) {
     text("switch-hint", onSwitch ? "You’re on a switch. Press E or Space to flip it — it changes gates for both of you." : "");
     mazeView.update(game.maze, game.players.map((p) => p.id === me ? { ...view.player, mine: true } : { ...p, mine: false }), view.board);
     renderClock();
+  }
+
+  // Summary of a finished race, from the saved step log rather than client state.
+  async function showResult() {
+    if (resultShown) return;
+    resultShown = true;
+    try {
+      const { steps } = await request(`${path}/replay`);
+      const winner = game.players.find((p) => p.id === game.winnerId);
+      const lines = game.players.map((p) => {
+        const mine = steps.filter((s) => s.slot === p.slot);
+        return `${p.id === me ? "You" : p.name}: ${mine.filter((s) => s.kind === "step").length} steps, ${mine.filter((s) => s.kind === "flip").length} flips`;
+      });
+      const ms = game.finishedAt - game.startsAt;
+      const time = `${Math.floor(ms / 60_000).toString().padStart(2, "0")}:${((ms % 60_000) / 1_000).toFixed(1).padStart(4, "0")}`;
+      text("result-card", `${winner.id === me ? "You" : winner.name} won in ${time} · ${lines.join(" · ")}`);
+      $("result-card").hidden = false;
+    } catch { resultShown = false; }
   }
 
   function apply(view, audible = connected) {
@@ -157,7 +183,7 @@ export function mountRace(initial, mazeView, showError, audio) {
 
   // Predict locally: refuse what the saved layout already refuses, so a held
   // key against a wall never queues phantom steps.
-  const stopControls = setupControls(canMove, (input) => {
+  const act = (input) => {
     const { player, board } = predicted();
     // In 1st/3rd person, forward walks the way the avatar faces and the other
     // directions only turn it. Facing is presentation; the server owns position.
@@ -181,7 +207,24 @@ export function mountRace(initial, mazeView, showError, audio) {
       if (player.x + sx === goal.x && player.y + sy === goal.y) audio.play("portal");
     }
     render();
-  }, initial.moveInterval ?? 140);
+  };
+  const stopControls = setupControls(canMove, act, initial.moveInterval ?? 140);
+
+  // Swipe on the view to turn in 1st/3rd person; the map keeps drag-to-orbit.
+  const stage = document.querySelector(".stage");
+  let swipe = null;
+  stage.addEventListener("pointerdown", (event) => {
+    swipe = event.pointerType === "touch" && !event.target.closest("button, dialog") ? { x: event.clientX, y: event.clientY } : null;
+  });
+  stage.addEventListener("pointerup", (event) => {
+    if (!swipe) return;
+    const dx = event.clientX - swipe.x, dy = event.clientY - swipe.y;
+    swipe = null;
+    if (!canMove() || mazeView.view === "overview" || !mazeView.turn) return;
+    if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.5) act(dx > 0 ? "right" : "left");
+    else if (dy > 60 && dy > Math.abs(dx) * 1.5) act("down");
+  });
+  stage.addEventListener("pointercancel", () => { swipe = null; });
 
   // Interface buttons share one click sound; movement and flip have their own.
   const onUiClick = (event) => {
@@ -190,9 +233,31 @@ export function mountRace(initial, mazeView, showError, audio) {
   };
   document.querySelector(".panel-col")?.addEventListener("click", onUiClick);
 
-  $("exit-game").addEventListener("click", () => {
+  const leave = () => {
     if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
     location.assign("/");
+  };
+  // Leaving a started race cancels it for both players, so ask first.
+  $("exit-game").addEventListener("click", () => {
+    if (game.status === "countdown" || game.status === "racing") { stopControls(); sender.clear(); $("exit-dialog").showModal(); }
+    else leave();
+  });
+  $("exit-dialog").addEventListener("close", async () => {
+    if ($("exit-dialog").returnValue !== "leave") return;
+    try { await request(`${path}/forfeit`, {}); } catch { /* already over: leaving is still fine */ }
+    leave();
+  });
+  $("rematch").addEventListener("click", async () => {
+    rematching = true;
+    render();
+    try { location.assign(`/race/${(await request(`${path}/rematch`, {})).game.id}`); }
+    catch (error) { rematching = false; showError(error); render(); }
+  });
+  $("copy-replay").addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(`${location.origin}/race/${game.id}/replay`);
+      text("replay-status", "Replay link copied.");
+    } catch { text("replay-status", `Replay link: ${location.origin}/race/${game.id}/replay`); }
   });
   $("ready").addEventListener("click", async () => {
     // A click is the gesture browsers need to allow full screen.
