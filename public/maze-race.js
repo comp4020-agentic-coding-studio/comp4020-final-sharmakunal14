@@ -25,6 +25,7 @@ export function mountRace(initial, mazeView, showError) {
   }
 
   function render() {
+    document.body.dataset.phase = game.status;
     const player = self(), opponent = game.players.find((p) => p.id !== me);
     const goal = player.slot === 0 ? "B" : "A";
     const done = game.status === "finished" || game.status === "interrupted";

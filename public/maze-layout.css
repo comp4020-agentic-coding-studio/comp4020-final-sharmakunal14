@@ -670,9 +670,6 @@ footer a {
   .countdown>span {
     font-size:9px;
   }
-  body[data-in-race="true"] .intro {
-    display:none;
-  }
   body[data-in-race="true"] .arena-layout {
     padding-top:18px;
   }
@@ -717,5 +714,75 @@ footer a {
 @media(prefers-reduced-motion:reduce) {
   * {
     scroll-behavior:auto!important;
+  }
+}
+
+body[data-in-race="true"] .intro {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+body[data-in-race="true"] .arena-layout {
+  padding-top: 24px;
+}
+
+body[data-in-race="true"] .small-note {
+  display: none;
+}
+
+@media(max-width:700px) {
+  body[data-in-race="true"] .masthead {
+    height: 58px;
+  }
+
+  body[data-in-race="true"] .arena-layout {
+    padding-top: 12px;
+    gap: 12px;
+  }
+
+  body[data-in-race="true"] .arena-heading {
+    padding: 12px 14px 8px;
+  }
+
+  body[data-in-race="true"] .player-strip {
+    padding: 0 14px 10px;
+  }
+
+  body[data-phase="racing"] .arena-foot,
+  body[data-phase="racing"] .roster,
+  body[data-phase="racing"] .race-top,
+  body[data-phase="racing"] #race-panel > .fine-print {
+    display: none;
+  }
+
+  body[data-phase="racing"] #race-panel {
+    padding: 14px 18px;
+  }
+
+  body[data-phase="racing"] #race-title {
+    font-size: 20px;
+    margin-bottom: 6px;
+  }
+
+  body[data-phase="racing"] #race-description {
+    font-size: 11px;
+    line-height: 1.4;
+    margin-bottom: 8px;
+  }
+
+  body[data-phase="racing"] .race-clock {
+    padding-top: 0;
+  }
+
+  body[data-phase="racing"] #movement .goal {
+    margin: 6px 0;
+  }
+
+  body[data-phase="racing"] #position {
+    margin-top: 6px;
   }
 }

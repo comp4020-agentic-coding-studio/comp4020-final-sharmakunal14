@@ -22,6 +22,10 @@ the earlier Shared Space routes and data working during the transition.
   breaks close finishes; do not claim this eliminates network-latency bias.
 - Every passage in the fixed, rotationally symmetric maze must reach both
   entrances. Test this property rather than judging a rendered picture.
+- At 390×844, keep the full maze and touch controls visible together during
+  a race. Lobby-sized player cards pushed controls below the board in the
+  first browser check; use a compact active-race layout. Keep the page heading
+  available to assistive technology even when the visual introduction hides.
 - A stream reconnect receives the complete saved state. Show disconnected
   status and disable local controls until a fresh snapshot arrives. During a
   browser disconnect the race clock continues; a server restart interrupts
