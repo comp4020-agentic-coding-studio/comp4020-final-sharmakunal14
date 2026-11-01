@@ -1,6 +1,6 @@
 import { ApiError, request } from "./maze-api.js";
 import { createSender, setupControls } from "./maze-controls.js";
-import { DIRECTIONS, passable, switchAt } from "./maze-rules.js";
+import { DIRECTIONS, goalOf, passable, switchAt } from "./maze-rules.js";
 import { raceCues } from "./maze-audio-events.js";
 
 const $ = (id) => document.getElementById(id);
@@ -168,9 +168,21 @@ export function mountRace(initial, mazeView, showError, audio) {
     }
     if (sender.unconfirmed.length >= 8) return false;
     sender.push(action);
-    if (action !== "flip") audio.play("step");
+    if (action !== "flip") {
+      audio.play("step");
+      // Stepping onto the opposite portal gets its own whoosh before the result.
+      const [sx, sy] = DIRECTIONS[action], goal = goalOf(board, player.slot);
+      if (player.x + sx === goal.x && player.y + sy === goal.y) audio.play("portal");
+    }
     render();
   }, initial.moveInterval ?? 140);
+
+  // Interface buttons share one click sound; movement and flip have their own.
+  const onUiClick = (event) => {
+    const button = event.target.closest?.("button");
+    if (button && !button.disabled && !button.matches("[data-direction]")) audio.play("click");
+  };
+  document.querySelector(".panel-col")?.addEventListener("click", onUiClick);
 
   $("ready").addEventListener("click", async () => {
     busy = true;

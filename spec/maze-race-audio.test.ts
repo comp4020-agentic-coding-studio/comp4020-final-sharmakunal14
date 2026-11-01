@@ -134,3 +134,21 @@ it("does not sound a camera cue on setup, unchanged selection or a repeated key"
   document.dispatchEvent(new dom.window.KeyboardEvent("keydown", { key: "v", repeat: true }));
   expect(cue).toHaveBeenCalledOnce();
 });
+
+it("clicks for the interface buttons the player presses", async () => {
+  mountRace(snapshot(state(1, "waiting")), view, vi.fn(), audio);
+  streams[0]!.emit(state(1, "waiting"));
+  audio.play.mockClear();
+  (document.getElementById("copy-link") as HTMLButtonElement).click();
+  expect(audio.play).toHaveBeenCalledWith("click");
+});
+
+it("plays a rising whoosh when the player steps onto the goal portal", async () => {
+  const near = state();
+  near.players[0] = { ...near.players[0]!, x: 2, y: 3 };
+  mountRace(snapshot(near), view, vi.fn(), audio);
+  streams[0]!.emit(near);
+  audio.play.mockClear();
+  press("right");
+  expect(audio.play.mock.calls.map((c) => c[0])).toEqual(["step", "portal"]);
+});
