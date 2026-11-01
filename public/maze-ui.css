@@ -242,3 +242,13 @@ body[data-in-race="true"] .how, body[data-in-race="true"] #best, body[data-in-ra
 .mute-btn .ico-off, .mute-btn[data-state="off"] .ico-on { display: none; }
 .mute-btn[data-state="off"] .ico-off { display: block; }
 .mute-btn[data-state="off"] { color: var(--warn); border-color: rgba(255, 90, 122, .5); }
+
+/* Countdown and race fill the screen; the sound controls float above the stage. */
+.exit-btn { display: none; position: absolute; z-index: 6; left: 14px; bottom: 56px; min-height: 40px; padding: 0 16px; border-radius: 10px; border: 1px solid rgba(255, 90, 122, .6); background: var(--glass-strong); color: var(--warn); font-weight: 700; }
+body[data-phase="countdown"] .exit-btn, body[data-phase="racing"] .exit-btn { display: block; }
+body[data-phase="countdown"] .stage, body[data-phase="racing"] .stage { position: fixed; inset: 0; z-index: 40; width: 100vw; height: 100dvh; min-height: 0; border-radius: 0; border: 0; }
+body[data-phase="countdown"] .topbar, body[data-phase="racing"] .topbar { position: fixed; top: 14px; right: 170px; left: auto; z-index: 60; padding: 0; gap: 8px; background: none; border: 0; backdrop-filter: none; }
+body[data-phase="countdown"] .topbar .brand, body[data-phase="racing"] .topbar .brand,
+body[data-phase="countdown"] .topbar nav, body[data-phase="racing"] .topbar nav,
+body[data-phase="countdown"] .topbar .chip-live, body[data-phase="racing"] .topbar .chip-live { display: none; }
+body[data-phase="countdown"] .hud-pad, body[data-phase="racing"] .hud-pad { right: max(18px, env(safe-area-inset-right)); bottom: max(18px, env(safe-area-inset-bottom)); }

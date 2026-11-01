@@ -49,9 +49,16 @@ export function mountRace(initial, mazeView, showError, audio) {
   }
 
   function render() {
+    const done = game.status === "finished" || game.status === "interrupted";
     if (document.body.dataset.phase !== game.status && game.status === "countdown" && matchMedia("(max-width: 700px)").matches) {
       document.querySelector(".stage")?.scrollIntoView({ block: "start" });
     }
+    if (document.body.dataset.phase !== game.status && game.status === "countdown") {
+      // The race opens in the player's own point of view, full screen.
+      document.querySelector('[data-view="first"]')?.click();
+      if (!document.fullscreenElement) document.documentElement.requestFullscreen?.().catch(() => {});
+    }
+    if (done && document.fullscreenElement) document.exitFullscreen().catch(() => {});
     document.body.dataset.phase = game.status;
     // The tune follows the game: waiting room, countdown, race. A result stops it for the jingle.
     audio.setScene(!connected ? "off" : { waiting: "waiting", countdown: "countdown", racing: "race" }[game.status] ?? "off");
@@ -59,7 +66,6 @@ export function mountRace(initial, mazeView, showError, audio) {
     const goal = player.slot === 0 ? "B" : "A";
     const view = predicted();
     const onSwitch = game.status === "racing" && switchAt(view.board, view.player.x, view.player.y) >= 0;
-    const done = game.status === "finished" || game.status === "interrupted";
     let title, description;
     if (game.status === "waiting") {
       title = !opponent ? "Waiting for a rival." : player.ready ? "You’re ready." : "Ready when you are.";
@@ -184,7 +190,13 @@ export function mountRace(initial, mazeView, showError, audio) {
   };
   document.querySelector(".panel-col")?.addEventListener("click", onUiClick);
 
+  $("exit-game").addEventListener("click", () => {
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    location.assign("/");
+  });
   $("ready").addEventListener("click", async () => {
+    // A click is the gesture browsers need to allow full screen.
+    document.documentElement.requestFullscreen?.().catch(() => {});
     busy = true;
     $("error").hidden = true;
     render();
