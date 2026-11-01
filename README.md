@@ -18,9 +18,16 @@ Open `/`, choose a nickname and create a race. Send the invitation link to a
 friend using a separate browser or browser profile. Both players press
 **I'm ready**; a shared three-second countdown starts the race.
 
-Use **WASD**, **arrow keys** or the directional buttons. A starts at the top
-left and must reach B at the bottom right; B takes the reverse journey. The
-whole maze is visible, and players can pass through one another.
+The maze is a 3D desert labyrinth. Press **V**, or use the Map / 3rd / 1st
+buttons, to switch between an orbitable map, a third-person chase camera and
+first person.
+- In map view, **WASD**, the **arrow keys** or the on-screen pad move you in
+  screen directions.
+- In third and first person, **W** walks forward, while **A**/**D** turn and
+  **S** turns around.
+
+A starts at one portal and must reach the other; B takes the reverse journey.
+Players can pass through one another.
 
 Standing on a switch (◆) lets you press **E**, **Space** or **Flip switch**.
 That opens the gates of its colour that are closed and closes those that are
@@ -70,10 +77,11 @@ Open `http://localhost:8080`. `PORT` overrides the port; `DATA_DIR` selects the
 database directory (normally `./data` locally and `/data` on Fly.io). To run
 without file watching, use `pnpm start`. Watch-mode restarts interrupt races.
 
-The stack retains Node's HTTP server, SQLite and browser JavaScript. Movement
+The stack retains Node's HTTP server, SQLite and browser JavaScript, plus
+Three.js r170 vendored as a single file for the 3D view. Movement
 commands use HTTP; [server-sent events](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events)
-deliver authoritative snapshots. The raised maze view uses Canvas 2D with a
-fixed projection, not a WebGL engine. No runtime dependencies were added.
+deliver authoritative snapshots. Browsers without WebGL fall back to a 2D
+projected view. No server runtime dependencies were added.
 Fly's existing single-machine and persistent-volume configuration is retained.
 
 ## Development records
