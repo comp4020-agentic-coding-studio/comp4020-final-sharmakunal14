@@ -1,5 +1,5 @@
 // @ts-check
-/** @typedef {'step'|'turn'|'bump'|'flip'|'ready'|'tick'|'go'|'win'|'lose'|'end'|'camera'|'click'|'join'|'portal'} Cue */
+/** @typedef {'step'|'turn'|'bump'|'flip'|'ready'|'tick'|'go'|'win'|'lose'|'end'|'camera'|'click'|'join'|'portal'|'chat'} Cue */
 /** @typedef {'lobby'|'waiting'|'countdown'|'race'|'off'} Scene */
 /**
  * Original arcade sounds in the style of classic platformers. Each effect is a
@@ -29,6 +29,8 @@ const EFFECTS = {
   click: [[84, 0, .04, { level: .6 }]],
   join: [[74, 0, .08], [81, .09, .16]],
   portal: [[60, 0, .1, { slideTo: 96, level: .8 }]],
+  // A soft two-note pop for a message from your rival.
+  chat: [[88, 0, .05, { level: .7 }], [93, .05, .08, { level: .7 }]],
 };
 
 /** @typedef {{ lead: number[], bass: number[], drums?: string, bpm: number, step: number, leadType?: OscillatorType, hold?: number }} Tune */
