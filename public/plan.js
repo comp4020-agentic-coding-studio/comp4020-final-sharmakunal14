@@ -397,7 +397,7 @@ function connect() {
 async function start() {
   const res = await fetch(`/api/events/${eventId}`);
   if (res.status === 401) {
-    location.href = `/?next=${encodeURIComponent(location.pathname)}`;
+    location.href = `/shared-space/?next=${encodeURIComponent(location.pathname)}`;
     return;
   }
   if (!res.ok) {
