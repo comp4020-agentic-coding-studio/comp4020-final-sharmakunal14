@@ -3,8 +3,10 @@
 Two players enter the same maze from opposite corners. Each races to the
 other player's entrance; the first valid finish accepted by the server wins.
 
-This is the **first playable implementation**, not the final assessed argument
-about what makes the project good. The earlier Shared Space application remains
+Each day brings one new maze. Each side has a switch that opens one gate and
+closes another for both players, so your shortcut may also be theirs. Finished
+races are saved with today's best times and can be replayed. This README is
+still factual notes, not yet the final argument about what makes the project good. The earlier Shared Space application remains
 available at `/shared-space/`; its original README is preserved in
 [the earlier project notes](docs/shared-space-readme.md). `PROCESS.md` and the
 crit reflections still describe that earlier work and need an author-written
@@ -18,9 +20,14 @@ friend using a separate browser or browser profile. Both players press
 
 Use **WASD**, **arrow keys** or the directional buttons. A starts at the top
 left and must reach B at the bottom right; B takes the reverse journey. The
-whole maze is visible. Players can pass through one another. A result ends
-the race for both players. Choose **Create another race** to get a new
-invitation for the same layout.
+whole maze is visible, and players can pass through one another.
+
+Standing on a switch (◆) lets you press **E**, **Space** or **Flip switch**.
+That opens the gates of its colour that are closed and closes those that are
+open, for both players.
+
+A result ends the race for both players. **Watch the replay** shows both
+routes, dead ends included. Today's best times appear on the home page.
 
 Identity belongs to this browser's cookie, not to a verified account. Reusing
 a nickname in a different browser creates a different player. Clearing the
@@ -30,9 +37,13 @@ match. Use fictional nicknames, not sensitive information.
 
 ## Rules and limits
 
-- One fixed, rotationally symmetric 13×13 maze; all passages reach both goals.
-- The server validates each step, the countdown and the common speed limit.
-  Commands carry a sequence number so a retried move is not applied twice.
+- One generated, rotationally symmetric 15×15 maze per Sydney day. In every
+  switch state, every passage reaches both goals; this is checked over 200 seeds.
+- The server validates each step, flip and gate, the countdown and a shared
+  speed allowance (140 ms per step on average, with up to four banked steps).
+  Commands carry sequence numbers, so a retried batch is not applied twice.
+- Your own steps are drawn straight away and sent in batches. A slow
+  connection delays confirmation but does not slow your average pace.
 - The first accepted finishing move wins. Network delay can influence close
   finishes; this is not a latency-compensated competitive game.
 - A browser disconnect does not pause the clock. Reopening the invitation in
@@ -42,9 +53,8 @@ match. Use fictional nicknames, not sensitive information.
   Completed results and waiting lobbies survive. Races end without a winner
   after ten minutes if neither player finishes.
 
-Switches, procedural layouts, rankings and animated replays are outside this
-milestone. Whether the race is engaging and feels fair still needs independent
-playtesting. Keyboard and button controls do not establish full accessibility;
+Accounts, power-ups and map reveals are deliberately left out. Whether the
+switches create real decisions still needs independent playtesting. Keyboard and button controls do not establish full accessibility;
 the spatial maze remains a visual interaction.
 
 ## Run locally
