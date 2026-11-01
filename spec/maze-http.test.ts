@@ -276,4 +276,36 @@ describe("milestone 2: batches, today's maze, results and replays", () => {
     const alice = await person("Alice"), { game } = await create(alice);
     expect((await api(alice, `matches/${game.id}/rematch`, {})).status).toBe(409);
   });
+
+  it("stores avatar looks, refuses invalid ones, and locks them once the countdown starts", async () => {
+    const alice = await person("Alice"), bob = await person("Bob");
+    const look = { shape: "robot", hue: 280, accessory: "crown", face: "cyclops", finish: "neon" };
+    expect((await api(alice, "matches", { look: { shape: "dragon" } })).status).toBe(400);
+    expect((await api(alice, "matches", { look: { hue: "red" } })).status).toBe(400);
+    const { game } = await (await api(alice, "matches", { look })).json() as View, path = `matches/${game.id}`;
+    expect(game.players[0]!.look).toEqual(look);
+    expect((await api(bob, `${path}/join`, { look: { accessory: "<script>" } })).status).toBe(400);
+    const joined = await (await api(bob, `${path}/join`, { look: { hue: 200 } })).json() as View;
+    expect(joined.game.players[1]!.look).toMatchObject({ hue: 200, shape: "capsule" });
+    expect((await api(bob, `${path}/look`, { look: { hue: 90, shape: "blob" } })).status).toBe(200);
+    expect((await api(alice, `${path}/look`, { look: { shape: "oval" } })).status).toBe(400);
+    expect((await (await api(alice, path)).json() as View).game.players[1]!.look).toMatchObject({ hue: 90, shape: "blob" });
+    await api(alice, `${path}/ready`, {});
+    await api(bob, `${path}/ready`, {});
+    expect((await api(bob, `${path}/look`, { look: { hue: 10 } })).status).toBe(409);
+  });
+
+  it("lets only the two players chat, rejects bad input and floods, and keeps the lines with the race", async () => {
+    const alice = await person("Alice"), bob = await person("Bob"), eve = await person("Eve");
+    const { game } = await create(alice), path = `matches/${game.id}`;
+    await api(bob, `${path}/join`, {});
+    expect((await api(eve, `${path}/chat`, { text: "hi" })).status).toBe(403);
+    expect((await api(alice, `${path}/chat`, { reaction: "bomb" })).status).toBe(400);
+    expect((await api(alice, `${path}/chat`, { text: "   " })).status).toBe(400);
+    expect((await api(alice, `${path}/chat`, { text: "good luck" })).status).toBe(200);
+    expect((await api(alice, `${path}/chat`, { text: "again" })).status).toBe(429);
+    expect((await api(bob, `${path}/chat`, { reaction: "fire" })).status).toBe(200);
+    const view = await (await api(bob, path)).json() as View;
+    expect(view.game.chat!.map((l) => [l.slot, l.kind, l.text])).toEqual([[0, "text", "good luck"], [1, "reaction", "fire"]]);
+  });
 });

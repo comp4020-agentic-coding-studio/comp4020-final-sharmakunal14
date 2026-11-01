@@ -1,8 +1,10 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { DatabaseSync } from "node:sqlite";
-import { applyActions, BURST, forfeitGame, GameError, isAction, joinGame, MAX_BATCH, MOVE_INTERVAL_MS, readyPlayer, SWITCH_COOLDOWN_MS, todaysLayout } from "./maze-game.ts";
+import { addChat, applyActions, BURST, forfeitGame, GameError, isAction, joinGame, MAX_BATCH, MOVE_INTERVAL_MS, readyPlayer, setLook, SWITCH_COOLDOWN_MS, todaysLayout } from "./maze-game.ts";
 import type { Action } from "./maze-game.ts";
 import type { Game, Identity } from "./maze-game.ts";
+import type { Look } from "./public/maze-look.js";
+import { parseLook } from "./public/maze-look.js";
 import { MazeStore } from "./maze-store.ts";
 import { MazeLive } from "./maze-live.ts";
 
@@ -14,6 +16,14 @@ export function validateMazeMutation(req: IncomingMessage): void {
   if (req.headers["sec-fetch-site"] === "cross-site" || (origin && !["http:", "https:"].some((scheme) => origin === `${scheme}//${req.headers.host}`))) {
     throw new GameError("ORIGIN_DENIED", "Open the game on this site before taking an action.", 403);
   }
+}
+
+// A missing look means "use the default"; a present but invalid one is refused.
+function parseOptionalLook(value: unknown, slot: 0 | 1): Look | undefined {
+  if (value === undefined) return undefined;
+  const look = parseLook(value, slot);
+  if (!look) throw new GameError("INVALID_LOOK", "That avatar is not one of the available looks.", 400);
+  return look;
 }
 
 async function body(req: IncomingMessage): Promise<Record<string, unknown>> {
@@ -62,18 +72,19 @@ export function createMazeHandler(db: DatabaseSync) {
       }
       if (!actor) throw new GameError("NO_SESSION", "Choose a nickname first.", 401);
       if (path === "/api/maze/matches" && req.method === "POST") {
-        await body(req);
-        return send(res, 201, snapshot(store.create(actor), actor));
+        const input = await body(req);
+        return send(res, 201, snapshot(store.create(actor, Date.now(), parseOptionalLook(input.look, 0)), actor));
       }
       if (path === "/api/maze/matches" && req.method === "GET") {
         return send(res, 200, { matches: store.recent(actor.id) });
       }
-      const match = /^\/api\/maze\/matches\/([a-f0-9-]{36})(?:\/(join|ready|move|stream|replay|forfeit|rematch))?$/.exec(path);
+      const match = /^\/api\/maze\/matches\/([a-f0-9-]{36})(?:\/(join|ready|move|stream|replay|forfeit|rematch|look|chat))?$/.exec(path);
       if (!match) throw new GameError("NOT_FOUND", "Unknown game address.", 404);
       const [, id, action] = match;
       if (req.method === "POST" && action === "join") {
-        await body(req);
-        const game = store.update(id, (current) => joinGame(current, actor));
+        const input = await body(req);
+        const look = parseOptionalLook(input.look, 1);
+        const game = store.update(id, (current) => joinGame(current, actor, look));
         live.publish(game);
         return send(res, 200, snapshot(game, actor));
       }
@@ -92,6 +103,14 @@ export function createMazeHandler(db: DatabaseSync) {
       let game: Game;
       if (action === "ready") {
         game = store.update(id, (current) => readyPlayer(current, actor.id, Date.now()));
+      } else if (action === "chat") {
+        store.current(id);
+        game = store.update(id, (current) => addChat(current, actor.id, input, Date.now()));
+      } else if (action === "look") {
+        game = store.update(id, (current) => {
+          const slot = current.players.find((p) => p.id === actor.id)?.slot ?? 0;
+          return setLook(current, actor.id, parseOptionalLook(input.look ?? {}, slot)!);
+        });
       } else if (action === "forfeit") {
         store.current(id);
         game = store.update(id, (current) => forfeitGame(current, actor.id));

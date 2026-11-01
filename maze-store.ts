@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import { advanceGame, GameError, joinGame, newGame } from "./maze-game.ts";
+import type { Look } from "./public/maze-look.js";
 import type { Game, Identity, LogEntry } from "./maze-game.ts";
 
 export type Summary = {
@@ -58,12 +59,12 @@ export class MazeStore {
     return JSON.parse(row.state) as Game;
   }
 
-  create(identity: Identity, now = Date.now()): Game {
+  create(identity: Identity, now = Date.now(), look?: Look): Game {
     return this.transaction(() => {
       const { total } = this.db.prepare("SELECT COUNT(*) AS total FROM maze_matches WHERE owner_id = ? AND created_at > ?")
         .get(identity.id, now - 3_600_000) as { total: number };
       if (total >= 20) throw new GameError("ROOM_LIMIT", "You have created 20 races this hour. Rejoin a recent race or try later.", 429);
-      const game = newGame(randomUUID(), identity, now);
+      const game = newGame(randomUUID(), identity, now, undefined, look);
       this.db.prepare("INSERT INTO maze_matches (id, owner_id, created_at, state) VALUES (?, ?, ?, ?)")
         .run(game.id, identity.id, now, JSON.stringify(game));
       return game;
@@ -80,7 +81,7 @@ export class MazeStore {
       if (old.rematchId) return this.get(old.rematchId);
       const [first, second] = old.players;
       if (!second) throw new GameError("NO_RIVAL", "There is nobody to rematch.");
-      const seated = joinGame(newGame(randomUUID(), first, now), second);
+      const seated = joinGame(newGame(randomUUID(), first, now, undefined, first.look), second, second.look);
       this.db.prepare("INSERT INTO maze_matches (id, owner_id, created_at, state) VALUES (?, ?, ?, ?)")
         .run(seated.id, first.id, now, JSON.stringify(seated));
       const linked: Game = { ...old, rematchId: seated.id, revision: old.revision + 1 };

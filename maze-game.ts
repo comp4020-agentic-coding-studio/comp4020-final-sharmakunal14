@@ -1,6 +1,9 @@
 import { generate, sydneyDate } from "./maze-gen.ts";
 import type { Gate, Layout, Point } from "./maze-gen.ts";
 import { DIRECTIONS, gateOpen, goalOf, passable, switchAt } from "./public/maze-rules.js";
+import { defaultLook } from "./public/maze-look.js";
+import { cleanText, MAX_CHAT, REACTIONS } from "./public/maze-chat-rules.js";
+import type { Look } from "./public/maze-look.js";
 
 export { DIRECTIONS };
 export const COUNTDOWN_MS = 3_000;
@@ -15,6 +18,8 @@ export type Identity = { id: string; name: string };
 export type Player = Identity & {
   slot: 0 | 1; x: number; y: number; ready: boolean; sequence: number;
   tokens: number; tokensAt: number;
+  // How the avatar is drawn. Presentation only; absent in games saved before looks existed.
+  look: Look;
 };
 export type Game = {
   id: string;
@@ -34,9 +39,17 @@ export type Game = {
   interruption: "server_restart" | "time_limit" | "forfeit" | null;
   // Set when a player leaves a started race: it is cancelled and nothing is scored.
   forfeitedBy?: string;
+  // The last few chat lines and reactions, oldest first. Saved with the game so a
+  // reconnect or reload shows the conversation, but never used by the rules.
+  chat?: ChatLine[];
   // Set once either player asks for a rematch; both then join this game.
   rematchId?: string;
 };
+export type ChatLine = { n: number; at: number; slot: 0 | 1; kind: "text" | "reaction"; text: string };
+export const CHAT_KEEP = 30;
+export const CHAT_GAP_MS = 400;
+export const CHAT_BURST = 5;
+export const CHAT_WINDOW_MS = 10_000;
 export type LogEntry = { at: number; slot: 0 | 1; kind: "step" | "flip"; x: number; y: number; switch: number | null; on: boolean | null };
 
 export class GameError extends Error {
@@ -65,27 +78,59 @@ export function entrance(game: Pick<Game, "maze">, slot: number): Point {
   return goalOf(game, 1 - slot);
 }
 
-function player(game: Pick<Game, "maze">, identity: Identity, slot: 0 | 1): Player {
-  return { ...identity, slot, ...entrance(game, slot), ready: false, sequence: 0, tokens: 0, tokensAt: 0 };
+function player(game: Pick<Game, "maze">, identity: Identity, slot: 0 | 1, look?: Look): Player {
+  return { ...identity, slot, ...entrance(game, slot), ready: false, sequence: 0, tokens: 0, tokensAt: 0, look: look ?? defaultLook(slot) };
 }
 
-export function newGame(id: string, identity: Identity, now: number, layout = todaysLayout(now)): Game {
+export function newGame(id: string, identity: Identity, now: number, layout = todaysLayout(now), look?: Look): Game {
   const base = {
     id, mazeId: layout.mazeId, maze: layout.maze, switches: layout.switches, gates: layout.gates,
     switchOn: layout.switches.map(() => false), switchAt: layout.switches.map(() => 0),
   };
   return {
-    ...base, players: [player(base, identity, 0)], status: "waiting", revision: 1,
+    ...base, players: [player(base, identity, 0, look)], status: "waiting", revision: 1,
     createdAt: now, startsAt: null, finishedAt: null, winnerId: null, interruption: null,
   };
 }
 
-export function joinGame(game: Game, identity: Identity): Game {
+export function joinGame(game: Game, identity: Identity, look?: Look): Game {
   if (game.players.some((p) => p.id === identity.id)) return game;
   if (game.players.length === 2 || game.status !== "waiting") {
     throw new GameError("ROOM_FULL", "This race already has two players. Create a new race.");
   }
-  return { ...game, players: [...game.players, player(game, identity, 1)], revision: game.revision + 1 };
+  return { ...game, players: [...game.players, player(game, identity, 1, look)], revision: game.revision + 1 };
+}
+
+// A look can change only while the room is waiting, so a race and its replay
+// always show the avatars that actually started it.
+export function setLook(game: Game, actorId: string, look: Look): Game {
+  const current = game.players.find((p) => p.id === actorId);
+  if (!current) throw new GameError("NOT_A_PLAYER", "Join this race first.", 403);
+  if (game.status !== "waiting") throw new GameError("LOOK_LOCKED", "Avatars are locked once the countdown starts.");
+  if (JSON.stringify(current.look) === JSON.stringify(look)) return game;
+  return { ...game, players: game.players.map((p) => p.id === actorId ? { ...p, look } : p), revision: game.revision + 1 };
+}
+
+// Adds a text line or a named reaction. Only the two players may talk, a rival
+// can always mute locally, and a flood is refused rather than queued.
+export function addChat(game: Game, actorId: string, input: { text?: unknown; reaction?: unknown }, now: number): Game {
+  const speaker = game.players.find((p) => p.id === actorId);
+  if (!speaker) throw new GameError("NOT_A_PLAYER", "Join this race first.", 403);
+  let kind: ChatLine["kind"], text: string;
+  if (input.reaction !== undefined) {
+    if (typeof input.reaction !== "string" || !Object.hasOwn(REACTIONS, input.reaction)) throw new GameError("INVALID_CHAT", "That is not an available reaction.", 400);
+    kind = "reaction"; text = input.reaction;
+  } else {
+    const clean = cleanText(input.text);
+    if (!clean) throw new GameError("INVALID_CHAT", `Write a message of up to ${MAX_CHAT} characters.`, 400);
+    kind = "text"; text = clean;
+  }
+  const lines = game.chat ?? [], mine = lines.filter((l) => l.slot === speaker.slot);
+  const last = mine.at(-1);
+  if (last && now - last.at < CHAT_GAP_MS) throw new GameError("CHAT_TOO_FAST", "Slow down a little.", 429);
+  if (mine.filter((l) => now - l.at < CHAT_WINDOW_MS).length >= CHAT_BURST) throw new GameError("CHAT_TOO_FAST", "Slow down a little.", 429);
+  const n = (lines.at(-1)?.n ?? 0) + 1;
+  return { ...game, chat: [...lines, { n, at: now, slot: speaker.slot, kind, text }].slice(-CHAT_KEEP), revision: game.revision + 1 };
 }
 
 export function readyPlayer(game: Game, actorId: string, now: number): Game {
