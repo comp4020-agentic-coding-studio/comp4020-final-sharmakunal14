@@ -2,116 +2,150 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#101712">
-  <meta name="description" content="Two entrances. One winner. Challenge a friend to a live maze race.">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#070b1a">
+  <meta name="description" content="Two entrances. One winner. Race a friend through today's 3D maze, flip switches that change it for both of you.">
   <title>Maze Duel — Two entrances. One winner.</title>
-  <link rel="stylesheet" href="/maze.css">
-  <link rel="stylesheet" href="/maze-layout.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=Russo+One&display=swap">
+  <link rel="modulepreload" href="/vendor/three-0.170.0.module.min.js">
+  <link rel="stylesheet" href="/maze-ui.css">
+  <style>.fallback-2d{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}</style>
 </head>
-<body>
+<body data-phase="lobby">
   <a class="skip" href="#main">Skip to game</a>
-  <header class="masthead">
-    <a class="wordmark" href="/" aria-label="Maze Duel home"><span class="mark" aria-hidden="true">↳</span> MAZE<span>DUEL</span></a>
-    <nav aria-label="Main"><a href="#how-to-play">How to play</a><a href="/readme/">About the project <span aria-hidden="true">↗</span></a></nav>
-    <span class="edition">DAILY MAZE / 02</span>
-  </header>
-  <main id="main">
-    <div class="intro">
-      <div><p class="eyebrow"><span class="live-dot"></span> A TWO-PLAYER MAZE RACE</p><h1>Two entrances.<br><span>One winner.</span></h1></div>
-      <p class="intro-copy">Same maze. Opposite sides.<br>Find your way to the other entrance<br>before your friend finds theirs.</p>
-    </div>
+  <svg width="0" height="0" class="sr-only" aria-hidden="true">
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-flip" viewBox="0 0 24 24"><path d="M4 8h13l-3-3M20 16H7l3 3" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" fill="currentColor"/></symbol>
+    <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="3" fill="currentColor"/></symbol>
+    <symbol id="i-cam" viewBox="0 0 24 24"><circle cx="12" cy="7" r="3.2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5 20c1.2-4 4-6 7-6s5.8 2 7 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-map" viewBox="0 0 24 24"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z M9 4v14 M15 6v14" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+    <symbol id="i-trophy" viewBox="0 0 24 24"><path d="M7 4h10v4a5 5 0 0 1-10 0zM7 6H4a3 3 0 0 0 3 4M17 6h3a3 3 0 0 1-3 4M12 13v4M8 20h8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+  </svg>
 
-    <div class="arena-layout">
-      <section class="arena" aria-labelledby="arena-title">
-        <div class="arena-heading"><div><span class="eyebrow" id="maze-date">TODAY’S MAZE</span><h2 id="arena-title">The Crossing</h2></div><span id="connection" class="connection">Maze preview</span></div>
-        <div class="player-strip" aria-label="Entrances">
-          <span><i class="token token-a" aria-hidden="true">A</i><span id="legend-a">Start A <span class="muted">→ finish B</span></span></span>
-          <span><i class="token token-b" aria-hidden="true">B</i><span id="legend-b">Start B <span class="muted">→ finish A</span></span></span>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="Maze Duel home"><span class="brand-mark" aria-hidden="true"></span><span class="brand-word">MAZE<b>DUEL</b></span></a>
+    <nav aria-label="Main"><a href="#how-to-play">How to play</a><a href="/readme/">About</a></nav>
+    <span class="chip chip-live"><span class="pulse" aria-hidden="true"></span><span id="maze-date">TODAY’S MAZE</span></span>
+  </header>
+
+  <main id="main">
+    <h1 class="sr-only">Maze Duel — a live two-player 3D maze race</h1>
+    <div class="game">
+      <section class="stage" aria-labelledby="arena-title">
+        <div id="maze" class="viewport" role="img" aria-label="Today’s 3D maze, with entrance A at one corner and entrance B at the opposite corner."></div>
+
+        <div class="hud hud-top">
+          <div class="hud-title"><span class="eyebrow" id="board-size">15 × 15 · SHARED GROUND</span><h2 id="arena-title">The Crossing</h2></div>
+          <span id="connection" class="chip" data-state="preview">Maze preview</span>
         </div>
-        <div class="board-wrap">
-          <canvas id="maze" width="880" height="640" role="img" aria-label="Today’s maze, with entrance A at the upper left and entrance B at the lower right.">Maze view requires a browser with canvas support.</canvas>
-          <div id="countdown" class="countdown" hidden><span>GET READY</span><strong id="countdown-number">3</strong><span>Reach the opposite entrance</span></div>
-          <div class="board-caption"><span id="board-size">15 × 15 / SHARED GROUND</span><span id="board-note">One maze. Equal distance.</span></div>
+
+        <div class="hud hud-players" aria-label="Players">
+          <span class="tag tag-a"><i aria-hidden="true">A</i><span id="legend-a">Start A → B</span></span>
+          <span class="tag tag-b"><i aria-hidden="true">B</i><span id="legend-b">Start B → A</span></span>
         </div>
-        <p class="board-key"><span class="k-switch" aria-hidden="true">◆</span> switch <span class="k-gate open" aria-hidden="true"></span> open gate <span class="k-gate" aria-hidden="true">—</span> closed gate · blue and pink switches each control their own colour</p>
-        <div class="arena-foot"><span><span class="key">W A S D</span> move · <span class="key">E</span> flip a switch</span><span>Switches open one gate and close another — for both of you.</span></div>
+
+        <div id="race-clock" class="hud hud-clock" hidden><span class="eyebrow">RACE TIME</span><strong id="elapsed">00:00.0</strong></div>
+
+        <div class="hud hud-views" role="group" aria-label="Camera view">
+          <button type="button" class="view-btn" data-view="overview" aria-pressed="true" title="Overview (V)"><svg aria-hidden="true"><use href="#i-map"/></svg><span>Map</span></button>
+          <button type="button" class="view-btn" data-view="third" aria-pressed="false" title="Third person (V)"><svg aria-hidden="true"><use href="#i-cam"/></svg><span>3rd</span></button>
+          <button type="button" class="view-btn" data-view="first" aria-pressed="false" title="First person (V)"><svg aria-hidden="true"><use href="#i-eye"/></svg><span>1st</span></button>
+        </div>
+
+        <div id="countdown" class="countdown" hidden><span>GET READY</span><strong id="countdown-number">3</strong><span>Reach the opposite portal</span></div>
+
+        <div id="movement" class="hud hud-pad" hidden>
+          <div class="dpad" role="group" aria-label="Movement controls">
+            <button type="button" data-direction="up" aria-label="Move up"><svg aria-hidden="true"><use href="#i-up"/></svg></button>
+            <button type="button" data-direction="left" aria-label="Move left"><svg aria-hidden="true" style="transform:rotate(-90deg)"><use href="#i-up"/></svg></button>
+            <button type="button" data-direction="right" aria-label="Move right"><svg aria-hidden="true" style="transform:rotate(90deg)"><use href="#i-up"/></svg></button>
+            <button type="button" data-direction="down" aria-label="Move down"><svg aria-hidden="true" style="transform:rotate(180deg)"><use href="#i-up"/></svg></button>
+          </div>
+          <button id="flip" type="button" class="flip-btn" data-direction="flip" hidden><svg aria-hidden="true"><use href="#i-flip"/></svg><span>FLIP</span></button>
+        </div>
+
+        <p id="switch-hint" class="hud hud-hint"></p>
+        <p class="hud hud-key" id="board-note">Drag to orbit · scroll to zoom</p>
       </section>
 
-      <aside class="side-panel" aria-label="Race lobby">
-        <section id="entry" class="panel">
+      <aside class="panel-col" aria-label="Race lobby">
+        <section id="entry" class="card">
           <p class="eyebrow" id="entry-eyebrow">BRING A FRIEND</p>
-          <h2 id="entry-title">A little friendly<br>competition.</h2>
-          <p class="muted" id="entry-copy">Create a race and share the invitation.<br>No account. Just a nickname.</p>
+          <h2 id="entry-title" class="display">Two entrances.<br><span class="grad">One winner.</span></h2>
+          <p class="muted" id="entry-copy">Race a friend across today’s maze. Flip switches that reshape it — for both of you.</p>
           <form id="entry-form">
             <fieldset id="entry-fields" disabled>
               <label id="name-label" for="nickname">Your nickname<input id="nickname" name="nickname" maxlength="32" autocomplete="nickname" placeholder="What should we call you?" required></label>
               <p id="identity" class="identity" hidden></p>
-              <button id="create-race" class="primary" type="submit" value="create">Create a race <span aria-hidden="true">↗</span></button>
+              <button id="create-race" class="btn btn-primary" type="submit" value="create"><span>Create a race</span><svg aria-hidden="true"><use href="#i-arrow"/></svg></button>
               <div id="join-divider" class="divider"><span>ALREADY INVITED?</span></div>
               <label id="invite-label" for="invite">Invitation link<input id="invite" name="invite" type="text" autocomplete="off" spellcheck="false" placeholder="Paste your friend’s race link"></label>
-              <button id="join-race" class="secondary" type="submit" value="join">Join a race <span aria-hidden="true">→</span></button>
+              <button id="join-race" class="btn btn-ghost" type="submit" value="join"><span>Join a race</span><svg aria-hidden="true"><use href="#i-arrow"/></svg></button>
             </fieldset>
           </form>
-          <p class="fine-print">Use separate browsers or profiles for two players.</p>
+          <p class="fine">Two players need two browsers or profiles (an incognito window works).</p>
         </section>
 
-        <section id="race-panel" class="panel" hidden>
-          <div class="race-top"><p class="eyebrow">YOUR RACE</p><span id="race-code" class="mono"></span></div>
-          <h2 id="race-title" role="status">Waiting for a rival.</h2>
+        <section id="race-panel" class="card" hidden>
+          <div class="row-between"><p class="eyebrow">YOUR RACE</p><span id="race-code" class="mono chip"></span></div>
+          <h2 id="race-title" class="display-sm" role="status">Waiting for a rival.</h2>
           <p id="race-description" class="muted">Share your link to fill the second spot.</p>
-          <div id="invitation" class="invitation"><label for="race-link">Invite your opponent</label><div class="copy-row"><input id="race-link" readonly><button id="copy-link" type="button" class="secondary">Copy</button></div><p id="copy-status" role="status" class="fine-print"></p></div>
+          <div id="invitation" class="invitation"><label for="race-link">Invite your opponent</label><div class="copy-row"><input id="race-link" readonly><button id="copy-link" type="button" class="btn btn-icon" aria-label="Copy invitation link"><svg aria-hidden="true"><use href="#i-copy"/></svg></button></div><p id="copy-status" role="status" class="fine"></p></div>
           <div class="roster" aria-label="Players">
-            <div class="roster-row"><i class="token token-a" aria-hidden="true">A</i><div><strong id="player-a-name">Player A</strong><span id="player-a-status">Waiting</span></div><span id="player-a-ready" class="ready-tag"></span></div>
-            <div class="roster-row"><i class="token token-b" aria-hidden="true">B</i><div><strong id="player-b-name">Open spot</strong><span id="player-b-status">Invite a friend</span></div><span id="player-b-ready" class="ready-tag"></span></div>
+            <div class="roster-row a"><i aria-hidden="true">A</i><div><strong id="player-a-name">Player A</strong><span id="player-a-status">Waiting</span></div><span id="player-a-ready" class="ready-tag"></span></div>
+            <div class="roster-row b"><i aria-hidden="true">B</i><div><strong id="player-b-name">Open spot</strong><span id="player-b-status">Invite a friend</span></div><span id="player-b-ready" class="ready-tag"></span></div>
           </div>
-          <button id="ready" type="button" class="primary">I’m ready <span aria-hidden="true">✓</span></button>
-          <div id="race-clock" class="race-clock" hidden><span class="eyebrow">RACE TIME</span><strong id="elapsed">00:00.0</strong></div>
-          <div id="movement" hidden>
-            <p id="your-goal" class="goal"></p>
-            <div class="dpad" role="group" aria-label="Movement controls">
-              <button type="button" data-direction="up" aria-label="Move up">↑</button>
-              <button type="button" data-direction="left" aria-label="Move left">←</button>
-              <span aria-hidden="true">✥</span>
-              <button type="button" data-direction="right" aria-label="Move right">→</button>
-              <button type="button" data-direction="down" aria-label="Move down">↓</button>
-            </div>
-            <button id="flip" type="button" class="secondary flip" data-direction="flip" hidden>Flip switch <span aria-hidden="true">⇄</span></button>
-            <p id="switch-hint" class="fine-print"></p>
-            <p id="position" class="fine-print"></p>
-          </div>
-          <button id="another-race" class="primary" type="button" hidden>Create another race <span aria-hidden="true">↗</span></button>
-          <a id="watch-replay" class="secondary button-link" href="#" hidden>Watch the replay <span aria-hidden="true">▶</span></a>
-          <p class="fine-print">A lost connection does not pause the clock. Reopen this link in the same browser to return.</p>
+          <button id="ready" type="button" class="btn btn-primary">I’m ready</button>
+          <p id="your-goal" class="goal"></p>
+          <p id="position" class="fine center"></p>
+          <button id="another-race" class="btn btn-primary" type="button" hidden><span>Create another race</span><svg aria-hidden="true"><use href="#i-arrow"/></svg></button>
+          <a id="watch-replay" class="btn btn-ghost" href="#" hidden><span>Watch the replay</span><svg aria-hidden="true"><use href="#i-play"/></svg></a>
+          <p class="fine race-note">A lost connection does not pause the clock. Reopen this link in the same browser to return.</p>
         </section>
-        <section id="replay-panel" class="panel" hidden>
-          <p class="eyebrow">REPLAY</p>
-          <h2 id="replay-title">Replay</h2>
+
+        <section id="replay-panel" class="card" hidden>
+          <p class="eyebrow">REPLAY · FROM THE SERVER LOG</p>
+          <h2 id="replay-title" class="display-sm">Replay</h2>
           <p id="replay-players" class="muted"></p>
           <div class="replay-controls">
-            <button id="replay-play" type="button" class="primary">Pause</button>
+            <button id="replay-play" type="button" class="btn btn-primary">Pause</button>
             <label for="replay-speed" class="sr-only">Replay speed</label>
             <select id="replay-speed"><option value="1">1×</option><option value="2" selected>2×</option><option value="4">4×</option></select>
           </div>
-          <label for="replay-scrub" class="fine-print">Race time <span id="replay-time">00:00.0</span></label>
+          <label for="replay-scrub" class="fine">Race time <span id="replay-time" class="mono">00:00.0</span></label>
           <input id="replay-scrub" type="range" min="0" max="0" step="10" value="0">
-          <p id="replay-explored" class="fine-print"></p>
-          <p class="fine-print">Faded dots show every cell each player explored, dead ends included.</p>
-          <a class="secondary button-link" href="/">Back to today’s maze</a>
+          <p id="replay-explored" class="fine"></p>
+          <p class="fine">Glowing dots mark every cell each player explored, dead ends included.</p>
+          <a class="btn btn-ghost" href="/"><span>Back to today’s maze</span><svg aria-hidden="true"><use href="#i-arrow"/></svg></a>
         </section>
+
         <p id="error" class="error" role="alert" hidden></p>
-        <section id="best" class="recent" hidden><h2>Today’s best times</h2><ol id="best-list"></ol></section>
-        <section id="recent" class="recent" hidden><h2>Your recent races</h2><ul id="recent-list"></ul></section>
-        <div class="small-note"><span aria-hidden="true">↗</span><p>Easy to enter.<br>A little harder to leave first.</p></div>
+
+        <section id="best" class="card card-list" hidden><h2 class="list-title"><svg aria-hidden="true"><use href="#i-trophy"/></svg>Today’s best times</h2><ol id="best-list"></ol></section>
+        <section id="recent" class="card card-list" hidden><h2 class="list-title">Your recent races</h2><ul id="recent-list"></ul></section>
       </aside>
     </div>
 
-    <section class="rules" id="how-to-play" aria-labelledby="rules-title">
-      <div><p class="eyebrow">THE RULES ARE SIMPLE</p><h2 id="rules-title">Find your way.<br>Beat their time.</h2></div>
-      <ol><li><span>01</span><div><h3>Meet in the maze</h3><p>Share a race link. You take A; your friend takes B. Both players ready up.</p></div></li><li><span>02</span><div><h3>Change the maze</h3><p>Each side has a switch. Flipping it opens a shortcut gate and closes another — for both players. Your shortcut might be theirs too.</p></div></li><li><span>03</span><div><h3>Reach the other side</h3><p>The first valid finish received by the server wins. A new maze appears every day; today’s best times are kept, and every finished race can be replayed.</p></div></li></ol>
+    <section class="how" id="how-to-play" aria-labelledby="rules-title">
+      <h2 id="rules-title" class="display-sm">How to play</h2>
+      <ol>
+        <li><span class="num">01</span><h3>Meet in the maze</h3><p>Share a race link. You start at portal A, your rival at B. Both press ready for a shared countdown.</p></li>
+        <li><span class="num">02</span><h3>Change the maze</h3><p>Stand on a glowing crystal and press <kbd>E</kbd>. Its energy gates swap: one opens, another closes — for both players.</p></li>
+        <li><span class="num">03</span><h3>Reach their portal</h3><p>First valid finish wins. A new maze appears every day; best times are kept and every race can be replayed.</p></li>
+      </ol>
+      <dl class="keys">
+        <div><dt><kbd>W A S D</kbd> / arrows</dt><dd>Move. In 1st and 3rd person, W is forward and A/D turn.</dd></div>
+        <div><dt><kbd>E</kbd> / <kbd>Space</kbd></dt><dd>Flip the switch you are standing on</dd></div>
+        <div><dt><kbd>V</kbd></dt><dd>Cycle camera: map · 3rd person · 1st person</dd></div>
+      </dl>
     </section>
   </main>
-  <footer><span>MAZE DUEL <span class="muted">/ An experiment in friendly rivalry.</span></span><a href="/readme/">Project notes ↗</a></footer>
+  <footer class="foot"><span>MAZE DUEL · an experiment in friendly rivalry</span><a href="/readme/">Project notes</a></footer>
   <p id="announcement" class="sr-only" role="status" aria-live="polite"></p>
   <noscript><p class="error">JavaScript is required for live multiplayer. Enable it and reload to join a race.</p></noscript>
   <script type="module" src="/maze.js"></script>
