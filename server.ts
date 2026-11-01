@@ -398,11 +398,15 @@ async function handle(req: IncomingMessage, res: ServerResponse) {
   return send(res, 404, { code: "NOT_FOUND", message: "Not found." });
 }
 
-createServer((req, res) => {
+const server = createServer((req, res) => {
   handle(req, res).catch((err) => {
     if (err instanceof GameError && !res.headersSent) return send(res, err.status, { code: err.code, message: err.message });
     log({ action: "error", message: String(err) });
     if (!res.headersSent) send(res, 500, { code: "SERVER_ERROR", message: "Something went wrong." });
     else res.end();
   });
-}).listen(PORT, "0.0.0.0", () => log({ action: "listening", port: PORT, data: DATA_DIR }));
+});
+server.listen(PORT, "0.0.0.0", () => {
+  const address = server.address();
+  log({ action: "listening", port: typeof address === "object" ? address?.port : PORT, data: DATA_DIR });
+});
