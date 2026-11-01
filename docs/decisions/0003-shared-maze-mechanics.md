@@ -1,6 +1,6 @@
 # Maze Duel: shared maze mechanics (milestone 2)
 
-Date: 1 November 2026. Status: accepted; implementation in progress.
+Date: 1 November 2026. Status: implemented and deployed by hand from the branch (see PROGRESS.md).
 Amends [0002](0002-maze-duel-first-playable.md) (fixed maze, one command in
 flight, no switches/ranking/replay). The 0002 reasoning is kept as history.
 

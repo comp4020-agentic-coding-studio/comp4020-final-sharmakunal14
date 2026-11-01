@@ -1,6 +1,6 @@
 # Maze Duel design
 
-Last updated: 1 November 2026. Scope: the first playable version.
+Last updated: 1 November 2026. Scope: milestone 2 (shared maze mechanics, [decision 0003](decisions/0003-shared-maze-mechanics.md)).
 
 This file describes the current design. Important choices and their alternatives
 belong in [decision records](decisions/0002-maze-duel-first-playable.md).
@@ -19,16 +19,23 @@ a question for independent playtesting.
 
 Included: nicknames, invitations, two seats, ready-up, live positions, keyboard
 and directional-button controls, saved match state and results, and a way to
-create another race. Switches, procedural generation, ranking, accounts and
-animated replays are deferred.
+create another race. Milestone 2 adds:
+- a daily seeded 15×15 maze;
+- one switch per side, each opening one gate and closing another for both players;
+- client-side prediction with batched commands;
+- a server step log, today's best times and replays.
+
+Accounts, power-ups, map reveals and a free 3D camera stay deferred.
 
 ## Architecture
 
 | Component | Responsibility |
 | --- | --- |
 | `server.ts` | HTTP entry point, browser identity, static pages and integration with the retained Shared Space app. |
-| `maze-game.ts` | Fixed maze, player membership and pure state transitions for readiness, movement and results. |
-| `maze-store.ts` | Transactional SQLite snapshots and restart handling. |
+| `maze-gen.ts` | Deterministic symmetric maze, switch and gate generation from a date seed. |
+| `maze-game.ts` | Player membership and pure state transitions for readiness, batched actions (steps and flips), the speed allowance and results. |
+| `public/maze-rules.js` | Passability and gate rules shared by the server (authority) and the browser (prediction). |
+| `maze-store.ts` | Transactional SQLite snapshots, the step log (`maze_steps`), results (`maze_results`), best times and restart handling. |
 | `maze-http.ts` | Validated commands, access checks and API responses. |
 | `maze-live.ts` | SSE snapshots, presence, timed transitions and stream limits. |
 | `public/maze*.js`, `public/maze*.css`, `public/maze.html` | Lobby, rendering, live state, controls and responsive layout. |
@@ -70,18 +77,32 @@ identity; repeating its nickname does not recover it.
 - Mutations require JSON and reject cross-site requests. Match commands have
   bounded bodies; SQL uses parameters. Stream counts and slow-reader buffers
   are bounded. These controls are not a claim of comprehensive abuse resistance.
-- The 13×13 maze is fixed and rotationally symmetric. Every passage is checked
-  for reachability. Repeated play permits route memorisation; equal distance
-  and symmetry do not establish equal perceived difficulty.
+- Each Sydney day has one generated 15×15 maze, saved into every match made
+  that day. Layout, switches and gates are rotationally symmetric.
+- Gates occupy base-maze walls, so opening one only adds a passage. In all
+  four switch states, every open cell reaches both goals; a 200-seed sweep
+  checks this.
+- A flip cannot close a gate on a player, and each switch has a 1.5 s cooldown.
+- A daily maze can be memorised within the day. That is accepted, because it
+  makes times comparable.
+- Speed is an allowance: one step per 140 ms on average, with at most four
+  steps saved up.
+- The browser sends up to eight actions per request with one request in
+  flight, and predicts locally. A refusal returns the authoritative snapshot
+  and drops any predictions built on the refused action.
+- Each accepted action is written to `maze_steps` in the same transaction as
+  the match. A finished race also writes one `maze_results` row.
+- A finished race's replay is readable by any signed-in visitor; an
+  unfinished race remains private to its two players.
 - At 390×844, the active maze and directional controls must fit together. Keep
   both markers visible when they share a cell and preserve the page heading
   for assistive technology. The spatial game still requires visual navigation.
 
 ## Trade-offs and open questions
 
-Full snapshots simplify recovery but transfer more data than deltas. One
-movement request in flight avoids queued actions after a disconnect, but slows
-effective movement on higher-latency connections. Server processing order
+Full snapshots simplify recovery but transfer more data than deltas. Batched
+commands keep average speed constant up to about a 560 ms round trip; queued
+input is discarded on blur or disconnect rather than sent late. Server processing order
 settles close finishes; there is no latency compensation.
 
 Independent playtesting should establish whether newcomers can join and start
@@ -90,15 +111,17 @@ result. Physical-phone usability, sustained load and deployed network behaviour
 remain unverified. Retention of old races and stronger identity/abuse controls
 need a decision before the prototype is used at a broader scale.
 
-If shared switches are considered later, their design must preserve access
-from each player's current position to their goal. Merely keeping the two
-entrances connected is insufficient. Opening optional shortcuts is a proposed
-direction, not a committed implementation for the next milestone.
+Switches are implemented as optional shortcuts over a connected base maze,
+which meets the earlier requirement that every player keep access to their
+goal from wherever they stand. It is not yet known whether players face a
+real dilemma. Each player's own switch is nearer them, so flipping may simply
+be always correct. That needs human playtesting before more mechanics.
 
 ## Decision index
 
 - [0001: Refuse outdated moves](decisions/0001-refuse-outdated-moves.md) — historical Shared Space decision.
-- [0002: First playable scope and runtime](decisions/0002-maze-duel-first-playable.md) — implemented Maze Duel decisions and costs.
+- [0002: First playable scope and runtime](decisions/0002-maze-duel-first-playable.md) — implemented Maze Duel decisions and costs; partly amended by 0003.
+- [0003: Shared maze mechanics](decisions/0003-shared-maze-mechanics.md) — daily seed, switches, batching, step log and replays.
 
 For future changes, update this overview when behaviour or architecture changes.
 Add a numbered decision record for a consequential choice, including context,

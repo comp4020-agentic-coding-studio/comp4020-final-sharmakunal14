@@ -1,6 +1,6 @@
 # Maze Duel: first playable scope and runtime
 
-Date: 1 November 2026. Status: implemented locally; not deployed in this step.
+Date: 1 November 2026. Status: implemented. The fixed maze, one-command-in-flight and "no switches/ranking/replay" decisions are amended by [0003](0003-shared-maze-mechanics.md); the rest stands.
 
 ## Context
 

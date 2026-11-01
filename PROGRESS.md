@@ -113,3 +113,80 @@ Documentation validation passed: five documents checked for trailing whitespace,
 12 local links resolved and all 19 initial implementation commit references
 resolved locally. `pnpm check:evidence` and `git diff --check` also passed.
 Application tests were not rerun for these documentation-only changes.
+
+## 2026-11-01 — Milestone 2: shared maze mechanics (deployed)
+
+### Why
+
+An audit of the first playable version found four problems: one fixed maze
+that could be memorised in one race, no interaction between players, speed
+capped by each player's round trip, and persistence that showed a status
+only. Scope and alternatives are in
+[decision 0003](docs/decisions/0003-shared-maze-mechanics.md).
+
+### Work and commit evidence
+
+All of this is on branch `codex/maze-duel-first-playable`, pushed with this
+entry. It is not merged to `main`.
+
+| Work completed | Commit |
+| --- | --- |
+| Harness rules and decision record written **before** code. | [`95fb936`](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/commit/95fb936) |
+| Daily seeded symmetric maze, switch-linked gates, banked-step speed rule. | [`790c9ea`](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/commit/790c9ea) |
+| Step log, results table, best times, replay endpoint. | [`7bac9a4`](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/commit/7bac9a4) |
+| HTTP checks: 300 ms batching, switch refusals, best times, replay privacy. | [`792166e`](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/commit/792166e) |
+| Client prediction and batched sending. | [`e5231c7`](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/commit/e5231c7) |
+| Switch/gate drawing and on-board key. | [`0506878`](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/commit/0506878) |
+| Best-times panel and replay view. | [`a1c596a`](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/commit/a1c596a) |
+
+### Corrections during the work
+
+- **The generator broke symmetry.** The first version skipped a wall's
+  mirrored partner whenever opening it would create a loop. Of 400 seeds,
+  86 were asymmetric and 180 had no usable switch pair. The fix always opens
+  the partner (a loop is fine) and retries deterministically on the same seed
+  stream. Caught by a throwaway 400-seed script, then made permanent as the
+  200-seed sweep in `spec/maze-game.test.ts`.
+- **The sweep test was too slow.** Its first version ran a full search from
+  every cell, every switch state and every seed, and timed out after 5 s. It
+  now runs one flood fill per goal; a two-way grid makes that equivalent.
+- **Sequence numbers could be reused.** An early client sender could reuse a
+  sequence number if input was cleared while a request was in flight. The
+  sender now numbers from the highest sequence issued, and
+  `spec/maze-controls.test.ts` checks it ("never reuses a sequence number").
+- **Layout fixes from the browser run.**
+  - On the phone, the best-times list pushed the board down during a race; it
+    is now hidden in a race.
+  - Switches and open gates looked alike, so switches became diamonds and a
+    key was added.
+  - The replay page showed a stale "Maze preview" label.
+
+### Verification actually performed
+
+| Check | Result |
+| --- | --- |
+| `pnpm check` against the local app (Node 24.21) | Typecheck passed; 45 tests passed across 8 files. |
+| Fail-first discipline | **Not followed this milestone.** Tests were written with or after the code. The only failures seen were the sweep timeout and a store test still expecting the old 13×13 positions. The HTTP milestone checks passed on first run, so none was observed failing against the old behaviour. `CLAUDE.md` asks for fail-first; this is a gap to note honestly. |
+| Agent-driven Chrome run, two isolated profiles (1920×1080 and 390×844 emulated) | Join by link, ready, countdown, A walks to the switch and flips it, B's state shows the flip. No page errors; the 401s are the expected anonymous `/api/me` checks. |
+| Simulated latency (Chrome DevTools network emulation, A only) | 56-step route: 8.7 s race time at 300 ms latency vs 8.2 s at 0 ms, about 149 ms per step in both. The old one-in-flight design would have needed about 17 s. |
+| Replay | Opened from the finished race on the phone profile; scrubbing shows positions and explored cells. |
+| Deployed to Fly by hand (`flyctl deploy`) from the branch | Live site 200; `/api/maze/today` serves the 2026-11-01 layout; the same two-browser script and a full finish plus replay passed against production. |
+| Persistence on Fly | Today's best-times list was identical before and after `flyctl machine restart`. |
+
+These were agent-driven checks with emulated viewports and emulated latency,
+not human playtests on real phones or real slow networks.
+
+### Outstanding
+
+- No human has played milestone 2 yet. Whether switches create real decisions
+  ("help myself or block them?") is a hypothesis.
+- With symmetric switches, each player's own switch is nearer them. Does that
+  make flipping always correct, or does closing the other gate ever hurt you?
+  Needs playtesting.
+- `main` still holds Shared Space; the branch needs merging for CI to deploy
+  on push. Until then a CI deploy from `main` would overwrite this manual
+  deploy.
+- There is no retention policy for `maze_steps`.
+- The author still needs to write the README argument, PROCESS.md, and the
+  research note if enrolled in COMP8020. Raw material is in
+  [docs/writing-notes.md](docs/writing-notes.md).
