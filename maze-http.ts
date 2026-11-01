@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { DatabaseSync } from "node:sqlite";
-import { GameError, isDirection, joinGame, MAZE, MOVE_INTERVAL_MS, movePlayer, readyPlayer } from "./maze-game.ts";
+import { applyActions, BURST, GameError, isAction, joinGame, MAX_BATCH, MOVE_INTERVAL_MS, readyPlayer, SWITCH_COOLDOWN_MS, todaysLayout } from "./maze-game.ts";
+import type { Action } from "./maze-game.ts";
 import type { Game, Identity } from "./maze-game.ts";
 import { MazeStore } from "./maze-store.ts";
 import { MazeLive } from "./maze-live.ts";
@@ -46,7 +47,8 @@ export function createMazeHandler(db: DatabaseSync) {
   store.interruptActiveGames();
   const live = new MazeLive(store);
 
-  const snapshot = (game: Game, actor: Identity) => ({ game, me: actor.id, serverNow: Date.now(), moveInterval: MOVE_INTERVAL_MS });
+  const rules = { moveInterval: MOVE_INTERVAL_MS, burst: BURST, switchCooldown: SWITCH_COOLDOWN_MS };
+  const snapshot = (game: Game, actor: Identity) => ({ game, me: actor.id, serverNow: Date.now(), ...rules });
   const requireMember = (game: Game, actor: Identity) => {
     if (!game.players.some((p) => p.id === actor.id)) throw new GameError("NOT_A_PLAYER", "Join this race to see it.", 403);
   };
@@ -54,16 +56,19 @@ export function createMazeHandler(db: DatabaseSync) {
   return async (req: IncomingMessage, res: ServerResponse, actor: Identity | null): Promise<void> => {
     try {
       const path = new URL(req.url ?? "/", "http://local").pathname;
-      if (path === "/api/maze/layout" && req.method === "GET") return send(res, 200, { maze: MAZE });
+      if ((path === "/api/maze/layout" || path === "/api/maze/today") && req.method === "GET") {
+        const layout = todaysLayout();
+        return send(res, 200, { ...layout, best: store.best(layout.mazeId) });
+      }
       if (!actor) throw new GameError("NO_SESSION", "Choose a nickname first.", 401);
       if (path === "/api/maze/matches" && req.method === "POST") {
         await body(req);
         return send(res, 201, snapshot(store.create(actor), actor));
       }
       if (path === "/api/maze/matches" && req.method === "GET") {
-        return send(res, 200, { matches: store.recent(actor.id).map((game) => ({ id: game.id, status: game.status, createdAt: game.createdAt })) });
+        return send(res, 200, { matches: store.recent(actor.id) });
       }
-      const match = /^\/api\/maze\/matches\/([a-f0-9-]{36})(?:\/(join|ready|move|stream))?$/.exec(path);
+      const match = /^\/api\/maze\/matches\/([a-f0-9-]{36})(?:\/(join|ready|move|stream|replay))?$/.exec(path);
       if (!match) throw new GameError("NOT_FOUND", "Unknown game address.", 404);
       const [, id, action] = match;
       if (req.method === "POST" && action === "join") {
@@ -71,6 +76,13 @@ export function createMazeHandler(db: DatabaseSync) {
         const game = store.update(id, (current) => joinGame(current, actor));
         live.publish(game);
         return send(res, 200, snapshot(game, actor));
+      }
+      if (req.method === "GET" && action === "replay") {
+        // Finished races are public to signed-in visitors so leaderboard entries can link to them.
+        const game = store.get(id);
+        if (game.status !== "finished" && game.status !== "interrupted") requireMember(game, actor);
+        if (game.status !== "finished" && game.status !== "interrupted") throw new GameError("NOT_FINISHED", "A replay is available once the race ends.");
+        return send(res, 200, { game, steps: store.steps(id) });
       }
       requireMember(store.get(id), actor);
       if (req.method === "GET" && action === "stream") return live.open(res, actor, store.current(id));
@@ -82,11 +94,18 @@ export function createMazeHandler(db: DatabaseSync) {
         game = store.update(id, (current) => readyPlayer(current, actor.id, Date.now()));
       } else if (action === "move") {
         const { direction, sequence } = input;
-        if (!isDirection(direction) || typeof sequence !== "number" || !Number.isSafeInteger(sequence) || sequence < 1) {
-          throw new GameError("INVALID_MOVE", "A move needs a direction and a positive sequence number.", 400);
+        const actions = (input.actions ?? (direction === undefined ? undefined : [direction])) as unknown;
+        if (!Array.isArray(actions) || actions.length < 1 || actions.length > MAX_BATCH || !actions.every(isAction)
+          || typeof sequence !== "number" || !Number.isSafeInteger(sequence) || sequence < 1) {
+          throw new GameError("INVALID_MOVE", `A move needs 1–${MAX_BATCH} actions and a positive sequence number.`, 400);
         }
         store.current(id);
-        game = store.update(id, (current) => movePlayer(current, actor.id, direction, sequence, Date.now()));
+        const result = store.record(id, (current) => applyActions(current, actor.id, sequence, actions as Action[], Date.now()));
+        game = result.game;
+        if (result.error) {
+          live.publish(game);
+          return send(res, result.error.status, { code: result.error.code, message: result.error.message, ...snapshot(game, actor) });
+        }
       } else throw new GameError("NOT_FOUND", "Unknown game action.", 404);
       live.publish(game);
       send(res, 200, snapshot(game, actor));

@@ -138,7 +138,7 @@ describe("maze HTTP boundary", () => {
       await api(bob, `${path}/ready`, {});
       await b.next((view) => view.game.status === "countdown");
       await b.next((view) => view.game.status === "racing", 4_000);
-      const forward = route(game.maze), backward = route(game.maze, entrance(1), entrance(0));
+      const forward = route(game), backward = route(game, entrance(game, 1), entrance(game, 0));
       for (let i = 0; i < forward.length; i++) {
         const started = Date.now();
         const responses = await Promise.all([
