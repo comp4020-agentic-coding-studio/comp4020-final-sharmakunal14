@@ -36,11 +36,20 @@ open, for both players.
 A result ends the race for both players. **Watch the replay** shows both
 routes, dead ends included. Today's best times appear on the home page.
 
-Open **Sound off → Enable sound** for original retro effects: walking,
-turning, wall bumps, switches, countdown and results. **Race music** controls
-the chiptune accompaniment separately. Sound starts off; preferences are saved
-in this browser when possible. Hidden tabs and disconnected races stop the
-music. Replays stay silent. All gameplay feedback remains visible without sound.
+Sound is on by default, in the style of a classic platform game. Your browser
+will not play any sound until you click or press a key once on the page.
+- **Music** changes with the game: a bouncy tune in the lobby, a calmer one in
+  the waiting room, a tense pulse at the countdown and a fast one in the race.
+- **Effects** cover steps, turns, wall bumps, flipping a switch, a rival
+  joining, ready, the countdown, the race start, reaching the portal, and the
+  win and lose jingles. Buttons click.
+- **Mute** with the speaker button in the top bar or the **M** key; the Sound
+  menu also has separate music and effects switches. Your choice is saved in
+  this browser when possible.
+
+Hidden tabs and disconnected races stop the music, and replays stay silent. All
+gameplay feedback remains visible without sound. All sounds are synthesised in
+the browser from original phrases; nothing is copied from a real game.
 
 Identity belongs to this browser's cookie, not to a verified account. Reusing
 a nickname in a different browser creates a different player. Clearing the

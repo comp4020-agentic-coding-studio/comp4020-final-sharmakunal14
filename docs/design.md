@@ -1,7 +1,7 @@
 # Maze Duel design
 
 Last updated: 1 November 2026. Scope: shared maze mechanics, 3D presentation
-and optional retro audio (decisions 0003–0005).
+and retro audio (decisions 0003–0006).
 
 This file describes the current design. Important choices and their alternatives
 belong in [decision records](decisions/0002-maze-duel-first-playable.md).
@@ -133,7 +133,8 @@ be always correct. That needs human playtesting before more mechanics.
 - [0002: First playable scope and runtime](decisions/0002-maze-duel-first-playable.md) — implemented Maze Duel decisions and costs; partly amended by 0003.
 - [0003: Shared maze mechanics](decisions/0003-shared-maze-mechanics.md) — daily seed, switches, batching, step log and replays.
 - [0004: Real 3D view](decisions/0004-three-dimensional-view.md) — vendored Three.js, map/3rd/1st cameras, turn-to-walk controls, glass HUD.
-- [0005: Optional original retro audio](decisions/0005-retro-audio.md) — synthesized chiptunes, gesture unlock, bounded scheduling and confirmed-event feedback.
+- [0005: Optional original retro audio](decisions/0005-retro-audio.md) — synthesized chiptunes, gesture unlock, bounded scheduling and confirmed-event feedback; partly amended by 0006.
+- [0006: Audible, on-by-default audio](decisions/0006-audible-retro-audio.md) — louder levels, per-scene music, mute button, page-load unlock.
 
 For future changes, update this overview when behaviour or architecture changes.
 Add a numbered decision record for a consequential choice, including context,
@@ -142,20 +143,25 @@ its replacement instead of silently rewriting the historical choice.
 
 ## Audio presentation
 
-Sound defaults off. A labelled native checkbox enables effects, with a separate
-music checkbox in a keyboard-accessible disclosure. Only these two preferences
-are stored in `maze-duel-audio-v1` local storage; no player or race data is added.
-Malformed or blocked storage falls back safely. A missing or denied AudioContext
-shows a local notice and does not prevent playing. The existing server/API,
-permissions, persistence and dependencies are unchanged by audio.
+Sound defaults on ([0006](decisions/0006-audible-retro-audio.md)) and waits for
+the first click or key press, which browsers require. A visible mute button and
+the M key (ignored while typing) toggle it; a keyboard-accessible menu has
+separate sound and music checkboxes. Only these preferences are stored, in
+`maze-duel-audio-v1` local storage; no player or race data is added. Malformed
+or blocked storage falls back safely. A missing or denied AudioContext shows a
+local notice and does not prevent playing. The server/API, permissions,
+persistence and dependencies are unchanged by audio.
 
-One AudioContext is created/resumed from a gesture. Short square/triangle tones
-have gain envelopes and a conservative master level. The original 120 BPM music
-has a 32-step motif; it runs only during a live race with this client's stream
-connected. The oscillator budget is 24 voices; one 100 ms scheduler looks up to
-150 ms ahead and skips missed beats after a stall. Repeated effects are limited
-to one per 90 ms, or 250 ms for wall/refusal bumps. Mute and hidden-page handling
-stop voices and timers; page exit closes the context. These are scheduling bounds,
+One AudioContext is created or resumed from a gesture, and retried when a new
+page loads after the visitor has already interacted (creating a race reloads
+the page). Effects are square and triangle tones with slides, vibrato and
+envelopes. Music is a square lead, triangle bass and noise drums, in four
+original tunes (lobby, waiting room, countdown, race) chosen from the game
+state. A result stops the music for its jingle. The voice budget is 40; one 80
+ms scheduler looks up to 200 ms ahead and skips missed beats after a stall.
+Repeated effects are rate-limited, and mute and hidden-page handling stop
+voices and timers; page exit closes the context. Loudness is measured from the
+real output in Chrome and guarded by `spec/maze-audio-levels.test.ts`. These are scheduling bounds,
 not a claim about measured CPU, battery consumption or perceived loudness.
 
 Walking and turning match local predicted presentation; a later refusal may
