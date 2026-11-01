@@ -2,6 +2,9 @@ import { ApiError, request } from "./maze-api.js";
 import { createSender, setupControls } from "./maze-controls.js";
 import { DIRECTIONS, goalOf, passable, switchAt } from "./maze-rules.js";
 import { raceCues } from "./maze-audio-events.js";
+import { setupChat } from "./maze-chat.js";
+import { celebrate } from "./maze-celebrate.js";
+import { lookOf } from "./maze-look.js";
 
 const $ = (id) => document.getElementById(id);
 const text = (id, value) => { if ($(id).textContent !== value) $(id).textContent = value; };
@@ -27,6 +30,11 @@ export function mountRace(initial, mazeView, showError, audio) {
     return { player: p, board };
   }
   const self = () => predicted().player;
+  const chat = setupChat({
+    send: (body) => request(`${path}/chat`, body).then(apply),
+    audio,
+  });
+  let celebration = null, lookSynced = false;
   const canMove = () => connected && game.status === "racing" && !document.hidden;
   window.addEventListener("blur", () => sender.clear());
   document.body.dataset.inRace = "true";
@@ -59,6 +67,14 @@ export function mountRace(initial, mazeView, showError, audio) {
       if (!document.fullscreenElement) document.documentElement.requestFullscreen?.().catch(() => {});
     }
     if (done && document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    // The avatar designer is only for the waiting room; the server locks looks after that.
+    $("avatar-card").hidden = game.status !== "waiting";
+    // Show what the server saved for this seat once; after that the picker leads.
+    if (!lookSynced) {
+      lookSynced = true;
+      document.dispatchEvent(new window.CustomEvent("maze:sync-look", { detail: lookOf(confirmed()) }));
+    }
+    chat.update(game, me, (message) => text("announcement", message));
     document.body.dataset.phase = game.status;
     // The tune follows the game: waiting room, countdown, race. A result stops it for the jingle.
     audio.setScene(!connected ? "off" : { waiting: "waiting", countdown: "countdown", racing: "race" }[game.status] ?? "off");
@@ -145,6 +161,10 @@ export function mountRace(initial, mazeView, showError, audio) {
   function apply(view, audible = connected) {
     if (view.game.revision < game.revision) return;
     if (audible) for (const cue of raceCues(game, view.game, me)) audio.play(cue);
+    // Celebrate a win that happens while watching, never one found by reloading.
+    if (audible && game.status !== "finished" && view.game.status === "finished" && view.game.winnerId === me && !celebration) {
+      celebration = celebrate(document.querySelector(".stage"), { hue: lookOf(view.game.players.find((p) => p.id === me)).hue });
+    }
     // A reconnect establishes current state, not an opportunity to replay the
     // result, flips or countdown seconds missed while offline.
     if (!audible && view.game.status === "countdown") {
@@ -246,6 +266,12 @@ export function mountRace(initial, mazeView, showError, audio) {
     if ($("exit-dialog").returnValue !== "leave") return;
     try { await request(`${path}/forfeit`, {}); } catch { /* already over: leaving is still fine */ }
     leave();
+  });
+  // Changing the avatar in the waiting room is saved on the server so the rival sees it.
+  document.addEventListener("maze:look", async (event) => {
+    if (game.status !== "waiting") return;
+    try { apply(await request(`${path}/look`, { look: event.detail })); }
+    catch (error) { showError(error); }
   });
   $("rematch").addEventListener("click", async () => {
     rematching = true;

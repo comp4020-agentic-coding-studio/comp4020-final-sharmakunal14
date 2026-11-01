@@ -4,6 +4,7 @@ import { setupViews } from "./maze-views.js";
 import { mountRace } from "./maze-race.js";
 import { mountReplay } from "./maze-replay.js";
 import { setupAudio } from "./maze-audio-ui.js";
+import { setupAvatarPicker } from "./maze-avatar-ui.js";
 
 export const formatTime = (ms) => `${Math.floor(ms / 60_000).toString().padStart(2, "0")}:${((ms % 60_000) / 1_000).toFixed(1).padStart(4, "0")}`;
 
@@ -11,7 +12,7 @@ const $ = (id) => document.getElementById(id);
 const replayId = /^\/race\/([a-f0-9-]{36})\/replay\/?$/.exec(location.pathname)?.[1] ?? null;
 const invitationId = replayId ? null : raceId(location.href);
 let actor = null;
-let mazeView;
+let mazeView, picker, preview = null, inLobby = true, today = null;
 const audio = setupAudio();
 
 function showError(error) {
@@ -35,7 +36,8 @@ async function recentRaces() {
 }
 
 async function enter(id) {
-  const view = await request(`/api/maze/matches/${id}/join`, {});
+  const view = await request(`/api/maze/matches/${id}/join`, { look: picker.chosen() });
+  inLobby = false;
   $("entry").hidden = true;
   $("recent").hidden = true;
   mountRace(view, mazeView, showError, audio);
@@ -72,7 +74,7 @@ $("entry-form").addEventListener("submit", async (event) => {
     }
     if (invitationId) await enter(invitationId);
     else {
-      const view = await request(id ? `/api/maze/matches/${id}/join` : "/api/maze/matches", {});
+      const view = await request(id ? `/api/maze/matches/${id}/join` : "/api/maze/matches", { look: picker.chosen() });
       location.assign(`/race/${view.game.id}`);
     }
   } catch (error) {
@@ -99,17 +101,29 @@ async function createView(container) {
   }
 }
 
+function drawPreview() {
+  const n = today.maze.length;
+  mazeView.update(today.maze, [
+    { id: "preview-a", slot: 0, x: 1, y: 1, look: picker.look() },
+    { id: "preview-b", slot: 1, x: n - 2, y: n - 2 },
+  ], { gates: today.gates, switches: today.switches, switchOn: today.switches.map(() => false) });
+}
+
 async function initialize() {
   mazeView = await createView($("maze"));
   setupViews(mazeView, () => audio.play("camera"));
-  const today = await request("/api/maze/today");
+  if (mazeView.setView) {
+    try { preview = new (await import("./maze-3d.js")).AvatarPreview($("avatar-preview")); }
+    catch { $("avatar-preview").hidden = true; }
+  } else $("avatar-preview").hidden = true;
+  picker = setupAvatarPicker(preview);
+  // The maze preview shows the chosen avatar at entrance A until a race begins.
+  picker.onChange?.(() => { if (inLobby && today) drawPreview(); });
+  today = await request("/api/maze/today");
   const n = today.maze.length;
   $("maze-date").textContent = `MAZE OF ${today.mazeId}`;
   $("board-size").textContent = `${n} × ${n} · SHARED GROUND`;
-  mazeView.update(today.maze, [
-    { id: "preview-a", slot: 0, x: 1, y: 1 },
-    { id: "preview-b", slot: 1, x: n - 2, y: n - 2 },
-  ], { gates: today.gates, switches: today.switches, switchOn: today.switches.map(() => false) });
+  drawPreview();
   $("best").hidden = today.best.length === 0;
   $("best-list").replaceChildren(...today.best.map((entry) => {
     const item = document.createElement("li"), link = document.createElement("a"), time = document.createElement("span");
@@ -143,6 +157,7 @@ async function initialize() {
     }
     $("entry").hidden = true;
     $("recent").hidden = true;
+    $("avatar-card").hidden = true;
     return mountReplay(await request(`/api/maze/matches/${replayId}/replay`), mazeView);
   }
   if (invitationId) {

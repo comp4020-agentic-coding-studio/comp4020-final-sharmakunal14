@@ -79,6 +79,21 @@
           </form>
         </dialog>
 
+        <div id="reaction-floats" class="reaction-floats" aria-hidden="true"></div>
+        <div id="chat" class="hud hud-chat" data-open="false" hidden>
+          <button id="chat-toggle" type="button" class="chat-toggle" aria-expanded="false" aria-controls="chat-panel" title="Chat and reactions"><span aria-hidden="true">💬</span><span class="sr-only">Chat and reactions</span><span id="chat-unread" class="unread" hidden>0</span></button>
+          <div id="chat-panel" class="chat-panel" role="group" aria-label="Chat and reactions">
+            <ul id="chat-log" class="chat-log" aria-label="Messages"></ul>
+            <div id="chat-reactions" class="chat-reactions" role="group" aria-label="Quick reactions"></div>
+            <form id="chat-form" class="chat-form" autocomplete="off">
+              <label for="chat-input" class="sr-only">Message</label>
+              <input id="chat-input" placeholder="Say something nice…" enterkeyhint="send">
+              <button type="submit" class="chat-send">Send</button>
+            </form>
+            <div class="chat-foot"><button id="chat-mute" type="button" class="link-btn" aria-pressed="false">Mute rival</button><span id="chat-note" class="fine" role="status"></span></div>
+          </div>
+        </div>
+
         <div id="countdown" class="countdown" hidden><span>GET READY</span><strong id="countdown-number">3</strong><span>Reach the opposite portal</span></div>
 
         <div id="movement" class="hud hud-pad" hidden>
@@ -149,6 +164,13 @@
           <p id="replay-explored" class="fine"></p>
           <p class="fine">Glowing dots mark every cell each player explored, dead ends included.</p>
           <a class="btn btn-ghost" href="/"><span>Back to today’s maze</span><svg aria-hidden="true"><use href="#i-arrow"/></svg></a>
+        </section>
+
+        <section id="avatar-card" class="card" aria-labelledby="avatar-title">
+          <div class="row-between"><p class="eyebrow" id="avatar-title">YOUR AVATAR</p><button id="avatar-random" type="button" class="btn btn-icon" aria-label="Surprise me: random avatar" title="Surprise me">🎲</button></div>
+          <div id="avatar-preview" class="avatar-preview" aria-hidden="true"></div>
+          <div id="avatar-options" class="avatar-options"></div>
+          <p class="fine">Your rival sees this avatar. You can change it until the countdown starts.</p>
         </section>
 
         <p id="error" class="error" role="alert" hidden></p>
