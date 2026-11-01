@@ -1,9 +1,13 @@
 import { ApiError, raceId, request } from "./maze-api.js";
 import { MazeView } from "./maze-render.js";
 import { mountRace } from "./maze-race.js";
+import { mountReplay } from "./maze-replay.js";
+
+export const formatTime = (ms) => `${Math.floor(ms / 60_000).toString().padStart(2, "0")}:${((ms % 60_000) / 1_000).toFixed(1).padStart(4, "0")}`;
 
 const $ = (id) => document.getElementById(id);
-const invitationId = raceId(location.href);
+const replayId = /^\/race\/([a-f0-9-]{36})\/replay\/?$/.exec(location.pathname)?.[1] ?? null;
+const invitationId = replayId ? null : raceId(location.href);
 let actor = null;
 let mazeView;
 
@@ -20,7 +24,7 @@ async function recentRaces() {
     const item = document.createElement("li"), link = document.createElement("a"), status = document.createElement("span");
     link.href = `/race/${game.id}`;
     link.append(`RACE ${game.id.slice(0, 8).toUpperCase()}`);
-    status.textContent = game.status;
+    status.textContent = game.status === "finished" ? `${game.winner} · ${formatTime(game.timeMs)}` : game.status;
     link.append(status);
     item.append(link);
     return item;
@@ -70,11 +74,49 @@ $("entry-form").addEventListener("submit", async (event) => {
 
 async function initialize() {
   mazeView = new MazeView($("maze"));
-  const { maze } = await request("/api/maze/layout");
-  mazeView.update(maze, [
+  const today = await request("/api/maze/today");
+  const n = today.maze.length;
+  $("maze-date").textContent = `MAZE OF ${today.mazeId}`;
+  $("board-size").textContent = `${n} × ${n} / SHARED GROUND`;
+  mazeView.update(today.maze, [
     { id: "preview-a", slot: 0, x: 1, y: 1 },
-    { id: "preview-b", slot: 1, x: 11, y: 11 },
-  ]);
+    { id: "preview-b", slot: 1, x: n - 2, y: n - 2 },
+  ], { gates: today.gates, switches: today.switches, switchOn: today.switches.map(() => false) });
+  $("best").hidden = today.best.length === 0;
+  $("best-list").replaceChildren(...today.best.map((entry) => {
+    const item = document.createElement("li"), link = document.createElement("a"), time = document.createElement("span");
+    link.href = `/race/${entry.matchId}/replay`;
+    link.append(entry.name);
+    time.textContent = formatTime(entry.timeMs);
+    link.append(time);
+    item.append(link);
+    return item;
+  }));
+  if (replayId) {
+    try { actor = await request("/api/me"); }
+    catch (error) { if (!(error instanceof ApiError) || error.status !== 401) throw error; }
+    if (!actor) {
+      $("entry-eyebrow").textContent = "REPLAY";
+      $("entry-title").textContent = "Choose a nickname to watch.";
+      $("create-race").textContent = "Watch the replay";
+      $("join-divider").hidden = true;
+      $("invite-label").hidden = true;
+      $("join-race").hidden = true;
+      $("entry-fields").disabled = false;
+      $("entry-form").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        try {
+          actor = await request("/api/session", { name: $("nickname").value.trim() });
+          location.reload();
+        } catch (error) { showError(error); }
+      }, { capture: true });
+      return;
+    }
+    $("entry").hidden = true;
+    $("recent").hidden = true;
+    return mountReplay(await request(`/api/maze/matches/${replayId}/replay`), mazeView);
+  }
   if (invitationId) {
     $("entry-eyebrow").textContent = "YOU’VE BEEN CHALLENGED";
     $("entry-title").textContent = "Your rival awaits.";
