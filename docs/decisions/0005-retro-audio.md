@@ -1,7 +1,7 @@
 # 0005 — Optional original retro audio
 
 Date: 1 November 2026 (Australia/Sydney)
-Status: Accepted for implementation.
+Status: Implemented; automated and browser-control checks complete. Human listening pending.
 
 ## Context
 

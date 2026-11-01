@@ -126,3 +126,37 @@ suggestions, not checked quotes):
 4. Do phone players manage with the d-pad, or need swipe input?
 5. Which camera do people choose? Does first person make the race harder,
    but in a fun way? Is it a fair choice if one player uses the map?
+
+## 1 November 2026 — Audio iteration (raw evidence for later reflection)
+
+- Author request: Mario-like music/effects for movement, winning and flipping;
+  small commits directly on main, plus harness/design/progress records.
+- Interpretation: original retro square/triangle-wave synthesis, not imported
+  game recordings or copied melodies. No audio package or asset downloads.
+- Decision 0005 explains synthesis vs bundled files/library, explicit opt-in,
+  and why confirmed flips/results differ from immediate predicted footstep cues.
+- Enforced: 20 added tests cover lifecycle, voice limits, preferences, duplicate
+  snapshots, reconnect baselines, refused flips, countdown and camera controls.
+  Full suite: 66 tests across 13 files; type check and evidence check passed.
+- Fail-first was partial: the event-policy suite failed because its module was
+  absent, then passed after implementation. Other audio tests were written with
+  or after their implementation. Do not call the whole iteration strict TDD.
+- Correction: refusal test exposed the inferred-null API error body type. The
+  integration commit preceded that correction; `1a5b133` adds the JSDoc contract.
+- Browser correction: the mobile lobby menu worked, but the active-race header's
+  `position: static` put the menu behind the stage. `8a53f2a` restores a positioned
+  layer and adds the discovered rule to CLAUDE.md. Check real interaction states,
+  not only the landing screen.
+- Agent-driven IAB checks at 390×844 and 1440×900: preferences after reload,
+  keyboard/touch-style controls, countdown, turn, walk, wall refusal, mute; no
+  reported console errors. A synthetic API opponent filled/readied the other
+  seat, without keeping a second stream online. This was not a human playtest.
+- Committed [phone](evidence/2026-11-01-audio-phone.png) and
+  [desktop](evidence/2026-11-01-audio-desktop.png) captures show the repaired menu.
+  Screenshots demonstrate layout, not audible output.
+- Still judge with people: volume at normal device settings, short-loop fatigue,
+  distinguishability of flip vs refusal, and whether sound improves navigation.
+  Physical iOS/Android audio behaviour and battery cost are unmeasured.
+- Source for browser constraints:
+  [MDN Web Audio best practices](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Best_practices).
+  These are supporting notes, not a replacement for the author's assessed prose.

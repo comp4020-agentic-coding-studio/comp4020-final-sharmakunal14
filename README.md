@@ -36,6 +36,12 @@ open, for both players.
 A result ends the race for both players. **Watch the replay** shows both
 routes, dead ends included. Today's best times appear on the home page.
 
+Open **Sound off → Enable sound** for original retro effects: walking,
+turning, wall bumps, switches, countdown and results. **Race music** controls
+the chiptune accompaniment separately. Sound starts off; preferences are saved
+in this browser when possible. Hidden tabs and disconnected races stop the
+music. Replays stay silent. All gameplay feedback remains visible without sound.
+
 Identity belongs to this browser's cookie, not to a verified account. Reusing
 a nickname in a different browser creates a different player. Clearing the
 cookie loses access to that identity's races. Anyone with an unused invitation

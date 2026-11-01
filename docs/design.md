@@ -1,6 +1,7 @@
 # Maze Duel design
 
-Last updated: 1 November 2026. Scope: milestone 2 (shared maze mechanics, [decision 0003](decisions/0003-shared-maze-mechanics.md)).
+Last updated: 1 November 2026. Scope: shared maze mechanics, 3D presentation
+and optional retro audio (decisions 0003–0005).
 
 This file describes the current design. Important choices and their alternatives
 belong in [decision records](decisions/0002-maze-duel-first-playable.md).
@@ -39,6 +40,7 @@ Accounts, power-ups, map reveals and a free 3D camera stay deferred.
 | `maze-http.ts` | Validated commands, access checks and API responses. |
 | `maze-live.ts` | SSE snapshots, presence, timed transitions and stream limits. |
 | `public/maze-3d.js`, `public/maze-views.js` | Three.js scene, cameras, avatar animation and the camera switcher. |
+| `public/maze-audio.js`, `maze-audio-events.js`, `maze-audio-ui.js` | Original Web Audio synthesis, confirmed-state cue policy, and optional local sound/music settings. |
 | `public/maze*.js`, `public/maze-ui.css`, `public/maze.html` | Lobby, HUD, live state, controls and responsive layout; `maze-render.js` is the 2D fallback. |
 | `public/vendor/` | Pinned third-party browser code (Three.js r170, MIT). |
 | `spec/maze-*` | Rule, persistence, HTTP, restart and input regression checks. |
@@ -131,8 +133,37 @@ be always correct. That needs human playtesting before more mechanics.
 - [0002: First playable scope and runtime](decisions/0002-maze-duel-first-playable.md) — implemented Maze Duel decisions and costs; partly amended by 0003.
 - [0003: Shared maze mechanics](decisions/0003-shared-maze-mechanics.md) — daily seed, switches, batching, step log and replays.
 - [0004: Real 3D view](decisions/0004-three-dimensional-view.md) — vendored Three.js, map/3rd/1st cameras, turn-to-walk controls, glass HUD.
+- [0005: Optional original retro audio](decisions/0005-retro-audio.md) — synthesized chiptunes, gesture unlock, bounded scheduling and confirmed-event feedback.
 
 For future changes, update this overview when behaviour or architecture changes.
 Add a numbered decision record for a consequential choice, including context,
 alternatives, rationale, costs and status. Mark a superseded decision and link
 its replacement instead of silently rewriting the historical choice.
+
+## Audio presentation
+
+Sound defaults off. A labelled native checkbox enables effects, with a separate
+music checkbox in a keyboard-accessible disclosure. Only these two preferences
+are stored in `maze-duel-audio-v1` local storage; no player or race data is added.
+Malformed or blocked storage falls back safely. A missing or denied AudioContext
+shows a local notice and does not prevent playing. The existing server/API,
+permissions, persistence and dependencies are unchanged by audio.
+
+One AudioContext is created/resumed from a gesture. Short square/triangle tones
+have gain envelopes and a conservative master level. The original 120 BPM music
+has a 32-step motif; it runs only during a live race with this client's stream
+connected. The oscillator budget is 24 voices; one 100 ms scheduler looks up to
+150 ms ahead and skips missed beats after a stall. Repeated effects are limited
+to one per 90 ms, or 250 ms for wall/refusal bumps. Mute and hidden-page handling
+stop voices and timers; page exit closes the context. These are scheduling bounds,
+not a claim about measured CPU, battery consumption or perceived loudness.
+
+Walking and turning match local predicted presentation; a later refusal may
+correct the position after its step sound. Flip/ready/start/result cues compare
+newer confirmed revisions, so an HTTP response and SSE snapshot cannot sound the
+same transition twice. Initial and reconnect snapshots establish silent baselines.
+Countdown ticks follow the current displayed second. A finish stops accompaniment
+and selects a winner, loser or interruption phrase. Camera changes have a short
+cue; replay playback deliberately adds none. Dropped/cancelled transitions between
+snapshots are not reconstructed. Human listening must judge timbre, music fatigue
+and whether cues help players; tests do not settle those questions.
