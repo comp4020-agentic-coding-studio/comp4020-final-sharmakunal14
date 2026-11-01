@@ -41,26 +41,15 @@ constraint was added to `CLAUDE.md` with the fix. The same browser run exposed
 overlapping player markers at a shared cell; visual offsets now distinguish
 both players without changing the server's grid coordinates.
 
-## Verification on 1 November
+## Implementation and verification record
 
-- `pnpm check`: TypeScript passed; 32 tests passed across eight files. This
-  includes the 15 retained Shared Space/starter checks, HTTP access and input
-  validation, concurrent joins/finishes, streaming, stored results, a real
-  server-process restart, and focused keyboard-input checks.
-- `pnpm check:evidence`: passed; both existing crit reflections were found and
-  all ten cited historical commits resolved. This is structural verification,
-  not evidence that the old process narrative describes Maze Duel.
-- `node --check` passed for all five new browser modules; `git diff --check`
-  passed for the implementation changes.
-- An agent-driven browser race used separate Chrome and in-app-browser cookie
-  stores. Nickname creation, invitation joining, readiness, countdown, a
-  movement-button press, keyboard movement, a full finish and result reload
-  were exercised. Both players saw the same winner.
-- The active-race interface was inspected at 1920×1080 and 390×844. This used
-  desktop browser viewport emulation, not a physical phone. No console errors
-  or warnings were reported in the inspected Chrome session.
+The [initial implementation entry in PROGRESS.md](../../PROGRESS.md) records
+the completed work, all 19 implementation commits, automated results,
+agent-driven browser checks and verification limits. Keep subsequent work
+and check results there so this decision record remains focused on the
+choice and its consequences.
 
-Docker and TruffleHog were not available locally, so the container build and
-CI secret scans were not run. No deployment or independent human playtest was
-performed. The author still needs to revise the assessed README argument,
-PROCESS.md and, if enrolled in COMP8020, the research note.
+The [current design overview](../design.md) maps these decisions to components,
+race states, trust boundaries and open questions. Changes to these decisions
+should explicitly amend or supersede this record, rather than treating an
+unimplemented proposal as the current design.
