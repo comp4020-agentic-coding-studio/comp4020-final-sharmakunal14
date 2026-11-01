@@ -1,68 +1,84 @@
-# Shared Space
+# Maze Duel
 
-Shared Space helps a small team arrange stalls in an event room together.
-The first version is a fictional Campus Clubs Fair: four activities and a
-walkway inside a 12 by 8 metre room. The question is whether collaborators
-can try a layout, understand its problems, and return to the same saved plan
-without losing one another's changes.
+Two players enter the same maze from opposite corners. Each races to the
+other player's entrance; the first valid finish accepted by the server wins.
 
-## Try the current version
+This is the **first playable implementation**, not the final assessed argument
+about what makes the project good. The earlier Shared Space application remains
+available at `/shared-space/`; its original README is preserved in
+[the earlier project notes](docs/shared-space-readme.md). `PROCESS.md` and the
+crit reflections still describe that earlier work and need an author-written
+account of the change in direction.
 
-Open [Shared Space](https://comp4020-final-sharmakunal14.fly.dev/), choose a
-display name, and type a room name. Someone using another browser or browser
-profile who types the same name joins the same room; a new name starts a room
-with the example layout. A private plan reachable only by its address is also
-available. Select an activity
-and drag it, use the arrow keys or movement buttons, enter its coordinates,
-or use **Tap the plan to place**. Move Robotics into the walkway to see a
-named problem, then move it clear. Reopen the plan to inspect the saved
-position.
+## Play
 
-Identity belongs to a browser session, with no password or verified account.
-Clearing its cookie creates a new identity. Anyone holding a plan link can
-join as an editor, so use this prototype for non-sensitive examples.
+Open `/`, choose a nickname and create a race. Send the invitation link to a
+friend using a separate browser or browser profile. Both players press
+**I'm ready**; a shared three-second countdown starts the race.
 
-## What good means here
+Use **WASD**, **arrow keys** or the directional buttons. A starts at the top
+left and must reach B at the bottom right; B takes the reverse journey. The
+whole maze is visible. Players can pass through one another. A result ends
+the race for both players. Choose **Create another race** to get a new
+invitation for the same layout.
 
-Good means collaborators can understand and negotiate a shared layout while
-the software makes the consequences of their actions clear.
+Identity belongs to this browser's cookie, not to a verified account. Reusing
+a nickname in a different browser creates a different player. Clearing the
+cookie loses access to that identity's races. Anyone with an unused invitation
+can take the second seat; after that, only those two identities can access the
+match. Use fictional nicknames, not sensitive information.
 
-- **Respect saved work.** A move based on an outdated position must be refused with an explanation. A preview must only be described as saved after the server confirms it.
-- **Make problems discussable.** An unfinished layout may overlap activities, obstruct the walkway or cross the room boundary. It should remain editable, with the affected activities named, rather than silently refusing the move. These geometric checks are not a venue-safety assessment.
-- **Make collaboration understandable.** Saved changes should reach other open plans within about a second. People should be able to identify the last mover, recognise a disconnected view, and keep their selection and keyboard focus when updates arrive.
-- **Let people choose how to move.** Dragging, keyboard input and clickable or tappable controls should offer equivalent access to positioning an activity.
+## Rules and limits
 
-Gutwin and Greenberg's [workspace-awareness framework](https://hcitang.org/uploads/Teaching/2002-DescriptiveFramework.JCSCW.pdf)
-(2002, introduction, pp. 412–413) describes understanding other people's
-activity in a shared workspace. I use it as a reason to judge whether movement
-and attribution are understandable, rather than treating synchronised
-coordinates alone as successful collaboration. It does not establish that
-this interface is usable.
+- One fixed, rotationally symmetric 13×13 maze; all passages reach both goals.
+- The server validates each step, the countdown and the common speed limit.
+  Commands carry a sequence number so a retried move is not applied twice.
+- The first accepted finishing move wins. Network delay can influence close
+  finishes; this is not a latency-compensated competitive game.
+- A browser disconnect does not pause the clock. Reopening the invitation in
+  the same browser restores the saved position. Controls stay disabled while
+  the live connection is unavailable.
+- A server restart interrupts an active race without awarding a winner.
+  Completed results and waiting lobbies survive. Races end without a winner
+  after ten minutes if neither player finishes.
 
-W3C's [guidance on dragging movements](https://www.w3.org/WAI/WCAG22/Understanding/dragging-movements.html)
-(intent and relationship to keyboard accessibility) distinguishes keyboard
-support from a pointer alternative that needs no dragging. That supports
-keeping buttons, coordinate fields and tap placement alongside arrow keys.
-Having these controls is not evidence of full accessibility conformance.
+Switches, procedural layouts, rankings and animated replays are outside this
+milestone. Whether the race is engaging and feels fair still needs independent
+playtesting. Keyboard and button controls do not establish full accessibility;
+the spatial maze remains a visual interaction.
 
-## What is checked, and what still needs judgement
+## Run locally
 
-The automated application checks cover a saved move read by another session,
-rejection of an outdated move, and receipt of a streamed update within one
-second. They also cover who has a plan open, a drag in progress reaching the
-other plan within a second without being saved, an abandoned or outdated drag
-being withdrawn, and a reconnecting plan receiving the moves it missed. They
-test HTTP behaviour, not what two people see in their browsers. The supplied
-checks also cover the home page and this page's headings.
+Use the Node 24 and pnpm 11 versions in `mise.toml`:
 
-Focus preservation, clear conflict messages, keyboard and touch usability,
-and whether the tool helps a team negotiate need direct observation. Those
-standards are not yet established by user trials. Persistence across a server
-restart or redeployment also needs a dedicated check.
+```sh
+pnpm install --frozen-lockfile
+pnpm dev
+```
 
-## Deliberate limits
+Open `http://localhost:8080`. `PORT` overrides the port; `DATA_DIR` selects the
+database directory (normally `./data` locally and `/data` on Fly.io). To run
+without file watching, use `pnpm start`. Watch-mode restarts interrupt races.
 
-The prototype edits one example layout. Custom venues, equipment inventory,
-private roles, undo and published versions are outside this first version.
-I would rather establish whether this small shared interaction is dependable
-before making the editor more general.
+The stack retains Node's HTTP server, SQLite and browser JavaScript. Movement
+commands use HTTP; [server-sent events](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events)
+deliver authoritative snapshots. The raised maze view uses Canvas 2D with a
+fixed projection, not a WebGL engine. No runtime dependencies were added.
+Fly's existing single-machine and persistent-volume configuration is retained.
+
+## Verification
+
+With the app running:
+
+```sh
+pnpm check
+pnpm check:evidence
+```
+
+For a different address, set `APP_URL=http://localhost:8089`. The checks cover
+maze reachability, movement rules, two-player limits, access control, malformed
+requests, concurrent finishes, live updates, reconnect snapshots, stored
+results, actual server restart and keyboard-input safety. The earlier Shared
+Space checks remain. The evidence check validates document structure and cited
+commits; it does not establish that the old process narrative describes this
+new implementation.
