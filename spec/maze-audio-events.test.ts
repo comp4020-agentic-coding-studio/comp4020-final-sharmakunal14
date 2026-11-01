@@ -28,3 +28,18 @@ it("distinguishes ready acknowledgement from the shared start", () => {
   expect(raceCues(waiting, { ...waiting, revision: 5, players: racing.players }, "me")).toEqual(["ready"]);
   expect(raceCues({ ...racing, status: "countdown" }, { ...racing, revision: 5 }, "me")).toEqual(["go"]);
 });
+
+it("welcomes a rival who joins the waiting room, once", () => {
+  const alone = { ...racing, status: "waiting", players: [{ id: "me", ready: false }] };
+  const joined = { ...alone, revision: 5, players: [{ id: "me", ready: false }, { id: "rival", ready: false }] };
+  expect(raceCues(alone, joined, "me")).toEqual(["join"]);
+  expect(raceCues(joined, { ...joined, revision: 6 }, "me")).toEqual([]);
+  // The joiner already knows they joined, so only the host hears the arrival.
+  expect(raceCues({ ...alone, players: [{ id: "rival", ready: false }, { id: "me", ready: false }] }, { ...joined, players: [{ id: "rival", ready: false }, { id: "me", ready: false }] }, "me")).toEqual([]);
+});
+
+it("chimes when the rival readies up, but not for your own ready", () => {
+  const waiting = { ...racing, status: "waiting", players: [{ id: "me", ready: true }, { id: "rival", ready: false }] };
+  const rivalReady = { ...waiting, revision: 5, players: [{ id: "me", ready: true }, { id: "rival", ready: true }] };
+  expect(raceCues(waiting, { ...rivalReady, status: "waiting" }, "me")).toEqual(["join"]);
+});
