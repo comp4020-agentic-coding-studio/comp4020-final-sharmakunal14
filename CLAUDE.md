@@ -38,6 +38,9 @@ the earlier Shared Space routes and data working during the transition.
 
 ### Scope and evidence
 
+- The first-playable runtime and its known trade-offs are recorded in
+  `docs/decisions/0002-maze-duel-first-playable.md`. The raised view is Canvas
+  2D; do not describe it as a full 3D engine or promise latency-neutral racing.
 - No switches, power-ups, procedural generation, ranking or replay in this
   milestone. Add complexity only after two-browser playtesting.
 - Add focused checks alongside behaviour changes: maze rules, authorization,
