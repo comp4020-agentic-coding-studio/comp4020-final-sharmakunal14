@@ -38,7 +38,9 @@ Accounts, power-ups, map reveals and a free 3D camera stay deferred.
 | `maze-store.ts` | Transactional SQLite snapshots, the step log (`maze_steps`), results (`maze_results`), best times and restart handling. |
 | `maze-http.ts` | Validated commands, access checks and API responses. |
 | `maze-live.ts` | SSE snapshots, presence, timed transitions and stream limits. |
-| `public/maze*.js`, `public/maze*.css`, `public/maze.html` | Lobby, rendering, live state, controls and responsive layout. |
+| `public/maze-3d.js`, `public/maze-views.js` | Three.js scene, cameras, avatar animation and the camera switcher. |
+| `public/maze*.js`, `public/maze-ui.css`, `public/maze.html` | Lobby, HUD, live state, controls and responsive layout; `maze-render.js` is the 2D fallback. |
+| `public/vendor/` | Pinned third-party browser code (Three.js r170, MIT). |
 | `spec/maze-*` | Rule, persistence, HTTP, restart and input regression checks. |
 
 The existing Node 24, SQLite and plain browser JavaScript stack is retained.
@@ -46,9 +48,15 @@ Commands travel over HTTP; updates travel over SSE. SQLite commits precede
 broadcasts. Reconnecting streams receive a complete authoritative snapshot.
 There is no new runtime dependency or separate database service.
 
-The rendering is a fixed Canvas 2D projection with raised wall faces. It is
-not a WebGL engine. The server operates on grid coordinates independently of
-the visual projection. Shared Space remains available at `/shared-space/`,
+Rendering uses Three.js, vendored as one file
+([decision 0004](decisions/0004-three-dimensional-view.md)):
+- a sunlit desert maze with brick walls, energy-field gates, crystal switches
+  and avatars;
+- three cameras: an orbitable map, a third-person chase view and first person.
+
+The server operates on grid coordinates independently of the visual scene;
+avatar facing is local presentation. Without WebGL, the earlier Canvas 2D
+projection is used instead. Shared Space remains available at `/shared-space/`,
 with its earlier data and tests retained.
 
 ## Race lifecycle
@@ -122,6 +130,7 @@ be always correct. That needs human playtesting before more mechanics.
 - [0001: Refuse outdated moves](decisions/0001-refuse-outdated-moves.md) — historical Shared Space decision.
 - [0002: First playable scope and runtime](decisions/0002-maze-duel-first-playable.md) — implemented Maze Duel decisions and costs; partly amended by 0003.
 - [0003: Shared maze mechanics](decisions/0003-shared-maze-mechanics.md) — daily seed, switches, batching, step log and replays.
+- [0004: Real 3D view](decisions/0004-three-dimensional-view.md) — vendored Three.js, map/3rd/1st cameras, turn-to-walk controls, glass HUD.
 
 For future changes, update this overview when behaviour or architecture changes.
 Add a numbered decision record for a consequential choice, including context,

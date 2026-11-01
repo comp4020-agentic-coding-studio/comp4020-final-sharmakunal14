@@ -31,8 +31,9 @@ Each strand, with where it is enforced (E) or judged (J):
 **What you chose not to build, and why** (README asks for this):
 - **Map reveals, footprint trails, power-ups.** These add randomness without
   making the opponent's choices matter more (decision 0003).
-- **Free 3D camera, first person.** Grid movement keeps the network authority
-  simple; the raised Canvas 2D view is presentation only (decision 0002).
+- **Free-roam 3D movement.** There is a 3D world with map, 3rd and 1st-person
+  cameras (decision 0004), but movement stays on the grid, so the server's
+  authority stays simple. Facing is local presentation only.
 - **Accounts.** A cookie identity is enough for "two separate browsers"; a
   real account would bring password and recovery work with no game value.
 - **A new random maze per race.** Times would not be comparable; a daily
@@ -76,6 +77,9 @@ suggestions, not checked quotes):
     Batching fixed it without changing transport (decision 0003).
   - Full snapshots make reconnecting trivial.
   - Cost: more bytes per update than sending only changes.
+- **Three.js vendored, not React Three Fiber or a CDN.**
+  - No build step, and nothing at marking time depends on a CDN.
+  - Cost: about 170 KB gzipped (decision 0004).
 - **Server authority plus client prediction.**
   - The client draws its own steps immediately; the server snapshot always wins.
 - **Seeded generation (date as seed), with the layout stored in the match.**
@@ -90,6 +94,8 @@ suggestions, not checked quotes):
 | Markers hid each other when sharing a cell | CLAUDE.md rule plus a render offset | `f073cdb` |
 | Generator broke symmetry in 86/400 seeds; 180/400 had no switch pair | 200-seed sweep test | `790c9ea` |
 | Sender could reuse a sequence number after `clear()` mid-flight | "never reuses a sequence number" test | `e5231c7` |
+| Scripted edit corrupted `maze-race.js` (blank page) while all 45 checks passed | `spec/browser-modules.test.ts`, seen failing first, plus a CLAUDE.md rule | `62440eb` |
+| Phone chase camera inside a wall | CLAUDE.md rule: camera stays above wall height | `d77f9ea` |
 | One-in-flight movement made speed depend on lag | CLAUDE.md speed-allowance rule plus the 300 ms HTTP check | `95fb936`, `792166e` |
 
 ### Honest gaps (a stronger PROCESS.md names them)
@@ -118,3 +124,5 @@ suggestions, not checked quotes):
    and you would want an asymmetric effect.
 3. Does the daily leaderboard make people want another go?
 4. Do phone players manage with the d-pad, or need swipe input?
+5. Which camera do people choose? Does first person make the race harder,
+   but in a fun way? Is it a fair choice if one player uses the map?

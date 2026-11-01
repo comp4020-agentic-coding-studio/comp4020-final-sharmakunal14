@@ -190,3 +190,67 @@ not human playtests on real phones or real slow networks.
 - The author still needs to write the README argument, PROCESS.md, and the
   research note if enrolled in COMP8020. Raw material is in
   [docs/writing-notes.md](docs/writing-notes.md).
+
+## 2026-11-01 — Milestone 3: real 3D view and interface rebuild
+
+### Why
+
+The author asked for a maze that feels genuinely 3D: walled corridors, a
+character to follow, a vibrant setting, first- and third-person views, and a
+more coherent modern "gamer" interface. They supplied a reference screenshot
+of a 3D labyrinth app. Scope and alternatives are in
+[decision 0004](docs/decisions/0004-three-dimensional-view.md). The
+ui-ux-pro-max design-system search recommended "3D & Hyperrealism" for
+gaming, with Russo One / Chakra Petch type and neon-on-dark accents.
+
+### Work and commit evidence
+
+| Work | Commit |
+| --- | --- |
+| Harness rules and decision 0004 written before the code. This commit also, unintentionally, contains the deletion of the old `maze.css` and `maze-layout.css`, which `git rm` had staged early. | [`f9c6d5c`](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/commit/f9c6d5c) |
+| Vendored Three.js r170, served gzipped and immutable. | [`3b0a849`](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/commit/3b0a849) |
+| 3D renderer: desert scene, brick walls, energy gates, crystal switches, avatars, map/3rd/1st cameras, turn-to-walk controls, 2D fallback. | [`d77f9ea`](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/commit/d77f9ea) |
+| Glass HUD interface over the 3D stage. | [`5bb5f1b`](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/commit/5bb5f1b) |
+| Check that every browser module parses. | [`62440eb`](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/commit/62440eb) |
+
+### Corrections during the work
+
+- **The page went blank while every check passed.**
+  - A Python string replacement whose target was empty inserted the snippet
+    between every character of `maze-race.js`, adding 70,000 lines.
+  - The page threw "Illegal return statement" and never started.
+  - All 45 checks still passed, because they only fetch the file.
+  - Fixed by restoring the file from git and reapplying with exact edits.
+  - Added `spec/browser-modules.test.ts`. I saw it fail on a deliberately
+    broken module, then pass, and added a rule to `CLAUDE.md`.
+- **The phone chase camera sat inside a wall.** The first third-person
+  screenshot at 390×844 showed only brick. The camera now stays above wall
+  height, and portrait screens get a wider field of view. Recorded as a
+  `CLAUDE.md` rule.
+- **Overview framing.**
+  - The first overview was cropped to part of the maze. The distance is now
+    computed to fit the maze in the narrower field of view.
+  - Wall tops looked flat and dominant, so they now use a light sandstone
+    texture.
+  - The HUD title overlapped the player tags, and the clock label was cramped.
+
+### Verification actually performed
+
+| Check | Result |
+| --- | --- |
+| `pnpm check` (Node 24.21, local app) | 46/46 passed, including the new module-parse check. |
+| Agent-driven headless Chrome with GPU (Metal), two isolated profiles, 1920×1080 and an emulated 390×844 | WebGL renderer active. Screenshots of home, countdown, map, third person, first person and phone third person. No page errors. |
+| Third-person controls | 12 turn-then-forward moves (A/D/S to turn, W to walk) were all accepted by the server. Then the race finished in map view, both browsers showed the result, and the replay played on the phone profile. |
+| WebGL fallback | **Not exercised.** The 2D path is wired up, but no run disabled WebGL. |
+
+These were automated runs with emulated phone viewports. No human or
+physical-device test of frame rate or controls has happened yet.
+
+### Outstanding
+
+- Frame rate and battery use on a real phone are unknown. Shadows and pixel
+  ratio may need lowering on weak devices.
+- Facing in first or third person is local only; an opponent sees the
+  avatar's facing derived from its last move.
+- Still open from milestone 2: human playtests, and whether switches create
+  real decisions.
