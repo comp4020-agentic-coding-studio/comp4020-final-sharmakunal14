@@ -14,7 +14,7 @@
   <header class="masthead">
     <a class="wordmark" href="/" aria-label="Maze Duel home"><span class="mark" aria-hidden="true">↳</span> MAZE<span>DUEL</span></a>
     <nav aria-label="Main"><a href="#how-to-play">How to play</a><a href="/readme/">About the project <span aria-hidden="true">↗</span></a></nav>
-    <span class="edition">FIRST PLAYABLE / 01</span>
+    <span class="edition">DAILY MAZE / 02</span>
   </header>
   <main id="main">
     <div class="intro">
@@ -24,17 +24,18 @@
 
     <div class="arena-layout">
       <section class="arena" aria-labelledby="arena-title">
-        <div class="arena-heading"><div><span class="eyebrow">MAZE 01</span><h2 id="arena-title">The Crossing</h2></div><span id="connection" class="connection">Maze preview</span></div>
+        <div class="arena-heading"><div><span class="eyebrow" id="maze-date">TODAY’S MAZE</span><h2 id="arena-title">The Crossing</h2></div><span id="connection" class="connection">Maze preview</span></div>
         <div class="player-strip" aria-label="Entrances">
           <span><i class="token token-a" aria-hidden="true">A</i><span id="legend-a">Start A <span class="muted">→ finish B</span></span></span>
           <span><i class="token token-b" aria-hidden="true">B</i><span id="legend-b">Start B <span class="muted">→ finish A</span></span></span>
         </div>
         <div class="board-wrap">
-          <canvas id="maze" width="880" height="640" role="img" aria-label="A maze with entrance A at the upper left and entrance B at the lower right.">Maze view requires a browser with canvas support.</canvas>
+          <canvas id="maze" width="880" height="640" role="img" aria-label="Today’s maze, with entrance A at the upper left and entrance B at the lower right.">Maze view requires a browser with canvas support.</canvas>
           <div id="countdown" class="countdown" hidden><span>GET READY</span><strong id="countdown-number">3</strong><span>Reach the opposite entrance</span></div>
-          <div class="board-caption"><span>13 × 13 / SHARED GROUND</span><span id="board-note">One maze. Equal distance.</span></div>
+          <div class="board-caption"><span id="board-size">15 × 15 / SHARED GROUND</span><span id="board-note">One maze. Equal distance.</span></div>
         </div>
-        <div class="arena-foot"><span><span class="key">W A S D</span> or arrow keys</span><span>Players can pass through each other.</span></div>
+        <p class="board-key"><span class="k-switch" aria-hidden="true">◆</span> switch <span class="k-gate open" aria-hidden="true"></span> open gate <span class="k-gate" aria-hidden="true">—</span> closed gate · blue and pink switches each control their own colour</p>
+        <div class="arena-foot"><span><span class="key">W A S D</span> move · <span class="key">E</span> flip a switch</span><span>Switches open one gate and close another — for both of you.</span></div>
       </section>
 
       <aside class="side-panel" aria-label="Race lobby">
@@ -75,12 +76,31 @@
               <button type="button" data-direction="right" aria-label="Move right">→</button>
               <button type="button" data-direction="down" aria-label="Move down">↓</button>
             </div>
+            <button id="flip" type="button" class="secondary flip" data-direction="flip" hidden>Flip switch <span aria-hidden="true">⇄</span></button>
+            <p id="switch-hint" class="fine-print"></p>
             <p id="position" class="fine-print"></p>
           </div>
           <button id="another-race" class="primary" type="button" hidden>Create another race <span aria-hidden="true">↗</span></button>
+          <a id="watch-replay" class="secondary button-link" href="#" hidden>Watch the replay <span aria-hidden="true">▶</span></a>
           <p class="fine-print">A lost connection does not pause the clock. Reopen this link in the same browser to return.</p>
         </section>
+        <section id="replay-panel" class="panel" hidden>
+          <p class="eyebrow">REPLAY</p>
+          <h2 id="replay-title">Replay</h2>
+          <p id="replay-players" class="muted"></p>
+          <div class="replay-controls">
+            <button id="replay-play" type="button" class="primary">Pause</button>
+            <label for="replay-speed" class="sr-only">Replay speed</label>
+            <select id="replay-speed"><option value="1">1×</option><option value="2" selected>2×</option><option value="4">4×</option></select>
+          </div>
+          <label for="replay-scrub" class="fine-print">Race time <span id="replay-time">00:00.0</span></label>
+          <input id="replay-scrub" type="range" min="0" max="0" step="10" value="0">
+          <p id="replay-explored" class="fine-print"></p>
+          <p class="fine-print">Faded dots show every cell each player explored, dead ends included.</p>
+          <a class="secondary button-link" href="/">Back to today’s maze</a>
+        </section>
         <p id="error" class="error" role="alert" hidden></p>
+        <section id="best" class="recent" hidden><h2>Today’s best times</h2><ol id="best-list"></ol></section>
         <section id="recent" class="recent" hidden><h2>Your recent races</h2><ul id="recent-list"></ul></section>
         <div class="small-note"><span aria-hidden="true">↗</span><p>Easy to enter.<br>A little harder to leave first.</p></div>
       </aside>
@@ -88,7 +108,7 @@
 
     <section class="rules" id="how-to-play" aria-labelledby="rules-title">
       <div><p class="eyebrow">THE RULES ARE SIMPLE</p><h2 id="rules-title">Find your way.<br>Beat their time.</h2></div>
-      <ol><li><span>01</span><div><h3>Meet in the maze</h3><p>Share a race link. You take A; your friend takes B. Both players ready up.</p></div></li><li><span>02</span><div><h3>Cross the same ground</h3><p>After the countdown, use WASD, arrow keys or the touch pad. Walls stay put.</p></div></li><li><span>03</span><div><h3>Reach the other side</h3><p>The first valid finish received by the server wins. Close races can be affected by connection speed.</p></div></li></ol>
+      <ol><li><span>01</span><div><h3>Meet in the maze</h3><p>Share a race link. You take A; your friend takes B. Both players ready up.</p></div></li><li><span>02</span><div><h3>Change the maze</h3><p>Each side has a switch. Flipping it opens a shortcut gate and closes another — for both players. Your shortcut might be theirs too.</p></div></li><li><span>03</span><div><h3>Reach the other side</h3><p>The first valid finish received by the server wins. A new maze appears every day; today’s best times are kept, and every finished race can be replayed.</p></div></li></ol>
     </section>
   </main>
   <footer><span>MAZE DUEL <span class="muted">/ An experiment in friendly rivalry.</span></span><a href="/readme/">Project notes ↗</a></footer>

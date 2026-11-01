@@ -3,7 +3,9 @@ const COLORS = ["#c7ee89", "#efb17b"];
 
 // A fixed orthographic projection keeps the controls aligned with the maze.
 // The game remains a grid; raised wall faces are presentation, not physics.
-const project = (x, y, z = 0) => [88 + x * 46 + y * 8, 92 + y * 35 - z * 25];
+let scale = 1;
+const project = (x, y, z = 0) => [88 + (x * 46 + y * 8) * scale, 92 + (y * 35 - z * 25) * scale];
+const SWITCH_COLORS = ["#8fd3ff", "#e9a0ff"];
 
 export class MazeView {
   constructor(canvas) {
@@ -19,8 +21,9 @@ export class MazeView {
     this.resize.observe(canvas);
   }
 
-  update(maze, players) {
+  update(maze, players, board = {}) {
     this.maze = maze;
+    this.board = board;
     const now = performance.now();
     for (const player of players) {
       const old = this.positions.get(player.id);
@@ -65,8 +68,28 @@ export class MazeView {
     ctx.restore();
   }
 
+  gateTile(x, y, color, closed) {
+    if (closed) {
+      this.tile(x, y, "#3b3550", 0.5);
+      const [ax, ay] = project(x + 0.15, y + 0.5, 0.5), [bx, by] = project(x + 0.85, y + 0.5, 0.5);
+      const ctx = this.ctx;
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(ax, ay);
+      ctx.lineTo(bx, by);
+      ctx.stroke();
+    } else {
+      this.polygon([project(x, y), project(x + 1, y), project(x + 1, y + 1), project(x, y + 1)], color + "40", color);
+    }
+  }
+
   marker(player, x, y, mine) {
     const ctx = this.ctx, [cx, cy] = project(x + 0.5, y + 0.5, 0.55);
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.scale(Math.max(scale, 0.8), Math.max(scale, 0.8));
+    ctx.translate(-cx, -cy);
     ctx.fillStyle = "#00000060";
     ctx.beginPath();
     ctx.ellipse(cx, cy + 15, 16, 7, 0, 0, Math.PI * 2);
@@ -92,6 +115,7 @@ export class MazeView {
       ctx.font = "bold 9px monospace";
       ctx.fillText("YOU", cx, cy - 28);
     }
+    ctx.restore();
   }
 
   draw() {
@@ -105,29 +129,60 @@ export class MazeView {
       this.canvas.height = height;
     }
     ctx.setTransform(width / WIDTH, 0, 0, height / HEIGHT, 0, 0);
+    const n = this.maze.length, { gates = [], switches = [], switchOn = [], trails = [] } = this.board ?? {};
+    scale = 13 / n;
     ctx.clearRect(0, 0, WIDTH, HEIGHT);
     ctx.save();
     ctx.shadowColor = "#050d08";
     ctx.shadowBlur = 45;
     ctx.shadowOffsetY = 25;
-    this.polygon([project(0, 0), project(13, 0), project(13, 13), project(0, 13)], "#182618");
+    this.polygon([project(0, 0), project(n, 0), project(n, n), project(0, n)], "#182618");
     ctx.restore();
-    this.polygon([project(0, 13), project(13, 13), project(13, 13, -0.45), project(0, 13, -0.45)], "#111c13");
-    this.polygon([project(13, 0), project(13, 13), project(13, 13, -0.45), project(13, 0, -0.45)], "#172517");
+    this.polygon([project(0, n), project(n, n), project(n, n, -0.45), project(0, n, -0.45)], "#111c13");
+    this.polygon([project(n, 0), project(n, n), project(n, n, -0.45), project(n, 0, -0.45)], "#172517");
     for (let y = 0; y < this.maze.length; y++) {
       for (let x = 0; x < this.maze[y].length; x++) {
         this.tile(x, y, "#20311f");
       }
     }
     this.tile(1, 1, "#455d2d");
-    this.tile(11, 11, "#65462e");
-    for (let y = 0; y < this.maze.length; y++) {
-      for (let x = 0; x < this.maze[y].length; x++) {
-        if (this.maze[y][x] === "#") this.tile(x, y, (x + y) % 3 === 0 ? "#526546" : "#4a5e40", 0.5);
+    this.tile(n - 2, n - 2, "#65462e");
+    for (const trail of trails) for (const cell of trail.cells) {
+      const [cx, cy] = project(cell.x + 0.5, cell.y + 0.5);
+      ctx.fillStyle = COLORS[trail.slot] + "55";
+      ctx.beginPath();
+      ctx.ellipse(cx + (trail.slot ? 5 : -5) * scale, cy, 6 * scale, 4 * scale, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    switches.forEach((sw, i) => {
+      const [cx, cy] = project(sw.x + 0.5, sw.y + 0.5);
+      ctx.save();
+      ctx.shadowColor = SWITCH_COLORS[i];
+      ctx.shadowBlur = switchOn[i] ? 16 : 4;
+      ctx.fillStyle = switchOn[i] ? SWITCH_COLORS[i] : "#15201a";
+      ctx.strokeStyle = SWITCH_COLORS[i];
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - 11 * scale);
+      ctx.lineTo(cx + 15 * scale, cy);
+      ctx.lineTo(cx, cy + 11 * scale);
+      ctx.lineTo(cx - 15 * scale, cy);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    });
+    for (let y = 0; y < n; y++) {
+      for (let x = 0; x < n; x++) {
+        if (this.maze[y][x] !== "#") continue;
+        const gate = gates.find((g) => g.x === x && g.y === y);
+        if (!gate) this.tile(x, y, (x + y) % 3 === 0 ? "#526546" : "#4a5e40", 0.5);
+        else if ((switchOn[gate.switch] ?? false) === gate.openWhen) this.gateTile(x, y, SWITCH_COLORS[gate.switch], false);
+        else this.gateTile(x, y, SWITCH_COLORS[gate.switch], true);
       }
     }
     this.portal(1, 1, 0);
-    this.portal(11, 11, 1);
+    this.portal(n - 2, n - 2, 1);
     const now = performance.now();
     let animating = false;
     for (const player of this.players) {
