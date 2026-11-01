@@ -30,6 +30,14 @@
   <header class="topbar">
     <a class="brand" href="/" aria-label="Maze Duel home"><span class="brand-mark" aria-hidden="true"></span><span class="brand-word">MAZE<b>DUEL</b></span></a>
     <nav aria-label="Main"><a href="#how-to-play">How to play</a><a href="/readme/">About</a></nav>
+    <details class="audio-settings">
+      <summary id="audio-status">Sound off</summary>
+      <div class="audio-popover">
+        <label><input id="sound-enabled" type="checkbox"> Enable sound</label>
+        <label><input id="music-enabled" type="checkbox" checked disabled> Race music</label>
+        <p id="audio-note" class="fine" role="status">Original arcade sounds. Music plays during live races.</p>
+      </div>
+    </details>
     <span class="chip chip-live"><span class="pulse" aria-hidden="true"></span><span id="maze-date">TODAY’S MAZE</span></span>
   </header>
 

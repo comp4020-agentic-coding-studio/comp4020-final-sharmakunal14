@@ -3,6 +3,7 @@ import { MazeView } from "./maze-render.js";
 import { setupViews } from "./maze-views.js";
 import { mountRace } from "./maze-race.js";
 import { mountReplay } from "./maze-replay.js";
+import { setupAudio } from "./maze-audio-ui.js";
 
 export const formatTime = (ms) => `${Math.floor(ms / 60_000).toString().padStart(2, "0")}:${((ms % 60_000) / 1_000).toFixed(1).padStart(4, "0")}`;
 
@@ -11,6 +12,7 @@ const replayId = /^\/race\/([a-f0-9-]{36})\/replay\/?$/.exec(location.pathname)?
 const invitationId = replayId ? null : raceId(location.href);
 let actor = null;
 let mazeView;
+const audio = setupAudio();
 
 function showError(error) {
   $("error").textContent = error instanceof Error ? error.message : "Something went wrong. Please try again.";
