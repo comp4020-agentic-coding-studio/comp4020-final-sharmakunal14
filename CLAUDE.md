@@ -51,6 +51,28 @@ the earlier Shared Space routes and data working during the transition.
   the author. Existing Shared Space prose is historical evidence, not evidence
   of testing the new game.
 
+### Design and progress records
+
+- Keep `docs/design.md` accurate about the current scope, architecture, state
+  transitions, security boundaries and known trade-offs. For a consequential
+  choice, add or update a numbered record in `docs/decisions/` with context,
+  alternatives, rationale, consequences and an explicit status. Link a
+  replacement when a decision is superseded; preserve the earlier reasoning.
+- Update `PROGRESS.md` during each meaningful work session or milestone and
+  before handing the task back. Record completed changes, observed problems,
+  corrections, verification results, limitations and outstanding work. Small
+  related commits may share one concise progress entry.
+- Date entries in Australia/Sydney time. Cite real local commits once they
+  exist, and distinguish local commits from pushed work. Record the actual
+  deployment outcome; do not imply that local verification covers production.
+- Keep proposed work separate from completed work. State which checks ran,
+  which could not run and why. Identify agent-driven browser checks separately
+  from human playtests. Never reconstruct missing evidence as a claimed result
+  or include credentials, session cookies or sensitive player data.
+- Link significant corrections to their rule or regression check. Use the
+  design records and progress log as evidence for the author's later assessed
+  `PROCESS.md`, without silently replacing that reflection with a work log.
+
 ## Earlier prototype: Shared Space
 
 These rules continue to apply to the retained event-layout routes.

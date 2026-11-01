@@ -66,6 +66,16 @@ deliver authoritative snapshots. The raised maze view uses Canvas 2D with a
 fixed projection, not a WebGL engine. No runtime dependencies were added.
 Fly's existing single-machine and persistent-volume configuration is retained.
 
+## Development records
+
+- [Design](docs/design.md): current scope, architecture, rules and trade-offs.
+- `PROGRESS.md`: dated implementation work, commit references,
+  verification results and outstanding items.
+- [Initial decision record](docs/decisions/0002-maze-duel-first-playable.md):
+  why the first playable version uses this scope and runtime.
+- `CLAUDE.md`: the implementation standards, including keeping these records
+  current as work proceeds.
+
 ## Verification
 
 With the app running:
