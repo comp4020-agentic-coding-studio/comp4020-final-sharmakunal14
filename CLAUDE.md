@@ -64,6 +64,16 @@ Keep the earlier Shared Space routes and data working during the transition.
 
 ### Scope and evidence
 
+- Audio is optional presentation (decision 0005): original synthesized retro
+  sounds, silent until enabled, with independent music control. Never block
+  gameplay when audio or preference storage is unavailable.
+- Walking sounds may follow prediction; shared flips and results require a
+  newer server snapshot. Do not double-play HTTP/SSE duplicates or replay old
+  events when reconnecting. Keep replays silent and all visual feedback intact.
+- Bound audio voices and scheduling; silence hidden pages, mute and disconnected
+  races, and dispose on page exit. Verify lifecycle and duplicate handling;
+  report human listening separately from automated audio checks.
+
 - The first-playable runtime and its known trade-offs are recorded in
   `docs/decisions/0002-maze-duel-first-playable.md`; milestone 2 scope in
   `docs/decisions/0003-shared-maze-mechanics.md`. The raised view is Canvas
