@@ -41,6 +41,14 @@ Keep the earlier Shared Space routes and data working during the transition.
   a race. Lobby-sized player cards pushed controls below the board in the
   first browser check; use a compact active-race layout. Keep the page heading
   available to assistive technology even when the visual introduction hides.
+- The 3D view is presentation only. Grid coordinates stay the authority, and
+  avatar facing (1st/3rd person) is local and never sent to the server.
+- In 1st/3rd person, forward walks the way the avatar faces; left, right and
+  back only turn it. The map view keeps screen-absolute controls.
+- The chase camera must stay above wall height. The first phone run put it
+  inside a wall, showing only brick.
+- Without WebGL, fall back to the 2D projected view; the game must stay
+  playable.
 - Keep both player markers distinguishable when they share a cell; never hide
   a player under the other marker. Marker offsets must not change grid positions.
 - A stream reconnect receives the complete saved state. Show disconnected
@@ -59,10 +67,15 @@ Keep the earlier Shared Space routes and data working during the transition.
 - The first-playable runtime and its known trade-offs are recorded in
   `docs/decisions/0002-maze-duel-first-playable.md`; milestone 2 scope in
   `docs/decisions/0003-shared-maze-mechanics.md`. The raised view is Canvas
-  2D; do not describe it as a full 3D engine or promise latency-neutral racing.
-- One switch mechanic only. Power-ups, map reveals, live footprint trails,
-  accounts and a free 3D camera stay out of scope: each adds unpredictability
-  without making the opponent's choices matter more.
+  2D; 0004 replaces it with a vendored Three.js 3D view. Do not promise
+  latency-neutral racing.
+- One switch mechanic only. Power-ups, map reveals, live footprint trails
+  and accounts stay out of scope: each adds unpredictability without making
+  the opponent's choices matter more. Cameras are fixed views (map, 3rd,
+  1st), not free-roam movement.
+- Every browser module must parse. `spec/browser-modules.test.ts` exists
+  because a corrupted `maze-race.js` passed every HTTP check while blanking
+  the page.
 - Add focused checks alongside behaviour changes: maze rules, authorization,
   concurrent joins and finishes, live delivery, retries and stored state.
 - Work in small, meaningful commits. Update this harness when a discovered
@@ -125,7 +138,8 @@ These rules continue to apply to the retained event-layout routes.
 
 - Stack: Node 24 running `server.ts` directly, built-in `node:sqlite`, plain
   HTML/CSS/JS in `public/`. No framework or runtime dependency without a reason
-  written in PROCESS.md — the machine has 256 MB.
+  written in PROCESS.md — the machine has 256 MB. Three.js is vendored as one
+  pinned file in `public/vendor/` (decision 0004), served gzipped and immutable.
 - A promise the app makes gets a check in `spec/` that runs against the running
   app. Write the check before or with the change, and watch it fail first.
 - After any server change: run the app, then `pnpm check` against it. Report
