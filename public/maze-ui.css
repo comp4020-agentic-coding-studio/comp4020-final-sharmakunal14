@@ -210,7 +210,7 @@ body[data-in-race="true"] .how, body[data-in-race="true"] #best, body[data-in-ra
   .hud-key { display: none; }
   .card { padding: 18px; }
   .how ol, .keys { grid-template-columns: 1fr; }
-  body[data-in-race="true"] .topbar { position: static; }
+  body[data-in-race="true"] .topbar { position: relative; }
   body[data-phase="racing"] .stage, body[data-phase="countdown"] .stage { height: calc(100dvh - 120px); }
   body[data-phase="racing"] #race-panel .roster,
   body[data-phase="racing"] #race-panel .race-note,

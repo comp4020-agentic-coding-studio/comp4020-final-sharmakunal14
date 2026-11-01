@@ -73,6 +73,9 @@ Keep the earlier Shared Space routes and data working during the transition.
 - Bound audio voices and scheduling; silence hidden pages, mute and disconnected
   races, and dispose on page exit. Verify lifecycle and duplicate handling;
   report human listening separately from automated audio checks.
+- Check the sound menu during an active phone-sized race, not just the lobby.
+  The race header must retain its positioned stacking layer: `position: static`
+  put the sound controls behind the stage in the first audio browser check.
 
 - The first-playable runtime and its known trade-offs are recorded in
   `docs/decisions/0002-maze-duel-first-playable.md`; milestone 2 scope in
