@@ -163,3 +163,26 @@ suggestions, not checked quotes):
 - Source for browser constraints:
   [MDN Web Audio best practices](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Best_practices).
   These are supporting notes, not a replacement for the author's assessed prose.
+
+## Avatars, chat and the win celebration (2026-11-02)
+
+Raw material, not prose.
+
+- The author asked for these to make the game more enjoyable. Decision record:
+  [0007](decisions/0007-avatars-chat-celebration.md).
+- Design tension worth discussing: free expression (chat, custom avatars) versus
+  keeping the server authoritative and safe. Looks are whitelisted names plus
+  a number; reactions are sent by name; chat text is length-limited, cleaned
+  and drawn as text. Chat is a way to be unkind, so there is a local mute.
+- Locking looks at the countdown keeps replays faithful to the race.
+- A bug from the process: a script wrote invisible Unicode characters into a
+  regex, which broke the file; the typecheck found it. The fix was to build the
+  backslashes explicitly. Recorded as a rule in `CLAUDE.md`.
+- Browser-check gotcha (not a product bug): two tabs in one headless browser
+  only reliably receive input in the front tab, which looked like a hang.
+- Not evidence of fun: nobody has playtested the celebration, the chat or the
+  designer. Open questions: is seven seconds too long, are eight reactions the
+  right set, do people use the dice button.
+- Evidence: [victory desktop](evidence/2026-11-02-victory-desktop.png),
+  [victory phone](evidence/2026-11-02-victory-phone.png),
+  [avatar and chat](evidence/2026-11-02-avatar-chat-desktop.png).

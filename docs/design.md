@@ -135,6 +135,7 @@ be always correct. That needs human playtesting before more mechanics.
 - [0004: Real 3D view](decisions/0004-three-dimensional-view.md) — vendored Three.js, map/3rd/1st cameras, turn-to-walk controls, glass HUD.
 - [0005: Optional original retro audio](decisions/0005-retro-audio.md) — synthesized chiptunes, gesture unlock, bounded scheduling and confirmed-event feedback; partly amended by 0006.
 - [0006: Audible, on-by-default audio](decisions/0006-audible-retro-audio.md) — louder levels, per-scene music, mute button, page-load unlock.
+- [0007: Avatar looks, chat with reactions, win celebration](decisions/0007-avatars-chat-celebration.md) — validated looks locked at countdown, rate-limited chat saved with the game, client-only fireworks.
 
 For future changes, update this overview when behaviour or architecture changes.
 Add a numbered decision record for a consequential choice, including context,

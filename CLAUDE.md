@@ -109,6 +109,15 @@ Keep the earlier Shared Space routes and data working during the transition.
   and accounts stay out of scope: each adds unpredictability without making
   the opponent's choices matter more. Cameras are fixed views (map, 3rd,
   1st), not free-roam movement.
+- Avatar looks and chat are presentation (decision 0007). A look is fixed
+  names plus an integer hue, validated by the server and locked once the
+  countdown starts; it never affects the rules. Chat shows only the two
+  players' lines, is rate-limited, and is drawn with `textContent`, never HTML.
+  The win celebration is client-only, winner-only, live-only, and a still
+  banner under reduced motion.
+- When writing regexes with `\u` escapes through a script, check the file: the
+  escapes were once written as raw invisible characters (including U+2028),
+  which broke the file. `node --check` and `pnpm typecheck` catch it.
 - Every browser module must parse. `spec/browser-modules.test.ts` exists
   because a corrupted `maze-race.js` passed every HTTP check while blanking
   the page.

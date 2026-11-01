@@ -539,3 +539,48 @@ buttons were meaningless there. They are now hidden, the view is forced to the
 map, and the `V` shortcut is ignored in a replay. Checked in agent-driven Chrome
 on a cancelled race's replay: view `overview`, buttons hidden, `V` does nothing,
 no page errors. Not checked on a finished race's replay or on a phone.
+
+## 2026-11-02 — Avatar designer, chat with reactions, winner celebration
+
+Decision record: [0007](docs/decisions/0007-avatars-chat-celebration.md).
+
+### Changes
+
+- **Avatars:** shape (capsule, robot, blob, cone), accessory (crown, antenna,
+  horns, cap, halo), face (visor, eyes, cyclops), finish (matte, glossy, neon)
+  and a colour slider, plus a dice button for a random look. Live 3D preview in
+  the lobby and waiting room. Choice is remembered in local storage, sent when
+  creating or joining, and can be changed until the countdown (server refuses
+  after). Both players see each other's look in 3D and in the 2D fallback.
+- **Chat:** a dock with eight quick reactions and an 80-character text line.
+  Reactions float over the stage so they are seen mid-race; new rival messages
+  make a soft sound, show an unread count and are announced to screen readers.
+  Local "Mute rival". Only the two players; rate-limited per player.
+- **Celebration:** fireworks, confetti and a VICTORY banner for the winner for
+  about seven seconds; still banner with reduced motion. Not shown to the loser
+  and not when reloading a finished race.
+
+### Verification
+
+| Check | Result |
+| --- | --- |
+| `pnpm check` against the local app | Typecheck clean; 103 tests passed (new: look validation and locking, chat rules and limits, HTTP checks for look and chat, chat rendered as text, celebration lifecycle and reduced motion). |
+| Agent-driven Chrome, two isolated profiles, 1440×900 and 390×844 touch | Designer renders (4 groups, 16 options, 3D preview); rival sees the chosen look; a change in the waiting room reaches the server; avatar card hides once racing; chat both ways with `<b>` shown as literal text, one reaction floated, unread count 2; Alice solved the maze through the API, saw fireworks and VICTORY, the loser saw none, effects removed themselves after the time. No page errors. Screenshots and script in `docs/evidence/2026-11-02-*`. |
+
+### Problems found
+
+- A script wrote invisible Unicode characters into a regex in
+  `public/maze-chat-rules.js`, breaking the file; `pnpm typecheck` caught it and
+  it was rewritten. Added to `CLAUDE.md`.
+- The browser script stalled several times. The server answered in milliseconds
+  and eight repeated runs without the script's tab handling all passed, so this
+  was the script (only the front tab gets input), not the game.
+
+### Not verified
+
+- No human playtest: whether the celebration, chat and designer are enjoyable.
+- Every accessory, shape and face was parsed and unit-tested for acceptance but
+  only a few combinations were seen in screenshots.
+- Real touch use of the designer and chat on a phone; Safari and Firefox.
+- The "VICTORY" banner and an open chat panel overlap on a phone if the panel is
+  left open (seen in the phone screenshot); not changed.
