@@ -28,6 +28,9 @@ export function mountReplay(replay, mazeView) {
   document.body.dataset.inRace = "true";
   document.body.dataset.phase = "replay";
   $("replay-panel").hidden = false;
+  // Nobody is "you" in a replay, so 1st and 3rd person make no sense: map only.
+  document.querySelector('[data-view="overview"]')?.click();
+  document.querySelector(".hud-views")?.setAttribute("hidden", "");
   $("connection").textContent = "Replay";
   $("legend-a").textContent = `${game.players.find((p) => p.slot === 0)?.name ?? "A"} → B`;
   $("legend-b").textContent = `${game.players.find((p) => p.slot === 1)?.name ?? "B"} → A`;

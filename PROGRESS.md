@@ -531,3 +531,11 @@ race is an `interrupted` game with `interruption: "forfeit"` and `forfeitedBy`.
 - No human playtest.
 - Rematch: the rival is not told automatically; they see the note only after a
   state update. Worth a look in a real session.
+
+## 2026-11-02 — Replay shows the map only
+
+The replay page hid nobody's point of view to follow, so the 1st/3rd person
+buttons were meaningless there. They are now hidden, the view is forced to the
+map, and the `V` shortcut is ignored in a replay. Checked in agent-driven Chrome
+on a cancelled race's replay: view `overview`, buttons hidden, `V` does nothing,
+no page errors. Not checked on a finished race's replay or on a phone.

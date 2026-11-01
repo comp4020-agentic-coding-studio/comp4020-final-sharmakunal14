@@ -20,6 +20,8 @@ export function setupViews(view, onChange = () => {}) {
   document.addEventListener("keydown", (event) => {
     if (event.key.toLowerCase() !== "v" || event.repeat || event.ctrlKey || event.metaKey || event.altKey) return;
     if (event.target.closest?.("input,textarea,select,[contenteditable=true]")) return;
+    // A replay has no player of your own to follow, so the map is the only view.
+    if (document.body.dataset.phase === "replay") return;
     event.preventDefault();
     select(VIEWS[(VIEWS.indexOf(view.view) + 1) % VIEWS.length]);
   });
