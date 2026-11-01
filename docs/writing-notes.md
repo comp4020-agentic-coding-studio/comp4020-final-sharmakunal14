@@ -135,12 +135,15 @@ suggestions, not checked quotes):
   game recordings or copied melodies. No audio package or asset downloads.
 - Decision 0005 explains synthesis vs bundled files/library, explicit opt-in,
   and why confirmed flips/results differ from immediate predicted footstep cues.
-- Enforced: 20 added tests cover lifecycle, voice limits, preferences, duplicate
+- Enforced: 21 added tests cover lifecycle, voice limits, preferences, duplicate
   snapshots, reconnect baselines, refused flips, countdown and camera controls.
-  Full suite: 66 tests across 13 files; type check and evidence check passed.
+  Full suite: 67 tests across 13 files; type check and evidence check passed.
 - Fail-first was partial: the event-policy suite failed because its module was
-  absent, then passed after implementation. Other audio tests were written with
-  or after their implementation. Do not call the whole iteration strict TDD.
+  absent, then passed after implementation. A later focused regression first
+  demonstrated that Space on the sound disclosure called `flip`, then passed
+  after adding `summary` to the gameplay shortcut exclusions. The remaining
+  audio tests were written with or after their implementation. Do not call the
+  whole iteration strict TDD.
 - Correction: refusal test exposed the inferred-null API error body type. The
   integration commit preceded that correction; `1a5b133` adds the JSDoc contract.
 - Browser correction: the mobile lobby menu worked, but the active-race header's

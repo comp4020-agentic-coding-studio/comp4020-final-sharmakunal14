@@ -254,3 +254,82 @@ physical-device test of frame rate or controls has happened yet.
   avatar's facing derived from its last move.
 - Still open from milestone 2: human playtests, and whether switches create
   real decisions.
+
+## 2026-11-01 — Milestone 4: original retro music and action sounds
+
+### Request and decisions
+
+The author requested Mario-like music/effects for movement, winning, flipping
+and other actions in the updated 3D layout, small commits directly on main,
+and maintained assessment records. Starting point: clean main at `0d6fb39`.
+[Decision 0005](docs/decisions/0005-retro-audio.md) chooses original native
+Web Audio synthesis, explicit opt-in and independent race music. No copied
+game assets, new dependencies, external audio calls or server state changes.
+
+### Work and commit evidence
+
+| Change | Commit |
+| --- | --- |
+| Decision 0005 and audio invariants in CLAUDE.md before code. | `af0a6c7` |
+| Original effects, melody, gain envelopes, lazy AudioContext, bounded voices/scheduler and lifecycle checks. | `8dd9923` |
+| Confirmed-state cue policy: newer revisions only; distinct win/lose/interruption phrases. | `b34e03e` |
+| Accessible sound/music disclosure, stored preferences and storage-failure handling. | `4a07e51` |
+| Walking, turning, bumps, flips, ready/countdown/start/result/camera integration; live handler and static-serving checks. | `26a5ac9` |
+| Describe structured API error bodies for the refusal test's type check. | `1a5b133` |
+| Correct the phone-race sound menu's stacking layer and record the failure in CLAUDE.md. | `8a53f2a` |
+| Usage/design/assessment notes and actual phone/desktop captures. | `02e9b09` |
+| Exclude the focused sound disclosure from gameplay shortcuts; add a regression and harness rule. | `d8ad36a` |
+
+The music runs only during a connected live race with a visible document.
+Mute/hidden pages stop queued voices; leaving closes the context. Initial or
+reconnected snapshots do not replay results or flips. Local step/turn sounds
+follow prediction; confirmed shared flips and results follow server state.
+Replays stay silent. All visual messages remain available without sound.
+
+### Problems, corrections and process limits
+
+- The event-policy test initially failed because its module did not exist.
+  It passed after implementation. Most other audio tests were written with
+  or after the code, not through a strict fail-first process.
+- The refusal test passed at runtime but exposed `ApiError`'s body inferred
+  as null-only. `26a5ac9` was committed before that type failure was corrected
+  in `1a5b133`. The final full type check passes; intermediate commits should
+  not be described as all independently green.
+- In the browser, the menu worked in the mobile lobby but was behind the maze
+  in a race. The mobile header's static positioning lost the stacking layer.
+  Restoring relative positioning fixed it, verified by screenshots.
+- Review found Space on the new `<summary>` was treated as a flip. A focused
+  test failed with an unwanted `flip` call, then passed after excluding summary
+  from gameplay shortcuts. Space now opens the menu in the browser too.
+
+### Verification actually performed
+
+| Check | Observed result |
+| --- | --- |
+| Full `pnpm check`, Node 24.21.0, isolated local server at port 8091 | **67/67 tests across 13 files passed**, including typecheck; 21 additional tests since the 3D baseline. |
+| `pnpm check:evidence` | Passed: two reflection files and 10 existing PROCESS.md commit references resolve. This does not validate the old narrative for the new project. |
+| `git diff --check` | Passed. |
+| Audio unit/handler checks | Lazy unlock; mute during pending resume; unavailable audio; independent music; hidden/disposed cleanup; 24-voice cap; no stalled-clock backlog; duplicate/reconnect silence; confirmed/refused flips; start/countdown/results; keyboard isolation. |
+| Agent-driven IAB at 390×844 and 1440×900 | Sound/music toggles, preference persistence, Space activation, countdown, 3D turn, map walk, wall refusal and live muting worked. No reported warning/error console entries during the check. Phone width and scroll width both 390. |
+| Browser race setup | One actual browser client plus a synthetic opponent created/joined/readied through the isolated test API. The synthetic opponent had no live stream; the UI correctly showed it disconnected. Not a two-person playtest. |
+| Visual evidence | [Phone](docs/evidence/2026-11-01-audio-phone.png) and [desktop](docs/evidence/2026-11-01-audio-desktop.png) show the corrected sound menu during a race. They do not establish sound quality. |
+
+No local Docker build or TruffleHog run was performed; those are configured
+in the existing GitHub workflow. No package installation was needed. A
+disposable test database was used outside the repository; the existing port
+8089 preview and its data were left alone. Temporary viewport overrides were
+reset and browser test tabs closed.
+
+### Delivery and remaining evidence
+
+The commits above are local main commits at the time of this entry; push and
+CI/deployment outcome will be recorded separately after observing them.
+The requested records now include CLAUDE.md, current design, decision 0005,
+this progress log, README usage notes and writing notes. Assessed PROCESS.md
+remains the author's work.
+
+Human listening, physical iOS/Android audio behaviour, device loudness,
+repetition fatigue and measured battery/CPU impact remain unverified. Audio
+tests prove scheduling and event routing, not whether the tune is enjoyable
+or helps navigation. Snapshot-derived sound may miss cancelling flips between
+observations; predicted steps can sound before a later server correction.
