@@ -26,6 +26,8 @@ the earlier Shared Space routes and data working during the transition.
   a race. Lobby-sized player cards pushed controls below the board in the
   first browser check; use a compact active-race layout. Keep the page heading
   available to assistive technology even when the visual introduction hides.
+- Keep both player markers distinguishable when they share a cell; never hide
+  a player under the other marker. Marker offsets must not change grid positions.
 - A stream reconnect receives the complete saved state. Show disconnected
   status and disable local controls until a fresh snapshot arrives. During a
   browser disconnect the race clock continues; a server restart interrupts

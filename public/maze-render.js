@@ -135,7 +135,8 @@ export class MazeView {
       const amount = this.reducedMotion.matches ? 1 : Math.min(1, (now - p.at) / 110);
       animating ||= amount < 1;
       const x = p.fromX + (p.x - p.fromX) * amount, y = p.fromY + (p.y - p.fromY) * amount;
-      this.marker(player, x, y, player.mine);
+      const shared = this.players.some((other) => other.id !== player.id && other.x === player.x && other.y === player.y);
+      this.marker(player, x + (shared ? (player.slot === 0 ? -0.23 : 0.23) : 0), y, player.mine);
     }
     if (animating) this.frame = requestAnimationFrame(() => this.draw());
   }
