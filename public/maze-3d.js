@@ -122,7 +122,7 @@ function avatar(slot) {
   });
   const ring = new THREE.Mesh(new THREE.RingGeometry(0.3, 0.38, 32), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.85, side: THREE.DoubleSide }));
   ring.rotation.x = -Math.PI / 2;
-  ring.position.y = 0.02;
+  ring.position.y = 0.035;
   const beacon = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.18, 4), new THREE.MeshBasicMaterial({ color }));
   beacon.rotation.x = Math.PI;
   beacon.position.y = 1.15;
@@ -164,19 +164,23 @@ export class Maze3D {
     this.scene = new THREE.Scene();
     this.scene.background = skyTexture();
     this.scene.fog = new THREE.Fog(0xffcf9a, 30, 75);
-    this.camera = new THREE.PerspectiveCamera(55, 1, 0.05, 200);
+    // A near plane of 0.05 left too little depth precision across 200 units,
+    // so distant surfaces shimmered. 0.15 still clears the first-person eye.
+    this.camera = new THREE.PerspectiveCamera(55, 1, 0.15, 160);
 
     this.scene.add(new THREE.HemisphereLight(0xbfe3ff, 0xd99a5a, 1.1));
     this.sun = new THREE.DirectionalLight(0xfff0d0, 2.6);
     this.sun.castShadow = true;
     this.sun.shadow.mapSize.set(2048, 2048);
-    this.sun.shadow.bias = -0.0005;
-    this.sun.shadow.normalBias = 0.02;
+    this.sun.shadow.bias = -0.0003;
+    this.sun.shadow.normalBias = 0.04;
     this.scene.add(this.sun, this.sun.target);
 
     const ground = new THREE.Mesh(new THREE.CircleGeometry(120, 64), new THREE.MeshStandardMaterial({ map: sandTexture(), roughness: 1 }));
     ground.material.map.repeat.set(60, 60);
     ground.rotation.x = -Math.PI / 2;
+    // Sits below the maze floor's top face; at the same height the two fought (z-fighting).
+    ground.position.y = -0.04;
     ground.receiveShadow = true;
     this.scene.add(ground);
 
@@ -253,24 +257,25 @@ export class Maze3D {
     wallTex.needsUpdate = true;
     const wallMat = new THREE.MeshStandardMaterial({ map: wallTex, roughness: 0.9 });
     const capTex = this.floorTex.clone();
-    capTex.repeat.set(0.35, 0.35);
+    capTex.repeat.set(0.5, 0.5);
     capTex.needsUpdate = true;
     const capMat = new THREE.MeshStandardMaterial({ map: capTex, color: 0xd9c09a, roughness: 0.9 });
     const gateCells = new Set((this.board.gates ?? []).map((g) => `${g.x},${g.y}`));
     const cells = [];
     for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) if (maze[y][x] === "#" && !gateCells.has(`${x},${y}`)) cells.push([x, y]);
-    const walls = new THREE.InstancedMesh(new THREE.BoxGeometry(1, WALL_H, 1), wallMat, cells.length);
-    const caps = new THREE.InstancedMesh(new THREE.BoxGeometry(1.04, 0.08, 1.04), capMat, cells.length);
+    // One box per wall with a sandstone top face and brick sides. Separate,
+    // slightly oversized cap boxes overlapped their neighbours at the same
+    // height and flickered along every joint as the camera moved.
+    const wallGeo = new THREE.BoxGeometry(1, WALL_H + 0.05, 1);
+    wallGeo.translate(0, (WALL_H + 0.05) / 2 - 0.05, 0);
+    const walls = new THREE.InstancedMesh(wallGeo, [wallMat, wallMat, capMat, wallMat, wallMat, wallMat], cells.length);
     const m = new THREE.Matrix4();
     cells.forEach(([x, y], i) => {
-      m.makeTranslation(x, WALL_H / 2, y);
+      m.makeTranslation(x, 0, y);
       walls.setMatrixAt(i, m);
-      m.makeTranslation(x, WALL_H + 0.04, y);
-      caps.setMatrixAt(i, m);
     });
     walls.castShadow = walls.receiveShadow = true;
-    caps.castShadow = caps.receiveShadow = true;
-    this.world.add(walls, caps);
+    this.world.add(walls);
 
     this.gates = (this.board.gates ?? []).map((gate) => {
       const color = SWITCH_COLORS[gate.switch];
@@ -288,7 +293,7 @@ export class Maze3D {
         new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 1.4, transparent: true, opacity: 0.55, depthWrite: false }));
       field.position.y = WALL_H / 2;
       const strip = new THREE.Mesh(new THREE.BoxGeometry(horizontal ? 0.08 : 0.9, 0.02, horizontal ? 0.9 : 0.08), new THREE.MeshBasicMaterial({ color }));
-      strip.position.y = 0.01;
+      strip.position.y = 0.03;
       group.add(field, strip);
       this.world.add(group);
       return { gate, field, level: 1 };
@@ -406,7 +411,7 @@ export class Maze3D {
       const mesh = new THREE.InstancedMesh(geo, mat, trail.cells.length);
       const m = new THREE.Matrix4(), r = new THREE.Matrix4().makeRotationX(-Math.PI / 2);
       trail.cells.forEach((c, i) => {
-        m.makeTranslation(c.x + (trail.slot ? 0.14 : -0.14), 0.015, c.y).multiply(r);
+        m.makeTranslation(c.x + (trail.slot ? 0.14 : -0.14), 0.03, c.y).multiply(r);
         mesh.setMatrixAt(i, m);
       });
       this.trailGroup.add(mesh);
@@ -461,7 +466,7 @@ export class Maze3D {
       a.userData.legs[0].rotation.x = swing;
       a.userData.legs[1].rotation.x = -swing;
       a.userData.beacon.position.y = 1.15 + (calm ? 0 : Math.sin(t * 3) * 0.05);
-      a.userData.beacon.rotation.y = t * 2;
+      a.userData.beacon.rotation.y = calm ? 0 : t * 2;
       const hidden = this.view === "first" && m.mine;
       a.visible = !hidden;
     }
@@ -471,17 +476,17 @@ export class Maze3D {
       g.field.scale.y = Math.max(0.001, g.level);
       g.field.position.y = (WALL_H * g.level) / 2;
       g.field.visible = g.level > 0.02;
-      g.field.material.opacity = 0.35 + 0.25 * Math.sin(t * 6) * g.level;
+      g.field.material.opacity = (calm ? 0.5 : 0.5 + 0.08 * Math.sin(t * 2)) * Math.min(1, g.level * 1.5);
     }
     for (const s of this.switches ?? []) {
-      s.crystal.rotation.y = t * (s.on ? 3 : 1);
+      s.crystal.rotation.y = calm ? 0 : t * (s.on ? 3 : 1);
       s.crystal.position.y = 0.55 + (calm ? 0 : Math.sin(t * 2) * 0.05);
       s.crystal.material.emissiveIntensity = s.on ? 2.2 : 0.5;
       s.light.intensity = s.on ? 3 : 0.8;
     }
     for (const p of this.portals ?? []) {
-      p.userData.ring.rotation.z = t;
-      p.userData.beam.material.opacity = 0.14 + 0.06 * Math.sin(t * 3);
+      p.userData.ring.rotation.z = calm ? 0 : t;
+      p.userData.beam.material.opacity = calm ? 0.16 : 0.14 + 0.06 * Math.sin(t * 3);
     }
     this.placeCamera(now, dt);
     this.renderer.render(this.scene, this.camera);

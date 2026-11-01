@@ -49,6 +49,11 @@ Keep the earlier Shared Space routes and data working during the transition.
   inside a wall, showing only brick.
 - Without WebGL, fall back to the 2D projected view; the game must stay
   playable.
+- No two visible surfaces may share a plane. Offset decals at least 0.03
+  above the floor, and use one mesh for a wall and its top. Coplanar ground,
+  floor and overlapping wall caps once made the maze flicker whenever the
+  camera moved. With reduced motion on, a still scene must render identically
+  frame to frame.
 - Keep both player markers distinguishable when they share a cell; never hide
   a player under the other marker. Marker offsets must not change grid positions.
 - A stream reconnect receives the complete saved state. Show disconnected

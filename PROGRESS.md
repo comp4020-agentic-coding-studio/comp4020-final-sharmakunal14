@@ -351,3 +351,48 @@ observations; predicted steps can sound before a later server correction.
 - Stopped the disposable port 8091 server. The port 8089 preview was not stopped.
 - This subsequent documentation-only commit records the observed delivery;
   the runtime remains the version verified by the linked successful run.
+
+## 2026-11-01 — Fix: the 3D maze flickered when the camera moved
+
+### Problem
+
+The author reported flickering in the 3D view with a screen recording. The
+recording could not be opened, because the macOS temporary capture file was
+gone, so the cause was reproduced instead.
+
+### Cause
+
+Visible surfaces shared a plane, so the depth test picked a different one on
+each frame (z-fighting):
+- The desert ground disc and the maze floor's top face were both at y = 0.
+- Wall caps were 1.04 units wide on a 1-unit grid, so neighbouring caps
+  overlapped at the same height.
+- The camera's 0.05–200 depth range left too little precision for distant
+  surfaces.
+- Gate fields also pulsed their opacity six times a second, which looked
+  like blinking.
+
+### Fix
+
+- Lowered the ground below the floor.
+- Built each wall as one box with a sandstone top face, removing the
+  separate caps.
+- Lifted floor decals (gate strips, trail dots, avatar rings) to at least
+  0.03 above the floor.
+- Narrowed the depth range to 0.15–160 and adjusted the shadow bias.
+- Slowed the gate pulse, and stopped decorative spins when reduced motion
+  is on.
+- Added a `CLAUDE.md` rule: no coplanar surfaces, and a still scene must
+  render identically frame to frame.
+
+### Verification (agent-driven headless Chrome with GPU)
+
+| Measurement | Before | After |
+| --- | --- | --- |
+| Pixels changing between frames of a still scene (reduced motion on) | 17–469 | 0 |
+| Pixels flipping back and forth while the camera slowly orbits | 124–6,778 | 3–8 (edge smoothing noise) |
+
+`pnpm check` passed (67/67) with the fix in place, including the audio
+checks committed in a separate session. No automated test asserts frame
+stability, because it needs a GPU browser; the measurement scripts were kept
+outside the repo.
