@@ -489,3 +489,45 @@ Commit: 824ced2 (local, not pushed).
 - No browser run: fullscreen, the first-person switch, the Exit button and the
   phone-sized layout have not been seen working. Safari fullscreen differs.
 - Whether Exit mid-race should be treated as a forfeit is undecided.
+
+## 2026-11-02 — Forfeit, rematch, result card, replay link, swipe turns
+
+### Decision (from the author)
+
+Leaving a started race **cancels it for both players: no winner, no stored
+result, no best time**. Reason: a player could quit a second in and hand the
+rival a one-second "best time". Exit asks for confirmation first. The cancelled
+race is an `interrupted` game with `interruption: "forfeit"` and `forfeitedBy`.
+
+### Changes
+
+- `POST /matches/:id/forfeit` (members only; countdown or racing only; repeat
+  is idempotent). `POST /matches/:id/rematch` (members only; after the race
+  ends). Rematch makes one new race with both players seated; asking twice, from
+  either player, returns the same race.
+- Exit button opens a confirm dialog; "Leave and cancel" calls forfeit. The
+  rival sees "<name> left the race" and can start a rematch.
+- Finished races show a result card (winner, time, steps and flips per player,
+  from the saved step log) and a "Copy replay link" button.
+- Touch: swipe left/right to turn and down to turn back in 1st/3rd person; the
+  forward button is larger in those views. The map keeps drag-to-orbit.
+- Phone race header: sound button, then the connection chip, with the title
+  card hidden during a race. The first phone screenshot had the sound button
+  on top of the title card; fixed and re-shot.
+
+### Verification
+
+| Check | Result |
+| --- | --- |
+| `pnpm check` (typecheck + tests) against the local app | 83/83 passed (4 new: forfeit rules, forfeit over HTTP with no stored result, rematch seating and idempotence, rematch refused before the end). |
+| Agent-driven Chrome (puppeteer-core, two isolated profiles), 1440×900 and 390×844 touch | Countdown and race: fullscreen granted, stage fills the viewport, first-person view selected automatically, Exit visible. Exit dialog opens; "Keep racing" leaves the race running; "Leave and cancel" returns to the home page; the rival's page shows the cancelled message; Rematch opens a new race. Script and screenshots in `docs/evidence/2026-11-02-*`. |
+
+### Not verified
+
+- Swipe turns (the script did not touch-swipe), the result card and "Copy
+  replay link" in a browser, and a second player following into the rematch.
+- Fullscreen in headless Chrome is not a human's fullscreen; Safari differs.
+- The 404s in the console are a missing favicon, which predates this change.
+- No human playtest.
+- Rematch: the rival is not told automatically; they see the note only after a
+  state update. Worth a look in a real session.
