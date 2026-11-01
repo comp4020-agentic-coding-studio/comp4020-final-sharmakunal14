@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101712">
+  <meta name="description" content="Two entrances. One winner. Challenge a friend to a live maze race.">
+  <title>Maze Duel — Two entrances. One winner.</title>
+  <link rel="stylesheet" href="/maze.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to game</a>
+  <header class="masthead">
+    <a class="wordmark" href="/" aria-label="Maze Duel home"><span class="mark" aria-hidden="true">↳</span> MAZE<span>DUEL</span></a>
+    <nav aria-label="Main"><a href="#how-to-play">How to play</a><a href="/readme/">About the project <span aria-hidden="true">↗</span></a></nav>
+    <span class="edition">FIRST PLAYABLE / 01</span>
+  </header>
+  <main id="main">
+    <div class="intro">
+      <div><p class="eyebrow"><span class="live-dot"></span> A TWO-PLAYER MAZE RACE</p><h1>Two entrances.<br><span>One winner.</span></h1></div>
+      <p class="intro-copy">Same maze. Opposite sides.<br>Find your way to the other entrance<br>before your friend finds theirs.</p>
+    </div>
+
+    <div class="arena-layout">
+      <section class="arena" aria-labelledby="arena-title">
+        <div class="arena-heading"><div><span class="eyebrow">MAZE 01</span><h2 id="arena-title">The Crossing</h2></div><span id="connection" class="connection">Maze preview</span></div>
+        <div class="player-strip" aria-label="Entrances">
+          <span><i class="token token-a" aria-hidden="true">A</i><span id="legend-a">Start A <span class="muted">→ finish B</span></span></span>
+          <span><i class="token token-b" aria-hidden="true">B</i><span id="legend-b">Start B <span class="muted">→ finish A</span></span></span>
+        </div>
+        <div class="board-wrap">
+          <canvas id="maze" width="880" height="640" role="img" aria-label="A maze with entrance A at the upper left and entrance B at the lower right.">Maze view requires a browser with canvas support.</canvas>
+          <div id="countdown" class="countdown" hidden><span>GET READY</span><strong id="countdown-number">3</strong><span>Reach the opposite entrance</span></div>
+          <div class="board-caption"><span>13 × 13 / SHARED GROUND</span><span id="board-note">One maze. Equal distance.</span></div>
+        </div>
+        <div class="arena-foot"><span><span class="key">W A S D</span> or arrow keys</span><span>Players can pass through each other.</span></div>
+      </section>
+
+      <aside class="side-panel" aria-label="Race lobby">
+        <section id="entry" class="panel">
+          <p class="eyebrow" id="entry-eyebrow">BRING A FRIEND</p>
+          <h2 id="entry-title">A little friendly<br>competition.</h2>
+          <p class="muted" id="entry-copy">Create a race and share the invitation.<br>No account. Just a nickname.</p>
+          <form id="entry-form">
+            <fieldset id="entry-fields" disabled>
+              <label id="name-label" for="nickname">Your nickname<input id="nickname" name="nickname" maxlength="32" autocomplete="nickname" placeholder="What should we call you?" required></label>
+              <p id="identity" class="identity" hidden></p>
+              <button id="create-race" class="primary" type="submit" value="create">Create a race <span aria-hidden="true">↗</span></button>
+              <div id="join-divider" class="divider"><span>ALREADY INVITED?</span></div>
+              <label id="invite-label" for="invite">Invitation link<input id="invite" name="invite" type="text" autocomplete="off" spellcheck="false" placeholder="Paste your friend’s race link"></label>
+              <button id="join-race" class="secondary" type="submit" value="join">Join a race <span aria-hidden="true">→</span></button>
+            </fieldset>
+          </form>
+          <p class="fine-print">Use separate browsers or profiles for two players.</p>
+        </section>
+
+        <section id="race-panel" class="panel" hidden>
+          <div class="race-top"><p class="eyebrow">YOUR RACE</p><span id="race-code" class="mono"></span></div>
+          <h2 id="race-title" role="status">Waiting for a rival.</h2>
+          <p id="race-description" class="muted">Share your link to fill the second spot.</p>
+          <div id="invitation" class="invitation"><label for="race-link">Invite your opponent</label><div class="copy-row"><input id="race-link" readonly><button id="copy-link" type="button" class="secondary">Copy</button></div><p id="copy-status" role="status" class="fine-print"></p></div>
+          <div class="roster" aria-label="Players">
+            <div class="roster-row"><i class="token token-a" aria-hidden="true">A</i><div><strong id="player-a-name">Player A</strong><span id="player-a-status">Waiting</span></div><span id="player-a-ready" class="ready-tag"></span></div>
+            <div class="roster-row"><i class="token token-b" aria-hidden="true">B</i><div><strong id="player-b-name">Open spot</strong><span id="player-b-status">Invite a friend</span></div><span id="player-b-ready" class="ready-tag"></span></div>
+          </div>
+          <button id="ready" type="button" class="primary">I’m ready <span aria-hidden="true">✓</span></button>
+          <div id="race-clock" class="race-clock" hidden><span class="eyebrow">RACE TIME</span><strong id="elapsed">00:00.0</strong></div>
+          <div id="movement" hidden>
+            <p id="your-goal" class="goal"></p>
+            <div class="dpad" role="group" aria-label="Movement controls">
+              <button type="button" data-direction="up" aria-label="Move up">↑</button>
+              <button type="button" data-direction="left" aria-label="Move left">←</button>
+              <span aria-hidden="true">✥</span>
+              <button type="button" data-direction="right" aria-label="Move right">→</button>
+              <button type="button" data-direction="down" aria-label="Move down">↓</button>
+            </div>
+            <p id="position" class="fine-print"></p>
+          </div>
+          <button id="another-race" class="primary" type="button" hidden>Create another race <span aria-hidden="true">↗</span></button>
+          <p class="fine-print">A lost connection does not pause the clock. Reopen this link in the same browser to return.</p>
+        </section>
+        <p id="error" class="error" role="alert" hidden></p>
+        <section id="recent" class="recent" hidden><h2>Your recent races</h2><ul id="recent-list"></ul></section>
+        <div class="small-note"><span aria-hidden="true">↗</span><p>Easy to enter.<br>A little harder to leave first.</p></div>
+      </aside>
+    </div>
+
+    <section class="rules" id="how-to-play" aria-labelledby="rules-title">
+      <div><p class="eyebrow">THE RULES ARE SIMPLE</p><h2 id="rules-title">Find your way.<br>Beat their time.</h2></div>
+      <ol><li><span>01</span><div><h3>Meet in the maze</h3><p>Share a race link. You take A; your friend takes B. Both players ready up.</p></div></li><li><span>02</span><div><h3>Cross the same ground</h3><p>After the countdown, use WASD, arrow keys or the touch pad. Walls stay put.</p></div></li><li><span>03</span><div><h3>Reach the other side</h3><p>The first valid finish received by the server wins. Close races can be affected by connection speed.</p></div></li></ol>
+    </section>
+  </main>
+  <footer><span>MAZE DUEL <span class="muted">/ An experiment in friendly rivalry.</span></span><a href="/readme/">Project notes ↗</a></footer>
+  <p id="announcement" class="sr-only" role="status" aria-live="polite"></p>
+  <noscript><p class="error">JavaScript is required for live multiplayer. Enable it and reload to join a race.</p></noscript>
+  <script type="module" src="/maze.js"></script>
+</body>
+</html>
