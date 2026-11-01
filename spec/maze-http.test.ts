@@ -73,7 +73,7 @@ describe("maze HTTP boundary", () => {
     expect(three.status).toBe(200);
     expect(three.headers.get("cache-control")).toContain("immutable");
     expect((await three.text()).length).toBeGreaterThan(500_000);
-    for (const file of ["maze.js", "maze-race.js", "maze-render.js", "maze-controls.js", "maze-api.js", "maze-3d.js", "maze-views.js", "maze-rules.js", "maze-replay.js"]) {
+    for (const file of ["maze.js", "maze-race.js", "maze-render.js", "maze-controls.js", "maze-api.js", "maze-3d.js", "maze-views.js", "maze-rules.js", "maze-replay.js", "maze-audio.js", "maze-audio-ui.js", "maze-audio-events.js"]) {
       const response = await fetch(new URL(`/${file}`, base));
       expect(response.status).toBe(200);
       expect(response.headers.get("content-type")).toContain("javascript");

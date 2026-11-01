@@ -38,7 +38,7 @@ async function enter(id) {
   const view = await request(`/api/maze/matches/${id}/join`, {});
   $("entry").hidden = true;
   $("recent").hidden = true;
-  mountRace(view, mazeView, showError);
+  mountRace(view, mazeView, showError, audio);
 }
 
 function showIdentity() {
@@ -95,7 +95,7 @@ async function createView(container) {
 
 async function initialize() {
   mazeView = await createView($("maze"));
-  setupViews(mazeView);
+  setupViews(mazeView, () => audio.play("camera"));
   const today = await request("/api/maze/today");
   const n = today.maze.length;
   $("maze-date").textContent = `MAZE OF ${today.mazeId}`;

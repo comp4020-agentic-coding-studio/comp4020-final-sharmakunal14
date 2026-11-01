@@ -1,13 +1,15 @@
 import { ApiError, request } from "./maze-api.js";
 import { createSender, setupControls } from "./maze-controls.js";
 import { DIRECTIONS, passable, switchAt } from "./maze-rules.js";
+import { raceCues } from "./maze-audio-events.js";
 
 const $ = (id) => document.getElementById(id);
 const text = (id, value) => { if ($(id).textContent !== value) $(id).textContent = value; };
 
-export function mountRace(initial, mazeView, showError) {
+export function mountRace(initial, mazeView, showError, audio) {
   let game = initial.game, connected = false, online = [], busy = false;
   let serverAt = initial.serverNow, observedAt = performance.now();
+  let countdownSecond = null;
   const me = initial.me, path = `/api/maze/matches/${game.id}`;
   const confirmed = () => game.players.find((player) => player.id === me);
   // The player as drawn: the server position plus unconfirmed predicted steps.
@@ -34,7 +36,12 @@ export function mountRace(initial, mazeView, showError) {
 
   function renderClock() {
     const now = serverAt + performance.now() - observedAt;
-    if (game.status === "countdown") text("countdown-number", String(Math.max(1, Math.ceil((game.startsAt - now) / 1_000))));
+    if (game.status === "countdown") {
+      const second = Math.max(1, Math.ceil((game.startsAt - now) / 1_000));
+      text("countdown-number", String(second));
+      if (connected && second !== countdownSecond && now < game.startsAt) audio.play("tick");
+      countdownSecond = second;
+    } else countdownSecond = null;
     const elapsed = game.startsAt === null ? 0 : Math.max(0, (game.finishedAt ?? now) - game.startsAt);
     const minutes = Math.floor(elapsed / 60_000).toString().padStart(2, "0");
     const seconds = ((elapsed % 60_000) / 1_000).toFixed(1).padStart(4, "0");
@@ -46,6 +53,7 @@ export function mountRace(initial, mazeView, showError) {
       document.querySelector(".stage")?.scrollIntoView({ block: "start" });
     }
     document.body.dataset.phase = game.status;
+    audio.setRacing(connected && game.status === "racing");
     const player = self(), opponent = game.players.find((p) => p.id !== me);
     const goal = player.slot === 0 ? "B" : "A";
     const view = predicted();
@@ -101,8 +109,14 @@ export function mountRace(initial, mazeView, showError) {
     renderClock();
   }
 
-  function apply(view) {
+  function apply(view, audible = connected) {
     if (view.game.revision < game.revision) return;
+    if (audible) for (const cue of raceCues(game, view.game, me)) audio.play(cue);
+    // A reconnect establishes current state, not an opportunity to replay the
+    // result, flips or countdown seconds missed while offline.
+    if (!audible && view.game.status === "countdown") {
+      countdownSecond = Math.max(1, Math.ceil((view.game.startsAt - view.serverNow) / 1_000));
+    }
     game = view.game;
     sender.settle(confirmed().sequence);
     serverAt = view.serverNow;
@@ -121,7 +135,7 @@ export function mountRace(initial, mazeView, showError) {
       if (error instanceof ApiError && error.body?.game) {
         apply(error.body);
         const notice = { WALL: error.message, NO_SWITCH: error.message, SWITCH_COOLDOWN: error.message, GATE_OCCUPIED: error.message }[error.code];
-        if (notice) text("announcement", notice);
+        if (notice) { text("announcement", notice); audio.play("bump"); }
         else if (error.code !== "TOO_FAST") showError(error);
         render();
         return confirmed().sequence;
@@ -142,17 +156,18 @@ export function mountRace(initial, mazeView, showError) {
     // directions only turn it. Facing is presentation; the server owns position.
     let action = input;
     if (input !== "flip" && mazeView.view && mazeView.view !== "overview") {
-      if (input !== "up") { mazeView.turn(input); return; }
+      if (input !== "up") { mazeView.turn(input); audio.play("turn"); return; }
       action = mazeView.facing();
     }
     if (action === "flip") {
-      if (switchAt(board, player.x, player.y) < 0) return false;
+      if (switchAt(board, player.x, player.y) < 0) { audio.play("bump"); return false; }
     } else {
       const [dx, dy] = DIRECTIONS[action];
-      if (!passable(board, player.x + dx, player.y + dy)) { text("announcement", "There is a wall in that direction."); return false; }
+      if (!passable(board, player.x + dx, player.y + dy)) { text("announcement", "There is a wall in that direction."); audio.play("bump"); return false; }
     }
     if (sender.unconfirmed.length >= 8) return false;
     sender.push(action);
+    if (action !== "flip") audio.play("step");
     render();
   }, initial.moveInterval ?? 140);
 
@@ -183,7 +198,11 @@ export function mountRace(initial, mazeView, showError) {
   });
 
   const source = new EventSource(`${path}/stream`);
-  source.addEventListener("state", (event) => { connected = true; apply(JSON.parse(event.data)); });
+  source.addEventListener("state", (event) => {
+    const audible = connected;
+    connected = true;
+    apply(JSON.parse(event.data), audible);
+  });
   source.onerror = () => { connected = false; online = []; stopControls(); sender.clear(); render(); };
   const clock = setInterval(renderClock, 100);
   window.addEventListener("pagehide", () => { source.close(); clearInterval(clock); stopControls(); }, { once: true });
