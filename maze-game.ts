@@ -31,7 +31,11 @@ export type Game = {
   startsAt: number | null;
   finishedAt: number | null;
   winnerId: string | null;
-  interruption: "server_restart" | "time_limit" | null;
+  interruption: "server_restart" | "time_limit" | "forfeit" | null;
+  // Set when a player leaves a started race: it is cancelled and nothing is scored.
+  forfeitedBy?: string;
+  // Set once either player asks for a rematch; both then join this game.
+  rematchId?: string;
 };
 export type LogEntry = { at: number; slot: 0 | 1; kind: "step" | "flip"; x: number; y: number; switch: number | null; on: boolean | null };
 
@@ -94,6 +98,16 @@ export function readyPlayer(game: Game, actorId: string, now: number): Game {
     ...p, ready: p.ready || p.id === actorId, ...(startsAt === null ? {} : { tokens: 1, tokensAt: startsAt }),
   }));
   return { ...game, players, revision: game.revision + 1, status: start ? "countdown" : "waiting", startsAt };
+}
+
+// Leaving a started race cancels it for both players: no winner, no best time.
+// Cancelling is not a win, so a player who quits a second in cannot hand the
+// rival an unearned result.
+export function forfeitGame(game: Game, actorId: string): Game {
+  if (!game.players.some((p) => p.id === actorId)) throw new GameError("NOT_A_PLAYER", "Join this race first.", 403);
+  if (game.status === "interrupted" && game.interruption === "forfeit") return game;
+  if (game.status !== "countdown" && game.status !== "racing") throw new GameError("NOT_RACING", "Only a race in progress can be left.");
+  return { ...game, status: "interrupted", interruption: "forfeit", forfeitedBy: actorId, winnerId: null, finishedAt: null, revision: game.revision + 1 };
 }
 
 export function advanceGame(game: Game, now: number): Game {

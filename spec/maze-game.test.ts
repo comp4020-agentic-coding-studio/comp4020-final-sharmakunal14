@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { advanceGame, applyActions, BURST, COUNTDOWN_MS, entrance, joinGame, layoutFor, MOVE_INTERVAL_MS, movePlayer, newGame, RACE_LIMIT_MS, readyPlayer, SWITCH_COOLDOWN_MS } from "../maze-game.ts";
+import { advanceGame, applyActions, BURST, COUNTDOWN_MS, entrance, forfeitGame, joinGame, layoutFor, MOVE_INTERVAL_MS, movePlayer, newGame, RACE_LIMIT_MS, readyPlayer, SWITCH_COOLDOWN_MS } from "../maze-game.ts";
 import type { Game } from "../maze-game.ts";
 import { generate, sydneyDate } from "../maze-gen.ts";
 import { DIRECTIONS } from "../public/maze-rules.js";
@@ -138,5 +138,19 @@ describe("race rules", () => {
 
   it("ends abandoned races after the fixed time limit", () => {
     expect(advanceGame(ready(), COUNTDOWN_MS + RACE_LIMIT_MS)).toMatchObject({ status: "interrupted", interruption: "time_limit", winnerId: null });
+  });
+});
+
+describe("forfeit", () => {
+  it("cancels a started race with no winner and no finish time, whoever leaves and however early", () => {
+    for (const game of [ready(), racing()]) {
+      const left = forfeitGame(game, bob.id);
+      expect(left).toMatchObject({ status: "interrupted", interruption: "forfeit", forfeitedBy: "bob", winnerId: null, finishedAt: null });
+      expect(forfeitGame(left, bob.id)).toBe(left);
+    }
+  });
+  it("refuses outsiders and races that are not under way", () => {
+    expect(() => forfeitGame(racing(), "eve")).toThrow(/Join this race/);
+    expect(() => forfeitGame(newGame("w", alice, 0), alice.id)).toThrow(/in progress/);
   });
 });

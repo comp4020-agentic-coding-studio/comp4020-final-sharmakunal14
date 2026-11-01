@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { DatabaseSync } from "node:sqlite";
-import { applyActions, BURST, GameError, isAction, joinGame, MAX_BATCH, MOVE_INTERVAL_MS, readyPlayer, SWITCH_COOLDOWN_MS, todaysLayout } from "./maze-game.ts";
+import { applyActions, BURST, forfeitGame, GameError, isAction, joinGame, MAX_BATCH, MOVE_INTERVAL_MS, readyPlayer, SWITCH_COOLDOWN_MS, todaysLayout } from "./maze-game.ts";
 import type { Action } from "./maze-game.ts";
 import type { Game, Identity } from "./maze-game.ts";
 import { MazeStore } from "./maze-store.ts";
@@ -68,7 +68,7 @@ export function createMazeHandler(db: DatabaseSync) {
       if (path === "/api/maze/matches" && req.method === "GET") {
         return send(res, 200, { matches: store.recent(actor.id) });
       }
-      const match = /^\/api\/maze\/matches\/([a-f0-9-]{36})(?:\/(join|ready|move|stream|replay))?$/.exec(path);
+      const match = /^\/api\/maze\/matches\/([a-f0-9-]{36})(?:\/(join|ready|move|stream|replay|forfeit|rematch))?$/.exec(path);
       if (!match) throw new GameError("NOT_FOUND", "Unknown game address.", 404);
       const [, id, action] = match;
       if (req.method === "POST" && action === "join") {
@@ -92,6 +92,13 @@ export function createMazeHandler(db: DatabaseSync) {
       let game: Game;
       if (action === "ready") {
         game = store.update(id, (current) => readyPlayer(current, actor.id, Date.now()));
+      } else if (action === "forfeit") {
+        store.current(id);
+        game = store.update(id, (current) => forfeitGame(current, actor.id));
+      } else if (action === "rematch") {
+        const next = store.rematch(id, actor);
+        live.publish(store.get(id));
+        return send(res, 201, snapshot(next, actor));
       } else if (action === "move") {
         const { direction, sequence } = input;
         const actions = (input.actions ?? (direction === undefined ? undefined : [direction])) as unknown;

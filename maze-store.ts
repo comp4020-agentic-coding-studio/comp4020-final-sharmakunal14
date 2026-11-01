@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
-import { advanceGame, GameError, newGame } from "./maze-game.ts";
+import { advanceGame, GameError, joinGame, newGame } from "./maze-game.ts";
 import type { Game, Identity, LogEntry } from "./maze-game.ts";
 
 export type Summary = {
@@ -67,6 +67,25 @@ export class MazeStore {
       this.db.prepare("INSERT INTO maze_matches (id, owner_id, created_at, state) VALUES (?, ?, ?, ?)")
         .run(game.id, identity.id, now, JSON.stringify(game));
       return game;
+    });
+  }
+
+  // A rematch is a new race with both players already seated. Asking twice
+  // returns the same race, so the two players never end up in different ones.
+  rematch(id: string, actor: Identity, now = Date.now()): Game {
+    return this.transaction(() => {
+      const old = this.get(id);
+      if (!old.players.some((p) => p.id === actor.id)) throw new GameError("NOT_A_PLAYER", "Join this race first.", 403);
+      if (old.status !== "finished" && old.status !== "interrupted") throw new GameError("NOT_FINISHED", "A rematch is available once the race ends.");
+      if (old.rematchId) return this.get(old.rematchId);
+      const [first, second] = old.players;
+      if (!second) throw new GameError("NO_RIVAL", "There is nobody to rematch.");
+      const seated = joinGame(newGame(randomUUID(), first, now), second);
+      this.db.prepare("INSERT INTO maze_matches (id, owner_id, created_at, state) VALUES (?, ?, ?, ?)")
+        .run(seated.id, first.id, now, JSON.stringify(seated));
+      const linked: Game = { ...old, rematchId: seated.id, revision: old.revision + 1 };
+      this.db.prepare("UPDATE maze_matches SET state = ? WHERE id = ?").run(JSON.stringify(linked), id);
+      return seated;
     });
   }
 

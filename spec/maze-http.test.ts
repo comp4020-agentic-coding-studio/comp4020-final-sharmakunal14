@@ -246,4 +246,34 @@ describe("milestone 2: batches, today's maze, results and replays", () => {
     expect((await api(visitor, `matches/${game.id}/replay`)).status).toBe(403);
     expect((await api(alice, `matches/${game.id}/replay`)).status).toBe(409);
   });
+
+  it("cancels a race on forfeit with no stored result, and a rematch seats both players once", async () => {
+    const alice = await person("Alice"), bob = await person("Bob"), eve = await person("Eve");
+    const { game } = await create(alice), path = `matches/${game.id}`;
+    await api(bob, `${path}/join`, {});
+    expect((await api(alice, `${path}/forfeit`, {})).status).toBe(409);
+    await api(alice, `${path}/ready`, {});
+    await api(bob, `${path}/ready`, {});
+    expect((await api(eve, `${path}/forfeit`, {})).status).toBe(403);
+    const left = await (await api(bob, `${path}/forfeit`, {})).json() as View;
+    expect(left.game).toMatchObject({ status: "interrupted", interruption: "forfeit", winnerId: null });
+    expect((await api(alice, `${path}/move`, { direction: "right", sequence: 1 })).status).toBe(409);
+    const board = await (await api(alice, "today")).json() as { best: { matchId: string }[] };
+    expect(board.best.some((b) => b.matchId === game.id)).toBe(false);
+
+    expect((await api(eve, `${path}/rematch`, {})).status).toBe(403);
+    const first = await api(alice, `${path}/rematch`, {}), second = await api(bob, `${path}/rematch`, {});
+    expect(first.status).toBe(201);
+    const [a, b] = [await first.json() as View, await second.json() as View];
+    expect(b.game.id).toBe(a.game.id);
+    expect(a.game.id).not.toBe(game.id);
+    expect(a.game.players.map((p) => p.name)).toEqual(["Alice", "Bob"]);
+    expect((await api(bob, `matches/${a.game.id}`)).status).toBe(200);
+    expect((await api(eve, `matches/${a.game.id}`)).status).toBe(403);
+  });
+
+  it("offers a rematch only after the race ends", async () => {
+    const alice = await person("Alice"), { game } = await create(alice);
+    expect((await api(alice, `matches/${game.id}/rematch`, {})).status).toBe(409);
+  });
 });
