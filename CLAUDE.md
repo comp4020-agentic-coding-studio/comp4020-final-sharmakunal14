@@ -69,9 +69,20 @@ Keep the earlier Shared Space routes and data working during the transition.
 
 ### Scope and evidence
 
-- Audio is optional presentation (decision 0005): original synthesized retro
-  sounds, silent until enabled, with independent music control. Never block
-  gameplay when audio or preference storage is unavailable.
+- Audio is presentation (decisions 0005 and 0006): original synthesized
+  retro-platformer sounds. It is ON by default and continuous: music plays in
+  the lobby, the waiting room and the race, with a short fanfare on the
+  result. Browsers refuse sound until a click or key press, so the first
+  gesture unlocks it. Offer a visible mute button in the top bar at all
+  times, and independent music control. Never block gameplay when audio or
+  preference storage is unavailable.
+- Audio must be audible, not just scheduled. A passing scheduling test has
+  already shipped a game whose sounds peaked at 0.04 (inaudible on a laptop).
+  Measure the signal reaching the speakers; keep effects at peak 0.25 or more
+  and music clearly present, but under the effects.
+- Never copy a real game's melody or recordings. Write original tunes in the
+  same style (bright square lead, triangle bass, noise percussion, coin and
+  jump blips).
 - Walking sounds may follow prediction; shared flips and results require a
   newer server snapshot. Do not double-play HTTP/SSE duplicates or replay old
   events when reconnecting. Keep replays silent and all visual feedback intact.
