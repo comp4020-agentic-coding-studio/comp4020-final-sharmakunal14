@@ -1,9 +1,11 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, statSync } from "node:fs";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { extname, join, normalize } from "node:path";
+import { extname, join, resolve, sep } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { renderMarkdown } from "./markdown.ts";
+import { createMazeHandler, validateMazeMutation } from "./maze-http.ts";
+import { GameError } from "./maze-game.ts";
 
 const PORT = Number(process.env.PORT ?? 8080);
 const DATA_DIR = process.env.DATA_DIR ?? (existsSync("/data") ? "/data" : "./data");
@@ -36,6 +38,7 @@ db.exec(`
 const eventCols = db.prepare("PRAGMA table_info(events)").all() as { name: string }[];
 if (!eventCols.some((c) => c.name === "room_key")) db.exec("ALTER TABLE events ADD COLUMN room_key TEXT");
 db.exec("CREATE UNIQUE INDEX IF NOT EXISTS events_room_key ON events(room_key)");
+const handleMaze = createMazeHandler(db);
 
 type Actor = { id: string; name: string };
 type Obj = {
@@ -193,11 +196,13 @@ const MIME: Record<string, string> = {
   ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8",
   ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png",
   ".jpg": "image/jpeg", ".webp": "image/webp", ".avif": "image/avif",
+  ".md": "text/plain; charset=utf-8",
 };
 
 function serveFile(res: ServerResponse, root: string, rel: string): boolean {
-  const path = normalize(join(root, rel));
-  if (!path.startsWith(normalize(root)) || !existsSync(path) || !extname(path)) return false;
+  const base = resolve(root);
+  const path = resolve(base, rel.replace(/^\/+/, ""));
+  if (!path.startsWith(base + sep) || !existsSync(path) || !extname(path) || !statSync(path).isFile()) return false;
   res.writeHead(200, { "content-type": MIME[extname(path)] ?? "application/octet-stream" });
   res.end(readFileSync(path));
   return true;
@@ -221,12 +226,14 @@ async function handle(req: IncomingMessage, res: ServerResponse) {
     res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
     return res.end(readmePage());
   }
-  if (method === "GET" && path === "/") return serveFile(res, "public", "index.html");
+  if (method === "GET" && (path === "/" || /^\/race\/[a-f0-9-]{36}(?:\/replay)?\/?$/.test(path))) return serveFile(res, "public", "maze.html");
+  if (method === "GET" && (path === "/shared-space" || path === "/shared-space/")) return serveFile(res, "public", "index.html");
   if (method === "GET" && /^\/events\/[\w-]+\/?$/.test(path)) return serveFile(res, "public", "plan.html");
-  if (method === "GET" && path.startsWith("/docs/") && serveFile(res, ".", path)) return;
+  if (method === "GET" && path.startsWith("/docs/") && serveFile(res, "docs", path.slice(6))) return;
   if (method === "GET" && !path.startsWith("/api/") && serveFile(res, "public", path)) return;
 
   if (path === "/api/session" && method === "POST") {
+    validateMazeMutation(req);
     const { name } = await readJson(req);
     const clean = typeof name === "string" ? name.trim().slice(0, 40) : "";
     if (!clean) return send(res, 400, { code: "NAME_REQUIRED", message: "Choose a display name." });
@@ -240,6 +247,8 @@ async function handle(req: IncomingMessage, res: ServerResponse) {
   }
 
   const actor = currentActor(req);
+
+  if (path.startsWith("/api/maze/")) return handleMaze(req, res, actor);
 
   if (path === "/api/me" && method === "GET") {
     return actor ? send(res, 200, actor) : send(res, 401, { code: "NO_SESSION", message: "Choose a name first." });
@@ -389,10 +398,15 @@ async function handle(req: IncomingMessage, res: ServerResponse) {
   return send(res, 404, { code: "NOT_FOUND", message: "Not found." });
 }
 
-createServer((req, res) => {
+const server = createServer((req, res) => {
   handle(req, res).catch((err) => {
+    if (err instanceof GameError && !res.headersSent) return send(res, err.status, { code: err.code, message: err.message });
     log({ action: "error", message: String(err) });
     if (!res.headersSent) send(res, 500, { code: "SERVER_ERROR", message: "Something went wrong." });
     else res.end();
   });
-}).listen(PORT, "0.0.0.0", () => log({ action: "listening", port: PORT, data: DATA_DIR }));
+});
+server.listen(PORT, "0.0.0.0", () => {
+  const address = server.address();
+  log({ action: "listening", port: typeof address === "object" ? address?.port : PORT, data: DATA_DIR });
+});

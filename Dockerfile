@@ -6,6 +6,7 @@
 FROM docker.io/library/node:24.21.0-alpine
 WORKDIR /app
 COPY server.ts markdown.ts README.md ./
+COPY maze-*.ts ./
 COPY public/ ./public/
 COPY docs/ ./docs/
 ENV NODE_ENV=production DATA_DIR=/data

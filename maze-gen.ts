@@ -1,0 +1,120 @@
+export type Point = { x: number; y: number };
+export type Gate = Point & { switch: number; openWhen: boolean };
+export type Layout = { mazeId: string; maze: string[]; switches: Point[]; gates: Gate[] };
+
+export const CELLS = 7;
+export const SIZE = CELLS * 2 + 1;
+
+export function sydneyDate(now: number): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Australia/Sydney" }).format(now);
+}
+
+function random(seed: string): () => number {
+  let h = 2166136261;
+  for (const c of seed) h = Math.imul(h ^ c.charCodeAt(0), 16777619);
+  return () => {
+    h = (h + 0x6d2b79f5) | 0;
+    let t = Math.imul(h ^ (h >>> 15), 1 | h);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+const rot = (p: Point): Point => ({ x: SIZE - 1 - p.x, y: SIZE - 1 - p.y });
+const key = (p: Point) => `${p.x},${p.y}`;
+
+function distances(grid: string[][], from: Point, open = new Set<string>()): Map<string, number> {
+  const seen = new Map([[key(from), 0]]), queue = [from];
+  for (const p of queue) {
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const n = { x: p.x + dx, y: p.y + dy };
+      if ((grid[n.y]?.[n.x] === "." || open.has(key(n))) && !seen.has(key(n))) {
+        seen.set(key(n), seen.get(key(p))! + 1);
+        queue.push(n);
+      }
+    }
+  }
+  return seen;
+}
+
+export function generate(mazeId: string): Layout {
+  const rand = random(mazeId);
+  // Deterministic retries on the same stream until a layout has a switch pair.
+  for (let attempt = 0; attempt < 50; attempt++) {
+    const layout = attemptLayout(mazeId, rand);
+    if (layout.gates.length) return layout;
+  }
+  throw new Error(`No playable layout for ${mazeId}`);
+}
+
+function attemptLayout(mazeId: string, rand: () => number): Layout {
+  const grid = Array.from({ length: SIZE }, () => Array<string>(SIZE).fill("#"));
+  for (let y = 1; y < SIZE; y += 2) for (let x = 1; x < SIZE; x += 2) grid[y][x] = ".";
+
+  // Kruskal over cells, adding each wall together with its 180° partner so
+  // the layout stays rotationally symmetric for both players.
+  const parent = Array.from({ length: CELLS * CELLS }, (_, i) => i);
+  const find = (i: number): number => parent[i] === i ? i : (parent[i] = find(parent[i]));
+  const cellOf = (x: number, y: number) => ((y - 1) / 2) * CELLS + (x - 1) / 2;
+  const walls: Point[] = [];
+  for (let y = 1; y < SIZE - 1; y++) for (let x = 1; x < SIZE - 1; x++) {
+    if ((x % 2 === 0) !== (y % 2 === 0)) walls.push({ x, y });
+  }
+  for (let i = walls.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [walls[i], walls[j]] = [walls[j], walls[i]];
+  }
+  const ends = (w: Point): [number, number] => w.x % 2 === 0
+    ? [cellOf(w.x - 1, w.y), cellOf(w.x + 1, w.y)] : [cellOf(w.x, w.y - 1), cellOf(w.x, w.y + 1)];
+  const join = (w: Point) => { const [a, b] = ends(w); parent[find(a)] = find(b); grid[w.y][w.x] = "."; };
+  const separate = (w: Point) => { const [a, b] = ends(w); return find(a) !== find(b); };
+  // Opening each wall together with its 180° partner keeps the layout
+  // rotationally symmetric; a partner that closes a loop just adds a loop.
+  for (const w of walls) {
+    if (!separate(w)) continue;
+    join(w);
+    const r = rot(w);
+    if (grid[r.y][r.x] === "#") separate(r) ? join(r) : (grid[r.y][r.x] = ".");
+  }
+
+  const start = { x: 1, y: 1 }, goal = { x: SIZE - 2, y: SIZE - 2 };
+  const base = distances(grid, start).get(key(goal))!;
+  const fromStart = distances(grid, start);
+  const blocked = new Set([key(start), key(goal), key(rot(start))]);
+
+  // Gate candidates are base walls between two passages. Opening one only
+  // adds a passage, so no switch state can disconnect the maze.
+  const candidates = walls.filter((w) => grid[w.y][w.x] === "#" && key(w) !== key(rot(w)))
+    .map((w) => {
+      const open = new Set([key(w), key(rot(w))]);
+      return { w, saving: base - distances(grid, start, open).get(key(goal))! };
+    })
+    .filter((c) => c.saving >= 2)
+    .sort((a, b) => b.saving - a.saving || rand() - 0.5);
+  const chosen: Point[] = [];
+  for (const { w } of candidates) {
+    const near = (p: Point) => Math.abs(p.x - w.x) + Math.abs(p.y - w.y) < 4;
+    if (chosen.some((c) => near(c) || near(rot(c)))) continue;
+    chosen.push(w);
+    if (chosen.length === 2) break;
+  }
+
+  const switches: Point[] = [];
+  const gates: Gate[] = [];
+  if (chosen.length === 2) {
+    const options = [...fromStart].map(([k, d]) => {
+      const [x, y] = k.split(",").map(Number);
+      return { x, y, d };
+    }).filter((p) => p.x % 2 === 1 && p.y % 2 === 1 && p.x + p.y < SIZE - 3 && p.d >= 4 && p.d <= 10 && !blocked.has(key(p)));
+    const own = options[Math.floor(rand() * options.length)];
+    if (own) {
+      switches.push({ x: own.x, y: own.y }, rot(own));
+      const [shortcut, closing] = rand() < 0.5 ? chosen : [chosen[1], chosen[0]];
+      gates.push(
+        { ...shortcut, switch: 0, openWhen: true }, { ...closing, switch: 0, openWhen: false },
+        { ...rot(shortcut), switch: 1, openWhen: true }, { ...rot(closing), switch: 1, openWhen: false },
+      );
+    }
+  }
+  return { mazeId, maze: grid.map((row) => row.join("")), switches, gates };
+}
