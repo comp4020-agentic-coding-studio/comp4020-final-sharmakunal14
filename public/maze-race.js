@@ -53,7 +53,8 @@ export function mountRace(initial, mazeView, showError, audio) {
       document.querySelector(".stage")?.scrollIntoView({ block: "start" });
     }
     document.body.dataset.phase = game.status;
-    audio.setRacing(connected && game.status === "racing");
+    // The tune follows the game: waiting room, countdown, race. A result stops it for the jingle.
+    audio.setScene(!connected ? "off" : { waiting: "waiting", countdown: "countdown", racing: "race" }[game.status] ?? "off");
     const player = self(), opponent = game.players.find((p) => p.id !== me);
     const goal = player.slot === 0 ? "B" : "A";
     const view = predicted();

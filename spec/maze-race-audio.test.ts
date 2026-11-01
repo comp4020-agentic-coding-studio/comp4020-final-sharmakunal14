@@ -27,7 +27,7 @@ const state = (revision = 1, status = "racing", switchOn = [false]) => ({
 });
 const snapshot = (game: ReturnType<typeof state>) => ({ game, me: "me", serverNow: 0, online: ["me", "rival"] });
 let dom: JSDOM;
-const audio = { play: vi.fn(), setRacing: vi.fn() };
+const audio = { play: vi.fn(), setScene: vi.fn() };
 const view = { update: vi.fn(), view: "overview", turn: vi.fn(), facing: () => "right" };
 beforeEach(() => {
   vi.clearAllMocks();
@@ -59,8 +59,9 @@ it("keeps initial/reconnected results silent and plays a live result only once",
   stream.emit(state(3, "finished", [true]));
   stream.emit(state(3, "finished", [true]));
   expect(audio.play.mock.calls).toEqual([["flip"], ["win"]]);
+  expect(audio.setScene).toHaveBeenLastCalledWith("off"); // a result hands over to the jingle
   stream.onerror?.();
-  expect(audio.setRacing).toHaveBeenLastCalledWith(false);
+  expect(audio.setScene).toHaveBeenLastCalledWith("off"); // a lost connection silences the music
   audio.play.mockClear();
   stream.emit(state(4, "finished"));
   expect(audio.play).not.toHaveBeenCalled();
@@ -91,7 +92,20 @@ it("ticks once per displayed countdown second and announces the server start", a
   expect(audio.play.mock.calls).toEqual([["tick"], ["tick"], ["tick"]]);
   streams[0]!.emit(state(3));
   expect(audio.play).toHaveBeenLastCalledWith("go");
-  expect(audio.setRacing).toHaveBeenLastCalledWith(true);
+  expect(audio.setScene).toHaveBeenLastCalledWith("race");
+});
+
+it("follows the game with a different tune per phase, and silences it when disconnected", () => {
+  mountRace(snapshot(state(1, "waiting")), view, vi.fn(), audio);
+  const stream = streams[0]!;
+  stream.emit(state(1, "waiting"));
+  expect(audio.setScene).toHaveBeenLastCalledWith("waiting");
+  stream.emit(state(2, "countdown"));
+  expect(audio.setScene).toHaveBeenLastCalledWith("countdown");
+  stream.emit(state(3));
+  expect(audio.setScene).toHaveBeenLastCalledWith("race");
+  stream.onerror?.();
+  expect(audio.setScene).toHaveBeenLastCalledWith("off");
 });
 
 it("gives refusal feedback without claiming a rejected flip succeeded", async () => {
