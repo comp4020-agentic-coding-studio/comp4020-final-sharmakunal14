@@ -165,3 +165,81 @@ describe("maze HTTP boundary", () => {
     } finally { a.close(); b.close(); }
   }, 20_000);
 });
+
+describe("milestone 2: batches, today's maze, results and replays", () => {
+  async function race() {
+    const alice = await person("Alice"), bob = await person("Bob");
+    const { game } = await create(alice), path = `matches/${game.id}`;
+    await api(bob, `${path}/join`, {});
+    await api(alice, `${path}/ready`, {});
+    const { game: started } = await (await api(bob, `${path}/ready`, {})).json() as View;
+    await new Promise((resolve) => setTimeout(resolve, started.startsAt! - Date.now() + 20));
+    return { alice, bob, game, path };
+  }
+
+  it("serves today's generated layout and saves it in each new race", async () => {
+    const today = await (await fetch(new URL("/api/maze/today", base))).json() as { mazeId: string; maze: string[]; switches: unknown[]; best: unknown[] };
+    expect(today.mazeId).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(today.switches).toHaveLength(2);
+    const { game } = await create(await person("Alice"));
+    expect(game.mazeId).toBe(today.mazeId);
+    expect(game.maze).toEqual(today.maze);
+  });
+
+  it("keeps average speed over a 300 ms round trip by batching banked steps", async () => {
+    const { alice, game, path } = await race();
+    const steps = route(game);
+    let sequence = 1;
+    const started = Date.now();
+    // Each request waits a simulated 300 ms round trip, then sends what was queued meanwhile.
+    while (sequence <= Math.min(steps.length, 12)) {
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      const batch = steps.slice(sequence - 1, sequence - 1 + Math.floor(300 / MOVE_INTERVAL_MS) + 1);
+      const response = await api(alice, `${path}/move`, { actions: batch, sequence });
+      const body = await response.json() as View;
+      sequence = body.game.players[0].sequence + 1;
+    }
+    const perStep = (Date.now() - started) / (sequence - 1);
+    expect(perStep).toBeLessThan(MOVE_INTERVAL_MS * 2.5);
+    const retried = await (await api(alice, `${path}/move`, { actions: steps.slice(0, 3), sequence: 1 })).json() as View;
+    expect(retried.game.players[0].sequence).toBe(sequence - 1);
+  }, 15_000);
+
+  it("refuses a malformed batch and reports a refused action with the authoritative snapshot", async () => {
+    const { alice, path, game } = await race();
+    expect((await api(alice, `${path}/move`, { actions: Array(9).fill("up"), sequence: 1 })).status).toBe(400);
+    expect((await api(alice, `${path}/move`, { actions: ["jump"], sequence: 1 })).status).toBe(400);
+    const refused = await api(alice, `${path}/move`, { actions: ["flip"], sequence: 1 });
+    expect(refused.status).toBe(409);
+    const body = await refused.json() as View & { code: string };
+    expect(body.code).toBe("NO_SWITCH");
+    expect(body.game.players[0]).toMatchObject(entrance(game, 0));
+  });
+
+  it("publishes a finished race to today's best times and lets other signed-in visitors replay it", async () => {
+    const { alice, bob, game, path } = await race();
+    const steps = route(game);
+    for (let i = 0; i < steps.length; i++) {
+      const response = await api(alice, `${path}/move`, { actions: [steps[i]], sequence: i + 1 });
+      expect(response.status).toBe(200);
+      await new Promise((resolve) => setTimeout(resolve, MOVE_INTERVAL_MS + 5));
+    }
+    expect((await api(bob, `${path}/replay`)).status).toBe(200);
+    const visitor = await person("Visitor");
+    const replay = await (await api(visitor, `${path}/replay`)).json() as { game: Game; steps: { slot: number; kind: string }[] };
+    expect(replay.game.status).toBe("finished");
+    expect(replay.steps.filter((s) => s.slot === 0)).toHaveLength(steps.length);
+    expect((await api(visitor, path)).status).toBe(403);
+    const today = await (await fetch(new URL("/api/maze/today", base))).json() as { best: { matchId: string }[] };
+    expect(today.best.map((b) => b.matchId)).toContain(game.id);
+    const { matches } = await (await api(alice, "matches")).json() as { matches: { id: string; winner: string; timeMs: number }[] };
+    expect(matches[0]).toMatchObject({ id: game.id, winner: "Alice" });
+  }, 20_000);
+
+  it("keeps an unfinished race's replay private", async () => {
+    const alice = await person("Alice"), visitor = await person("Visitor");
+    const { game } = await create(alice);
+    expect((await api(visitor, `matches/${game.id}/replay`)).status).toBe(403);
+    expect((await api(alice, `matches/${game.id}/replay`)).status).toBe(409);
+  });
+});
