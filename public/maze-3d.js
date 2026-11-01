@@ -252,10 +252,10 @@ export class Maze3D {
     const wallTex = this.brick.clone();
     wallTex.needsUpdate = true;
     const wallMat = new THREE.MeshStandardMaterial({ map: wallTex, roughness: 0.9 });
-    const capTex = this.brick.clone();
-    capTex.repeat.set(0.25, 0.25);
+    const capTex = this.floorTex.clone();
+    capTex.repeat.set(0.35, 0.35);
     capTex.needsUpdate = true;
-    const capMat = new THREE.MeshStandardMaterial({ map: capTex, color: 0xf3dcb4, roughness: 0.9 });
+    const capMat = new THREE.MeshStandardMaterial({ map: capTex, color: 0xd9c09a, roughness: 0.9 });
     const gateCells = new Set((this.board.gates ?? []).map((g) => `${g.x},${g.y}`));
     const cells = [];
     for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) if (maze[y][x] === "#" && !gateCells.has(`${x},${y}`)) cells.push([x, y]);
