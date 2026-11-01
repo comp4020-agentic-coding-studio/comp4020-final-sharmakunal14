@@ -333,3 +333,21 @@ repetition fatigue and measured battery/CPU impact remain unverified. Audio
 tests prove scheduling and event routing, not whether the tune is enjoyable
 or helps navigation. Snapshot-derived sound may miss cancelling flips between
 observations; predicted steps can sound before a later server correction.
+
+### Delivery observed later on 1 November 2026
+
+- Pushed all ten implementation/documentation commits directly to `origin/main`,
+  from `0d6fb39` through `65c096f`. Local and remote HEAD matched after the push.
+- [GitHub Actions run 41288738945](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/actions/runs/41288738945)
+  completed successfully for `65c096f`: Docker build, full spec/type check,
+  process evidence check, verified-secret scan, course-key scan, Fly deployment
+  and deployed-site availability check. No scanner finding was reported by the
+  successful jobs; this is not a claim that a scan proves absence of secrets.
+- A separate read-only smoke check of
+  [the live site](https://comp4020-final-sharmakunal14.fly.dev) returned HTTP 200
+  with the sound control present. Its three audio modules, race controller,
+  camera switcher and input controller each returned HTTP 200 and matched local
+  source byte-for-byte. No production race or player was created for this check.
+- Stopped the disposable port 8091 server. The port 8089 preview was not stopped.
+- This subsequent documentation-only commit records the observed delivery;
+  the runtime remains the version verified by the linked successful run.
