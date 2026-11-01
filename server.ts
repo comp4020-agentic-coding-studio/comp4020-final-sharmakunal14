@@ -1,7 +1,7 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, statSync } from "node:fs";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { extname, join, normalize } from "node:path";
+import { extname, join, resolve, sep } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { renderMarkdown } from "./markdown.ts";
 import { createMazeHandler, validateMazeMutation } from "./maze-http.ts";
@@ -196,11 +196,13 @@ const MIME: Record<string, string> = {
   ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8",
   ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png",
   ".jpg": "image/jpeg", ".webp": "image/webp", ".avif": "image/avif",
+  ".md": "text/plain; charset=utf-8",
 };
 
 function serveFile(res: ServerResponse, root: string, rel: string): boolean {
-  const path = normalize(join(root, rel));
-  if (!path.startsWith(normalize(root)) || !existsSync(path) || !extname(path)) return false;
+  const base = resolve(root);
+  const path = resolve(base, rel.replace(/^\/+/, ""));
+  if (!path.startsWith(base + sep) || !existsSync(path) || !extname(path) || !statSync(path).isFile()) return false;
   res.writeHead(200, { "content-type": MIME[extname(path)] ?? "application/octet-stream" });
   res.end(readFileSync(path));
   return true;
@@ -227,7 +229,7 @@ async function handle(req: IncomingMessage, res: ServerResponse) {
   if (method === "GET" && (path === "/" || /^\/race\/[a-f0-9-]{36}\/?$/.test(path))) return serveFile(res, "public", "maze.html");
   if (method === "GET" && (path === "/shared-space" || path === "/shared-space/")) return serveFile(res, "public", "index.html");
   if (method === "GET" && /^\/events\/[\w-]+\/?$/.test(path)) return serveFile(res, "public", "plan.html");
-  if (method === "GET" && path.startsWith("/docs/") && serveFile(res, ".", path)) return;
+  if (method === "GET" && path.startsWith("/docs/") && serveFile(res, "docs", path.slice(6))) return;
   if (method === "GET" && !path.startsWith("/api/") && serveFile(res, "public", path)) return;
 
   if (path === "/api/session" && method === "POST") {

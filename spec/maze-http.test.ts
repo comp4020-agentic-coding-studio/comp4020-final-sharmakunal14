@@ -61,6 +61,21 @@ async function stream(cookie: string, id: string) {
 }
 
 describe("maze HTTP boundary", () => {
+  it("serves the new game, retained prototype and documentation without exposing server files", async () => {
+    const home = await fetch(base);
+    expect(await home.text()).toContain("Maze Duel");
+    expect((await fetch(new URL("/shared-space/", base))).status).toBe(200);
+    expect((await fetch(new URL("/docs/decisions/0001-refuse-outdated-moves.md", base))).status).toBe(200);
+    for (const path of ["/server.ts", "/docs/../server.ts", "/docs/%2e%2e%2fserver.ts", "/maze-unknown.js"]) {
+      expect((await fetch(new URL(path, base))).status).toBe(404);
+    }
+    for (const file of ["maze.js", "maze-race.js", "maze-render.js", "maze-controls.js", "maze-api.js"]) {
+      const response = await fetch(new URL(`/${file}`, base));
+      expect(response.status).toBe(200);
+      expect(response.headers.get("content-type")).toContain("javascript");
+    }
+  });
+
   it("requires a session and rejects cross-site, malformed and oversized mutations", async () => {
     expect((await api("", "matches", {})).status).toBe(401);
     const cookie = await person("Alice");
