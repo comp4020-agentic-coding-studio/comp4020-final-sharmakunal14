@@ -76,6 +76,9 @@ Keep the earlier Shared Space routes and data working during the transition.
 - Check the sound menu during an active phone-sized race, not just the lobby.
   The race header must retain its positioned stacking layer: `position: static`
   put the sound controls behind the stage in the first audio browser check.
+- Gameplay shortcuts must ignore focused sound controls, including `<summary>`:
+  Space opens the disclosure without flipping a gate. Keep this regression in
+  the control tests when adding other keyboard-operable UI.
 
 - The first-playable runtime and its known trade-offs are recorded in
   `docs/decisions/0002-maze-duel-first-playable.md`; milestone 2 scope in

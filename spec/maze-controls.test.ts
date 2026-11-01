@@ -26,6 +26,18 @@ it("does not turn typing a nickname into movement", async () => {
   expect(act).not.toHaveBeenCalled();
 });
 
+it("leaves Space on the sound disclosure to the browser instead of flipping a gate", () => {
+  const details = document.createElement("details");
+  details.innerHTML = "<summary>Sound off</summary>";
+  document.body.append(details);
+  const act = vi.fn();
+  setupControls(() => true, act);
+  const event = new dom.window.KeyboardEvent("keydown", { key: " ", code: "Space", bubbles: true, cancelable: true });
+  details.querySelector("summary")!.dispatchEvent(event);
+  expect(act).not.toHaveBeenCalled();
+  expect(event.defaultPrevented).toBe(false);
+});
+
 it("repeats a held key at the movement interval and stops on blur or disconnection", async () => {
   let connected = true;
   const act = vi.fn();

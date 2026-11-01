@@ -30,7 +30,7 @@ export function setupControls(canMove, act, interval = 150) {
 
   document.addEventListener("keydown", (event) => {
     const action = keys[event.key.toLowerCase()];
-    if (!action || event.ctrlKey || event.altKey || event.metaKey || event.target.closest?.("input,textarea,select,button,[contenteditable=true]")) return;
+    if (!action || event.ctrlKey || event.altKey || event.metaKey || event.target.closest?.("input,textarea,select,button,summary,[contenteditable=true]")) return;
     if (!canMove()) return;
     event.preventDefault();
     if (!event.repeat) start(action, event.code);
