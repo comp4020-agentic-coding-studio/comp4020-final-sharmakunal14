@@ -1,8 +1,9 @@
 export class ApiError extends Error {
-  constructor(message, code, status) {
+  constructor(message, code, status, body = null) {
     super(message);
     this.code = code;
     this.status = status;
+    this.body = body;
   }
 }
 
@@ -20,7 +21,7 @@ export async function request(path, body) {
     throw new ApiError("Could not confirm that request. Check your connection and recent races before trying again.", "NETWORK", 0);
   }
   const value = await response.json();
-  if (!response.ok) throw new ApiError(value.message ?? "The request could not be completed.", value.code, response.status);
+  if (!response.ok) throw new ApiError(value.message ?? "The request could not be completed.", value.code, response.status, value);
   return value;
 }
 

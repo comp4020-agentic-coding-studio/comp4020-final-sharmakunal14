@@ -1,5 +1,6 @@
 import { ApiError, request } from "./maze-api.js";
-import { setupControls } from "./maze-controls.js";
+import { createSender, setupControls } from "./maze-controls.js";
+import { DIRECTIONS, passable, switchAt } from "./maze-rules.js";
 
 const $ = (id) => document.getElementById(id);
 const text = (id, value) => { if ($(id).textContent !== value) $(id).textContent = value; };
@@ -8,8 +9,24 @@ export function mountRace(initial, mazeView, showError) {
   let game = initial.game, connected = false, online = [], busy = false;
   let serverAt = initial.serverNow, observedAt = performance.now();
   const me = initial.me, path = `/api/maze/matches/${game.id}`;
-  const self = () => game.players.find((player) => player.id === me);
+  const confirmed = () => game.players.find((player) => player.id === me);
+  // The player as drawn: the server position plus unconfirmed predicted steps.
+  function predicted() {
+    let p = { ...confirmed() }, board = game;
+    for (const action of sender.unconfirmed) {
+      if (action === "flip") {
+        const index = switchAt(board, p.x, p.y);
+        if (index >= 0) board = { ...board, switchOn: board.switchOn.map((on, i) => i === index ? !on : on) };
+        continue;
+      }
+      const [dx, dy] = DIRECTIONS[action];
+      if (passable(board, p.x + dx, p.y + dy)) p = { ...p, x: p.x + dx, y: p.y + dy };
+    }
+    return { player: p, board };
+  }
+  const self = () => predicted().player;
   const canMove = () => connected && game.status === "racing" && !document.hidden;
+  window.addEventListener("blur", () => sender.clear());
   document.body.dataset.inRace = "true";
   $("race-panel").hidden = false;
   $("race-code").textContent = game.id.slice(0, 8).toUpperCase();
@@ -28,6 +45,8 @@ export function mountRace(initial, mazeView, showError) {
     document.body.dataset.phase = game.status;
     const player = self(), opponent = game.players.find((p) => p.id !== me);
     const goal = player.slot === 0 ? "B" : "A";
+    const view = predicted();
+    const onSwitch = game.status === "racing" && switchAt(view.board, view.player.x, view.player.y) >= 0;
     const done = game.status === "finished" || game.status === "interrupted";
     let title, description;
     if (game.status === "waiting") {
@@ -64,38 +83,68 @@ export function mountRace(initial, mazeView, showError) {
     $("movement").hidden = game.status !== "racing";
     for (const button of document.querySelectorAll("[data-direction]")) button.disabled = !canMove();
     $("another-race").hidden = !done;
+    $("watch-replay").hidden = !done;
+    $("watch-replay").href = `/race/${game.id}/replay`;
     $("race-clock").hidden = game.startsAt === null || game.status === "interrupted";
     $("countdown").hidden = game.status !== "countdown";
     text("your-goal", `You are ${player.slot === 0 ? "A" : "B"} · reach entrance ${goal}`);
     text("position", `Your position: row ${player.y}, column ${player.x}`);
     text("board-note", done ? "RACE RECORDED" : game.status === "racing" ? "THE RACE IS ON" : "One maze. Equal distance.");
     $("maze").setAttribute("aria-label", `Maze. You are player ${player.slot === 0 ? "A" : "B"}, row ${player.y}, column ${player.x}. Your goal is entrance ${goal}. Use the directional controls to move.`);
-    mazeView.update(game.maze, game.players.map((p) => ({ ...p, mine: p.id === me })));
+    $("flip").hidden = !onSwitch;
+    $("flip").disabled = !canMove();
+    text("switch-hint", onSwitch ? "You’re on a switch. Press E or Space to flip it — it changes gates for both of you." : "");
+    mazeView.update(game.maze, game.players.map((p) => p.id === me ? { ...view.player, mine: true } : { ...p, mine: false }), view.board);
     renderClock();
   }
 
   function apply(view) {
     if (view.game.revision < game.revision) return;
     game = view.game;
+    sender.settle(confirmed().sequence);
     serverAt = view.serverNow;
     observedAt = performance.now();
     if (view.online) online = view.online;
     render();
   }
 
-  const stopControls = setupControls(canMove, async (direction) => {
+  const sender = createSender(async (actions, sequence) => {
     try {
-      apply(await request(`${path}/move`, { direction, sequence: self().sequence + 1 }));
+      const view = await request(`${path}/move`, { actions, sequence });
+      apply(view);
       $("error").hidden = true;
+      return confirmed().sequence;
     } catch (error) {
-      if (error instanceof ApiError && error.code === "WALL") { text("announcement", "There is a wall in that direction."); return; }
-      if (error instanceof ApiError && error.code === "TOO_FAST") return;
+      if (error instanceof ApiError && error.body?.game) {
+        apply(error.body);
+        const notice = { WALL: error.message, NO_SWITCH: error.message, SWITCH_COOLDOWN: error.message, GATE_OCCUPIED: error.message }[error.code];
+        if (notice) text("announcement", notice);
+        else if (error.code !== "TOO_FAST") showError(error);
+        render();
+        return confirmed().sequence;
+      }
       stopControls();
       try { apply(await request(path)); }
       catch { connected = false; render(); }
       showError(error);
+      return null;
     }
   });
+
+  // Predict locally: refuse what the saved layout already refuses, so a held
+  // key against a wall never queues phantom steps.
+  const stopControls = setupControls(canMove, (action) => {
+    const { player, board } = predicted();
+    if (action === "flip") {
+      if (switchAt(board, player.x, player.y) < 0) return false;
+    } else {
+      const [dx, dy] = DIRECTIONS[action];
+      if (!passable(board, player.x + dx, player.y + dy)) { text("announcement", "There is a wall in that direction."); return false; }
+    }
+    if (sender.unconfirmed.length >= 8) return false;
+    sender.push(action);
+    render();
+  }, initial.moveInterval ?? 140);
 
   $("ready").addEventListener("click", async () => {
     busy = true;
@@ -125,7 +174,7 @@ export function mountRace(initial, mazeView, showError) {
 
   const source = new EventSource(`${path}/stream`);
   source.addEventListener("state", (event) => { connected = true; apply(JSON.parse(event.data)); });
-  source.onerror = () => { connected = false; online = []; stopControls(); render(); };
+  source.onerror = () => { connected = false; online = []; stopControls(); sender.clear(); render(); };
   const clock = setInterval(renderClock, 100);
   window.addEventListener("pagehide", () => { source.close(); clearInterval(clock); stopControls(); }, { once: true });
   window.addEventListener("pageshow", (event) => { if (event.persisted) location.reload(); });
