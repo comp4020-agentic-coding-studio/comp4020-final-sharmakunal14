@@ -24,18 +24,23 @@
     <symbol id="i-cam" viewBox="0 0 24 24"><circle cx="12" cy="7" r="3.2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5 20c1.2-4 4-6 7-6s5.8 2 7 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
     <symbol id="i-map" viewBox="0 0 24 24"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z M9 4v14 M15 6v14" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
     <symbol id="i-trophy" viewBox="0 0 24 24"><path d="M7 4h10v4a5 5 0 0 1-10 0zM7 6H4a3 3 0 0 0 3 4M17 6h3a3 3 0 0 1-3 4M12 13v4M8 20h8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-sound" viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9zM16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-mute" viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9zM17 9l5 6M22 9l-5 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
   </svg>
 
   <header class="topbar">
     <a class="brand" href="/" aria-label="Maze Duel home"><span class="brand-mark" aria-hidden="true"></span><span class="brand-word">MAZE<b>DUEL</b></span></a>
     <nav aria-label="Main"><a href="#how-to-play">How to play</a><a href="/readme/">About</a></nav>
+    <button id="mute-button" type="button" class="mute-btn" aria-label="Mute sound" aria-pressed="false" data-state="on" title="Mute / unmute (M)">
+      <svg class="ico-on" aria-hidden="true"><use href="#i-sound"/></svg><svg class="ico-off" aria-hidden="true"><use href="#i-mute"/></svg>
+    </button>
     <details class="audio-settings">
       <summary id="audio-status">Sound off</summary>
       <div class="audio-popover">
-        <label><input id="sound-enabled" type="checkbox"> Enable sound</label>
-        <label><input id="music-enabled" type="checkbox" checked disabled> Race music</label>
-        <p id="audio-note" class="fine" role="status">Original arcade sounds. Music plays during live races.</p>
+        <label><input id="sound-enabled" type="checkbox" checked> Sound effects</label>
+        <label><input id="music-enabled" type="checkbox" checked> Music</label>
+        <p id="audio-note" class="fine" role="status">Original arcade sounds and music, in the style of classic platformers. Press M to mute.</p>
       </div>
     </details>
     <span class="chip chip-live"><span class="pulse" aria-hidden="true"></span><span id="maze-date">TODAY’S MAZE</span></span>

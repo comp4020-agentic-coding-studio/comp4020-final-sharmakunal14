@@ -233,3 +233,12 @@ body[data-in-race="true"] .how, body[data-in-race="true"] #best, body[data-in-ra
 .audio-popover input { width: 18px; height: 18px; margin: 0; accent-color: #67e8f9; }
 .audio-popover .fine { margin: 8px 0 0; }
 .audio-settings summary:focus-visible { outline: 2px solid #67e8f9; outline-offset: 2px; border-radius: 6px; }
+
+/* One-tap mute, always visible. The disclosure menu keeps the finer controls. */
+.mute-btn { flex-shrink: 0; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; border: 1px solid var(--line-strong); background: var(--glass); color: var(--a); transition: background .2s, color .2s, transform .1s; }
+.mute-btn svg { width: 22px; height: 22px; }
+.mute-btn:hover { background: rgba(255, 255, 255, .08); }
+.mute-btn:active { transform: scale(.94); }
+.mute-btn .ico-off, .mute-btn[data-state="off"] .ico-on { display: none; }
+.mute-btn[data-state="off"] .ico-off { display: block; }
+.mute-btn[data-state="off"] { color: var(--warn); border-color: rgba(255, 90, 122, .5); }
