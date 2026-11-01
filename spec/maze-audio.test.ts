@@ -46,7 +46,7 @@ afterEach(() => { audio.dispose(); vi.useRealTimers(); vi.unstubAllGlobals(); })
 async function enable() { audio.setEnabled(true); await audio.unlock(); return contexts[0]!; }
 
 it("starts silent, creates only one context on gesture, and never queues locked cues", async () => {
-  audio.setRacing(true);
+  audio.setScene("race");
   audio.play("win");
   await audio.unlock();
   expect(contexts).toHaveLength(0);
@@ -98,7 +98,7 @@ it("runs music for the current scene, and stops it independently of effects", as
 
 it("silences hidden pages and mute, without replaying dropped effects", async () => {
   const context = await enable();
-  audio.setRacing(true);
+  audio.setScene("race");
   audio.setVisible(false);
   expect(vi.getTimerCount()).toBe(0);
   const count = context.nodes.length;
@@ -113,7 +113,7 @@ it("silences hidden pages and mute, without replaying dropped effects", async ()
 
 it("does not schedule a backlog after a long clock jump", async () => {
   const context = await enable();
-  audio.setRacing(true);
+  audio.setScene("race");
   const before = context.nodes.length;
   context.currentTime = 600;
   await vi.advanceTimersByTimeAsync(100);
@@ -148,7 +148,7 @@ it("does not restart after mute while a resume promise is pending", async () => 
   context.resume.mockImplementationOnce(() => new Promise<void>(resolve => {
     finish = () => { context.state = "running"; resolve(); };
   }));
-  audio.setRacing(true);
+  audio.setScene("race");
   const pending = audio.unlock();
   audio.setEnabled(false);
   finish();
@@ -159,7 +159,7 @@ it("does not restart after mute while a resume promise is pending", async () => 
 
 it("closes its context and timer on disposal and cannot be restarted", async () => {
   const context = await enable();
-  audio.setRacing(true);
+  audio.setScene("race");
   audio.dispose();
   expect(context.close).toHaveBeenCalledOnce();
   expect(vi.getTimerCount()).toBe(0);

@@ -35,6 +35,7 @@ const EFFECTS = {
 
 // Original tunes. 0 = rest. `step` is the number of notes per beat subdivision.
 // Lobby: a bouncy major tune with an off-beat bass, like an overworld.
+/** @type {Tune} */
 const LOBBY = {
   bpm: 132, step: 2, hold: .55,
   lead: [
@@ -47,6 +48,7 @@ const LOBBY = {
   drums: "k.h.s.h.k.h.s.hk",
 };
 // Waiting room: calmer, playful, slower.
+/** @type {Tune} */
 const WAITING = {
   bpm: 104, step: 2, hold: .7, leadType: "triangle",
   lead: [
@@ -57,6 +59,7 @@ const WAITING = {
   drums: "k...h...s...h...",
 };
 // Race: fast and driving, minor-ish and urgent.
+/** @type {Tune} */
 const RACE = {
   bpm: 168, step: 2, hold: .5,
   lead: [
@@ -69,6 +72,7 @@ const RACE = {
   drums: "k.h.s.hhk.h.s.sh",
 };
 // Countdown: a tense pulse that builds into the fanfare.
+/** @type {Tune} */
 const COUNTDOWN = {
   bpm: 144, step: 2, hold: .4,
   lead: [67, 0, 67, 0, 67, 0, 67, 0, 72, 0, 72, 0, 72, 0, 72, 0],
@@ -175,7 +179,7 @@ export function createAudio({ createContext = () => new AudioContext(), onUnavai
     src.start(at);
     src.stop(at + duration + .01);
   }
-  /** A kick is a fast downward sine sweep. */
+  /** A kick is a fast downward sine sweep. @param {number} at */
   function kick(at) {
     if (!context || !master || voices.size >= MAX_VOICES) return;
     const osc = context.createOscillator(), gain = context.createGain();
@@ -233,7 +237,7 @@ export function createAudio({ createContext = () => new AudioContext(), onUnavai
 
   return {
     /** Must be called from a user gesture; never queues old cues while locked. */
-    async unlock() {
+    async unlock({ quiet = false } = {}) {
       if (!enabled || disposed || !visible) return;
       try {
         if (!context) {
@@ -258,7 +262,11 @@ export function createAudio({ createContext = () => new AudioContext(), onUnavai
         }
         if (context.state !== "running") await context.resume();
         syncMusic(); // Re-check mute/visibility/disposal after asynchronous resume.
-      } catch { unavailable(); }
+      } catch {
+        // An automatic attempt before any gesture may be refused; stay quiet and wait for a click.
+        if (quiet) return;
+        unavailable();
+      }
     },
     /** @param {boolean} value */
     setEnabled(value) {
