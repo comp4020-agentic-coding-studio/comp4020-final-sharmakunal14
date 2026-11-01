@@ -2,6 +2,7 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, statSync } from "node:fs";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { extname, join, resolve, sep } from "node:path";
+import { gzipSync } from "node:zlib";
 import { DatabaseSync } from "node:sqlite";
 import { renderMarkdown } from "./markdown.ts";
 import { createMazeHandler, validateMazeMutation } from "./maze-http.ts";
@@ -196,14 +197,27 @@ const MIME: Record<string, string> = {
   ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8",
   ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png",
   ".jpg": "image/jpeg", ".webp": "image/webp", ".avif": "image/avif",
-  ".md": "text/plain; charset=utf-8",
+  ".md": "text/plain; charset=utf-8", ".txt": "text/plain; charset=utf-8",
 };
 
-function serveFile(res: ServerResponse, root: string, rel: string): boolean {
+const gzipped = new Map<string, Buffer>();
+
+function serveFile(res: ServerResponse, root: string, rel: string, req?: IncomingMessage): boolean {
   const base = resolve(root);
   const path = resolve(base, rel.replace(/^\/+/, ""));
   if (!path.startsWith(base + sep) || !existsSync(path) || !extname(path) || !statSync(path).isFile()) return false;
-  res.writeHead(200, { "content-type": MIME[extname(path)] ?? "application/octet-stream" });
+  const headers: Record<string, string> = { "content-type": MIME[extname(path)] ?? "application/octet-stream" };
+  // Vendored files are versioned by name, so they can be cached forever and compressed once.
+  if (rel.includes("vendor/")) {
+    headers["cache-control"] = "public, max-age=31536000, immutable";
+    if (/\bgzip\b/.test(String(req?.headers["accept-encoding"] ?? ""))) {
+      if (!gzipped.has(path)) gzipped.set(path, gzipSync(readFileSync(path)));
+      res.writeHead(200, { ...headers, "content-encoding": "gzip", vary: "accept-encoding" });
+      res.end(gzipped.get(path));
+      return true;
+    }
+  }
+  res.writeHead(200, headers);
   res.end(readFileSync(path));
   return true;
 }
@@ -230,7 +244,7 @@ async function handle(req: IncomingMessage, res: ServerResponse) {
   if (method === "GET" && (path === "/shared-space" || path === "/shared-space/")) return serveFile(res, "public", "index.html");
   if (method === "GET" && /^\/events\/[\w-]+\/?$/.test(path)) return serveFile(res, "public", "plan.html");
   if (method === "GET" && path.startsWith("/docs/") && serveFile(res, "docs", path.slice(6))) return;
-  if (method === "GET" && !path.startsWith("/api/") && serveFile(res, "public", path)) return;
+  if (method === "GET" && !path.startsWith("/api/") && serveFile(res, "public", path, req)) return;
 
   if (path === "/api/session" && method === "POST") {
     validateMazeMutation(req);
