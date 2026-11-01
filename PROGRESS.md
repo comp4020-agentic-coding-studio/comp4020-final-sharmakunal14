@@ -462,3 +462,30 @@ scheduled, not how loud they were.
 - Whether it sounds like a classic platformer, and whether the loops
   tire. No human has listened; the checks above show only levels and timing.
 - Real phone speakers, Safari and Firefox.
+
+## 2026-11-02 — Full-screen race, first-person start, Exit button
+
+### Change
+
+- From the countdown to the result the stage is fixed to the whole viewport;
+  the sound controls float above it. Clicking "I'm ready" requests browser
+  fullscreen (needs a user gesture); fullscreen is released when the race ends.
+  If the browser refuses, the full-window stage still applies.
+- The camera switches to first person when the countdown starts (the existing
+  view buttons and V still work). Facing stays local; the server is unchanged.
+- An Exit button during the countdown and race leaves fullscreen and returns
+  to the home page. It does not forfeit or end the race on the server; the
+  link still reopens it.
+
+Commit: 824ced2 (local, not pushed).
+
+### Verification
+
+- Module syntax check on `maze-race.js`; `pnpm test` against the local app:
+  79/79 passed. No test covers the new button or fullscreen.
+
+### Not verified
+
+- No browser run: fullscreen, the first-person switch, the Exit button and the
+  phone-sized layout have not been seen working. Safari fullscreen differs.
+- Whether Exit mid-race should be treated as a forfeit is undecided.
