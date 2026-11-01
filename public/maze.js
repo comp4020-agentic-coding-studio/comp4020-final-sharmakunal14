@@ -1,5 +1,6 @@
 import { ApiError, raceId, request } from "./maze-api.js";
 import { MazeView } from "./maze-render.js";
+import { setupViews } from "./maze-views.js";
 import { mountRace } from "./maze-race.js";
 import { mountReplay } from "./maze-replay.js";
 
@@ -72,12 +73,31 @@ $("entry-form").addEventListener("submit", async (event) => {
   } finally { $("entry-fields").disabled = false; }
 });
 
+// WebGL can be unavailable (old devices, blocked GPU); fall back to the 2D projection.
+async function createView(container) {
+  try {
+    const probe = document.createElement("canvas");
+    if (!(probe.getContext("webgl2") || probe.getContext("webgl"))) throw new Error("no webgl");
+    const { Maze3D } = await import("./maze-3d.js");
+    return new Maze3D(container);
+  } catch {
+    const canvas = document.createElement("canvas");
+    canvas.width = 880;
+    canvas.height = 640;
+    canvas.className = "fallback-2d";
+    container.append(canvas);
+    document.body.dataset.renderer = "2d";
+    return new MazeView(canvas);
+  }
+}
+
 async function initialize() {
-  mazeView = new MazeView($("maze"));
+  mazeView = await createView($("maze"));
+  setupViews(mazeView);
   const today = await request("/api/maze/today");
   const n = today.maze.length;
   $("maze-date").textContent = `MAZE OF ${today.mazeId}`;
-  $("board-size").textContent = `${n} × ${n} / SHARED GROUND`;
+  $("board-size").textContent = `${n} × ${n} · SHARED GROUND`;
   mazeView.update(today.maze, [
     { id: "preview-a", slot: 0, x: 1, y: 1 },
     { id: "preview-b", slot: 1, x: n - 2, y: n - 2 },

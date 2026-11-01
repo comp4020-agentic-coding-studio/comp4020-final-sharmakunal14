@@ -42,6 +42,9 @@ export function mountRace(initial, mazeView, showError) {
   }
 
   function render() {
+    if (document.body.dataset.phase !== game.status && game.status === "countdown" && matchMedia("(max-width: 700px)").matches) {
+      document.querySelector(".stage")?.scrollIntoView({ block: "start" });
+    }
     document.body.dataset.phase = game.status;
     const player = self(), opponent = game.players.find((p) => p.id !== me);
     const goal = player.slot === 0 ? "B" : "A";
@@ -89,7 +92,7 @@ export function mountRace(initial, mazeView, showError) {
     $("countdown").hidden = game.status !== "countdown";
     text("your-goal", `You are ${player.slot === 0 ? "A" : "B"} · reach entrance ${goal}`);
     text("position", `Your position: row ${player.y}, column ${player.x}`);
-    text("board-note", done ? "RACE RECORDED" : game.status === "racing" ? "THE RACE IS ON" : "One maze. Equal distance.");
+    text("board-note", done ? "RACE RECORDED" : game.status === "racing" ? "THE RACE IS ON · V switches camera" : "Drag to orbit · scroll to zoom");
     $("maze").setAttribute("aria-label", `Maze. You are player ${player.slot === 0 ? "A" : "B"}, row ${player.y}, column ${player.x}. Your goal is entrance ${goal}. Use the directional controls to move.`);
     $("flip").hidden = !onSwitch;
     $("flip").disabled = !canMove();
@@ -133,8 +136,15 @@ export function mountRace(initial, mazeView, showError) {
 
   // Predict locally: refuse what the saved layout already refuses, so a held
   // key against a wall never queues phantom steps.
-  const stopControls = setupControls(canMove, (action) => {
+  const stopControls = setupControls(canMove, (input) => {
     const { player, board } = predicted();
+    // In 1st/3rd person, forward walks the way the avatar faces and the other
+    // directions only turn it. Facing is presentation; the server owns position.
+    let action = input;
+    if (input !== "flip" && mazeView.view && mazeView.view !== "overview") {
+      if (input !== "up") { mazeView.turn(input); return; }
+      action = mazeView.facing();
+    }
     if (action === "flip") {
       if (switchAt(board, player.x, player.y) < 0) return false;
     } else {

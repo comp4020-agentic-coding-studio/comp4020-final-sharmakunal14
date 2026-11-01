@@ -31,7 +31,7 @@ export function mountReplay(replay, mazeView) {
   $("connection").textContent = "Replay";
   $("legend-a").textContent = `${game.players.find((p) => p.slot === 0)?.name ?? "A"} → B`;
   $("legend-b").textContent = `${game.players.find((p) => p.slot === 1)?.name ?? "B"} → A`;
-  $("board-note").textContent = "REPLAY FROM THE SERVER LOG";
+  $("board-note").textContent = "Replay · drag to orbit";
   $("replay-title").textContent = winner ? `${winner.name} won in ${format(duration)}` : "Race ended without a winner";
   $("replay-players").textContent = game.players.map((p) => `${p.slot === 0 ? "A" : "B"}: ${p.name}`).join(" · ");
   $("replay-scrub").max = String(duration);
