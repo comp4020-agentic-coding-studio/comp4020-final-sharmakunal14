@@ -48,6 +48,12 @@ function showIdentity() {
   if (actor) $("identity").textContent = `Racing as ${actor.name}`;
 }
 
+// Lobby buttons click too; the race view handles its own panel.
+$("entry-form").addEventListener("click", (event) => {
+  const button = event.target.closest?.("button");
+  if (button && !button.disabled) audio.play("click");
+});
+
 $("entry-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   const joining = Boolean(invitationId) || event.submitter?.value === "join";
