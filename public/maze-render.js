@@ -1,3 +1,4 @@
+import { lookColor, lookOf } from "./maze-look.js";
 const WIDTH = 880, HEIGHT = 640;
 const COLORS = ["#c7ee89", "#efb17b"];
 
@@ -94,13 +95,14 @@ export class MazeView {
     ctx.beginPath();
     ctx.ellipse(cx, cy + 15, 16, 7, 0, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = player.slot === 0 ? "#718e46" : "#a46c43";
+    const look = lookOf(player);
+    ctx.fillStyle = lookColor(look, 38);
     ctx.beginPath();
     ctx.roundRect(cx - 11, cy - 6, 22, 18, 9);
     ctx.fill();
     ctx.beginPath();
     ctx.arc(cx, cy - 5, 12, 0, Math.PI * 2);
-    ctx.fillStyle = COLORS[player.slot];
+    ctx.fillStyle = lookColor(look);
     ctx.fill();
     ctx.strokeStyle = "#f5f3df";
     ctx.lineWidth = mine ? 2.5 : 1;
@@ -110,6 +112,8 @@ export class MazeView {
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(player.slot === 0 ? "A" : "B", cx, cy - 4);
+    const mark = { crown: "♛", halo: "◯", antenna: "ψ", horns: "ᗐ", cap: "⌒" }[look.accessory];
+    if (mark) { ctx.font = "bold 14px monospace"; ctx.fillStyle = "#ffd34d"; ctx.fillText(mark, cx, cy - 20); }
     if (mine) {
       ctx.fillStyle = "#eff5e5";
       ctx.font = "bold 9px monospace";

@@ -1,4 +1,5 @@
 import * as THREE from "./vendor/three-0.170.0.module.min.js";
+import { lookOf } from "./maze-look.js";
 
 // Presentation only: the server owns positions on a grid. One grid cell is
 // one world unit on x/z; walls stand on cells marked "#".
@@ -102,33 +103,91 @@ function cactus(material) {
   return g;
 }
 
-function avatar(slot) {
+// Builds one avatar from its saved look. Every part keeps the same userData
+// names so the animation loop does not care which shape was chosen.
+export function avatar(slot, look = lookOf({ slot })) {
   const group = new THREE.Group();
-  const color = PLAYER_COLORS[slot];
-  const suit = new THREE.MeshStandardMaterial({ color, roughness: 0.35, metalness: 0.2, emissive: color, emissiveIntensity: 0.15 });
+  const color = new THREE.Color().setHSL(look.hue / 360, 0.85, 0.55);
+  const finish = { matte: [0.9, 0, 0], glossy: [0.35, 0.2, 0.15], neon: [0.4, 0.1, 0.9] }[look.finish];
+  const suit = new THREE.MeshStandardMaterial({ color, roughness: finish[0], metalness: finish[1], emissive: color, emissiveIntensity: finish[2] * (look.finish === "neon" ? 0.7 : 1) });
   const dark = new THREE.MeshStandardMaterial({ color: 0x1b1f2e, roughness: 0.5 });
   const visor = new THREE.MeshStandardMaterial({ color: 0x0b1020, roughness: 0.1, metalness: 0.8, emissive: color, emissiveIntensity: 0.6 });
-  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.17, 0.26, 6, 12), suit);
-  body.position.y = 0.38;
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.17, 20, 16), suit);
-  head.position.y = 0.74;
-  const eyes = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.07, 0.06), visor);
-  eyes.position.set(0, 0.76, 0.14);
+  const trim = new THREE.MeshStandardMaterial({ color: 0xffd34d, roughness: 0.25, metalness: 0.7, emissive: 0xffd34d, emissiveIntensity: 0.25 });
+  let body, head, headY = 0.74, faceZ = 0.14;
+  if (look.shape === "robot") {
+    body = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.4, 0.26), suit); body.position.y = 0.4;
+    head = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.26, 0.26), suit); headY = 0.78; faceZ = 0.14;
+  } else if (look.shape === "blob") {
+    body = new THREE.Mesh(new THREE.SphereGeometry(0.27, 20, 16), suit); body.position.y = 0.3; body.scale.set(1, 0.95, 1);
+    head = new THREE.Mesh(new THREE.SphereGeometry(0.2, 20, 16), suit); headY = 0.6; faceZ = 0.17;
+  } else if (look.shape === "cone") {
+    body = new THREE.Mesh(new THREE.ConeGeometry(0.24, 0.55, 20), suit); body.position.y = 0.3;
+    head = new THREE.Mesh(new THREE.SphereGeometry(0.15, 20, 16), suit); headY = 0.7; faceZ = 0.12;
+  } else {
+    body = new THREE.Mesh(new THREE.CapsuleGeometry(0.17, 0.26, 6, 12), suit); body.position.y = 0.38;
+    head = new THREE.Mesh(new THREE.SphereGeometry(0.17, 20, 16), suit);
+  }
+  head.position.y = headY;
+  const face = new THREE.Group();
+  if (look.face === "eyes") {
+    for (const x of [-0.065, 0.065]) {
+      const eye = new THREE.Mesh(new THREE.SphereGeometry(0.04, 12, 10), new THREE.MeshStandardMaterial({ color: 0xffffff }));
+      const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.02, 10, 8), dark);
+      eye.position.set(x, 0, 0); pupil.position.set(x, 0, 0.032);
+      face.add(eye, pupil);
+    }
+  } else if (look.face === "cyclops") {
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.07, 14, 12), visor);
+    face.add(eye);
+  } else {
+    face.add(new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.07, 0.06), visor));
+  }
+  face.position.set(0, headY + 0.02, faceZ);
   const legs = [-0.08, 0.08].map((x) => {
     const leg = new THREE.Mesh(new THREE.CapsuleGeometry(0.055, 0.12, 4, 8), dark);
     leg.position.set(x, 0.12, 0);
     group.add(leg);
     return leg;
   });
+  const top = headY + (look.shape === "robot" ? 0.13 : 0.17);
+  const hat = new THREE.Group();
+  if (look.accessory === "crown") {
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.14, 0.07, 16), trim); base.position.y = 0.035;
+    hat.add(base);
+    for (let i = 0; i < 5; i++) {
+      const spike = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.09, 6), trim);
+      const t = (i / 5) * Math.PI * 2; spike.position.set(Math.cos(t) * 0.11, 0.1, Math.sin(t) * 0.11);
+      hat.add(spike);
+    }
+  } else if (look.accessory === "antenna") {
+    const stalk = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.2, 6), dark); stalk.position.y = 0.1;
+    const tip = new THREE.Mesh(new THREE.SphereGeometry(0.04, 10, 8), trim); tip.position.y = 0.22;
+    hat.add(stalk, tip);
+  } else if (look.accessory === "horns") {
+    for (const x of [-1, 1]) {
+      const horn = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.16, 8), trim);
+      horn.position.set(x * 0.11, 0.07, 0); horn.rotation.z = -x * 0.45;
+      hat.add(horn);
+    }
+  } else if (look.accessory === "cap") {
+    const dome = new THREE.Mesh(new THREE.SphereGeometry(0.15, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2), trim); dome.position.y = -0.02;
+    const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.02, 16), trim); brim.position.set(0, -0.01, 0.15); brim.scale.set(1, 1, 0.6);
+    hat.add(dome, brim);
+  } else if (look.accessory === "halo") {
+    const halo = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.016, 8, 24), new THREE.MeshBasicMaterial({ color: 0xfff2a8 }));
+    halo.rotation.x = Math.PI / 2; halo.position.y = 0.12;
+    hat.add(halo);
+  }
+  hat.position.y = top;
   const ring = new THREE.Mesh(new THREE.RingGeometry(0.3, 0.38, 32), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.85, side: THREE.DoubleSide }));
   ring.rotation.x = -Math.PI / 2;
   ring.position.y = 0.035;
   const beacon = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.18, 4), new THREE.MeshBasicMaterial({ color }));
   beacon.rotation.x = Math.PI;
-  beacon.position.y = 1.15;
-  group.add(body, head, eyes, ring, beacon);
+  beacon.position.y = 1.25;
+  group.add(body, head, face, hat, ring, beacon);
   group.traverse((o) => { if (o.isMesh && o !== ring) o.castShadow = true; });
-  group.userData = { legs, beacon, head, eyes, body };
+  group.userData = { legs, beacon, head, eyes: face, body, key: JSON.stringify(look) };
   return group;
 }
 
@@ -366,11 +425,18 @@ export class Maze3D {
     for (const player of players) {
       let a = this.avatars.get(player.id);
       if (!a) {
-        a = avatar(player.slot);
+        a = avatar(player.slot, lookOf(player));
         this.avatars.set(player.id, a);
         this.scene.add(a);
         const initial = player.slot === 0 ? HEADINGS.down : HEADINGS.up;
         this.motion.set(player.id, { fromX: player.x, fromY: player.y, x: player.x, y: player.y, at: 0, heading: initial, headingFrom: initial, turnAt: 0, slot: player.slot });
+      }
+      if (a.userData.key !== JSON.stringify(lookOf(player))) {
+        const old = a;
+        a = avatar(player.slot, lookOf(player));
+        this.scene.remove(old);
+        this.scene.add(a);
+        this.avatars.set(player.id, a);
       }
       const m = this.motion.get(player.id);
       if (m.x !== player.x || m.y !== player.y) {
@@ -465,7 +531,7 @@ export class Maze3D {
       const swing = p.moving && !calm ? Math.sin(t * 22) * 0.5 : 0;
       a.userData.legs[0].rotation.x = swing;
       a.userData.legs[1].rotation.x = -swing;
-      a.userData.beacon.position.y = 1.15 + (calm ? 0 : Math.sin(t * 3) * 0.05);
+      a.userData.beacon.position.y = 1.25 + (calm ? 0 : Math.sin(t * 3) * 0.05);
       a.userData.beacon.rotation.y = calm ? 0 : t * 2;
       const hidden = this.view === "first" && m.mine;
       a.visible = !hidden;
@@ -533,3 +599,61 @@ export class Maze3D {
   }
 }
 
+
+// A small turntable for the avatar designer: its own renderer, one avatar,
+// no maze. It renders only while visible, and only once when motion is reduced.
+export class AvatarPreview {
+  constructor(container) {
+    this.container = container;
+    this.reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    this.renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    container.append(this.renderer.domElement);
+    this.scene = new THREE.Scene();
+    this.scene.add(new THREE.HemisphereLight(0xdfe9ff, 0x403020, 1.6));
+    const key = new THREE.DirectionalLight(0xffffff, 2.2);
+    key.position.set(1.5, 2.5, 2);
+    this.scene.add(key);
+    this.camera = new THREE.PerspectiveCamera(32, 1, 0.1, 20);
+    this.camera.position.set(0, 0.85, 2.7);
+    this.camera.lookAt(0, 0.55, 0);
+    this.avatar = null;
+    this.resizer = new ResizeObserver(() => this.resize());
+    this.resizer.observe(container);
+    this.resize();
+    if (!this.reduced) this.renderer.setAnimationLoop((now) => this.draw(now));
+  }
+
+  resize() {
+    const { clientWidth: w, clientHeight: h } = this.container;
+    if (!w || !h) return;
+    this.renderer.setSize(w, h, false);
+    this.camera.aspect = w / h;
+    this.camera.updateProjectionMatrix();
+    this.draw(0);
+  }
+
+  set(look) {
+    if (this.avatar) this.scene.remove(this.avatar);
+    this.avatar = avatar(0, look);
+    this.avatar.userData.beacon.visible = false;
+    this.avatar.rotation.y = 0.5;
+    this.scene.add(this.avatar);
+    this.draw(0);
+  }
+
+  draw(now) {
+    // A hidden card (the race has started) has no size: do not spend GPU on it.
+    if (!this.avatar || document.hidden || !this.container.clientWidth) return;
+    if (!this.reduced) this.avatar.rotation.y = now / 1400;
+    this.renderer.render(this.scene, this.camera);
+  }
+
+  dispose() {
+    this.renderer.setAnimationLoop(null);
+    this.resizer.disconnect();
+    this.renderer.dispose();
+    this.renderer.domElement.remove();
+  }
+}
