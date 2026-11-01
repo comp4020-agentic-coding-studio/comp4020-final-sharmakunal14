@@ -1,7 +1,7 @@
 # 0006 — Audible, on-by-default Mario-style audio
 
 Date: 2 November 2026 (Australia/Sydney)
-Status: accepted; implementation in progress. Amends
+Status: implemented and deployed. Human listening is still pending. Amends
 [0005](0005-retro-audio.md): "start silent", "music only while racing" and
 the effect levels are superseded; the rest (synthesised, original, bounded,
 silent when hidden) stands.
@@ -53,3 +53,21 @@ Measured in real Chrome with a tap on the speaker output:
   human judgement, and automated loudness checks cannot confirm it.
 - Looping music can tire; two bounded variations per scene limit that, and a
   human listening session is still owed.
+
+## Outcome and evidence
+
+- **Levels.** Effects now peak at 0.29–0.52 in real Chrome, up from 0.03–0.08.
+  The four music scenes measure RMS 0.029–0.036 over five seconds each, well
+  under the effects (RMS 0.1–0.2). `spec/maze-audio-levels.test.ts` fails if
+  the gains drop back; it was seen failing against the old values.
+- **Continuity.** The browser forgets audio permission when a page reloads,
+  so creating a race left the waiting room silent. The new page now retries
+  the unlock when the visitor has already interacted, and falls back to the
+  next click.
+- **Sounds per action.** Step, turn, wall bump, flip, ready, rival joining,
+  countdown tick, race start, goal portal, win, lose, race interrupted,
+  camera change and button clicks each have their own sound.
+- **Not claimed.** Whether the tunes feel like a classic platformer, and
+  whether the loops tire, need a person listening. The measurements above only
+  show that sound reaches the output at sensible levels, in the intended
+  scene, at the intended moment.

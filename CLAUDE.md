@@ -80,7 +80,11 @@ Keep the earlier Shared Space routes and data working during the transition.
   already shipped a game whose sounds peaked at 0.04 (inaudible on a laptop).
   Measure the signal reaching the speakers; keep effects at peak 0.25 or more
   and music clearly present, but under the effects.
-- Never copy a real game's melody or recordings. Write original tunes in the
+- Page navigations drop audio permission (creating a race reloads the page).
+  The new page must retry the unlock when the visitor has already interacted,
+  and fall back to the next click. Test the waiting room after a real
+  navigation, not only in-page.
+- - Never copy a real game's melody or recordings. Write original tunes in the
   same style (bright square lead, triangle bass, noise percussion, coin and
   jump blips).
 - Walking sounds may follow prediction; shared flips and results require a

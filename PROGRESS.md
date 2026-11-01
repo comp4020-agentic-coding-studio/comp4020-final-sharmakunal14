@@ -396,3 +396,69 @@ each frame (z-fighting):
 checks committed in a separate session. No automated test asserts frame
 stability, because it needs a GPU browser; the measurement scripts were kept
 outside the repo.
+
+## 2026-11-02 — Fix: audio was inaudible; add Mario-style music and effects
+
+### Problem
+
+The author reported the audio "isn't working" and asked for Mario-like music
+and effects for moving, winning, flipping and other actions, with constant
+background music.
+
+### Cause (measured, not assumed)
+
+The engine ran: the context was `running` and notes were scheduled. But
+every effect peaked at 0.03–0.08 (RMS about 0.005), which is close to
+inaudible on a laptop (master 0.3 × voice 0.26 × a short envelope). In
+addition:
+- Sound was off by default, behind a small "Sound off" menu.
+- Music played only during a live race, so the lobby and waiting room were
+  silent.
+- The tunes were short beeps with one eight-bar loop.
+
+The existing audio tests all passed, because they checked that notes were
+scheduled, not how loud they were.
+
+### Work (small commits)
+
+| Work | Commit |
+| --- | --- |
+| Decision 0006 and harness rules, written before the code. | `987c441` |
+| Louder engine; slide/vibrato lead, triangle bass, drums; lobby, waiting, countdown and race tunes. | `cda2fec` |
+| Level guard test, seen failing against the old gains first. | `a0568a2` |
+| Tune follows the game phase and goes silent on disconnect or a result. | `d0cb42b` |
+| On by default, visible mute button, M key (ignored while typing). | `262556c` |
+| Retry the unlock after the page reloads on Create a race. | `7e09536` |
+| Chime when a rival joins or readies up (failing first). | `aaba241` |
+| Click for buttons; whoosh when stepping onto the goal (failing first). | `15bdf6a` |
+| Click for the lobby buttons. | `12ce89e` |
+
+### Corrections during the work
+
+- **Waiting room was silent.** Creating a race reloads the page, which
+  forgets audio permission. Found by an end-to-end browser run, not by the
+  unit tests. Fixed by retrying the unlock; added to `CLAUDE.md`.
+- **Typecheck caught two typing errors** in the new engine and one in the
+  event helper, before any test ran.
+- **Six old tests failed after the rewrite.** Each was checked before being
+  edited: the fake audio node lacked methods the new engine uses (a gap in
+  the fake), and four assertions encoded old exact values (two notes per
+  step, a 24-voice cap). The voice-cap test now checks the bounded property.
+  Two tests that assumed "silent by default" were rewritten, because that
+  behaviour was changed deliberately.
+
+### Verification actually performed
+
+| Check | Result |
+| --- | --- |
+| `pnpm check` (Node 24.21, local app) | Typecheck clean; 79/79 tests passed. |
+| Real Chrome, output tapped with an analyser, two isolated profiles | Effects peak 0.29–0.52. Waiting, countdown, race, rival-join, portal, win and lose all produce signal; no page errors. |
+| Mute | Pressing M silences output (peak 0) and pressing it again restores it. |
+| Cold visit with no click | No audio context is created, and no error is shown. |
+| Music scenes, 5 s each | RMS 0.029–0.036, under the effects. |
+
+### Not verified
+
+- Whether it sounds like a classic platformer, and whether the loops
+  tire. No human has listened; the checks above show only levels and timing.
+- Real phone speakers, Safari and Firefox.
