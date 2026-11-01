@@ -4,6 +4,8 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import { extname, join, normalize } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { renderMarkdown } from "./markdown.ts";
+import { createMazeHandler, validateMazeMutation } from "./maze-http.ts";
+import { GameError } from "./maze-game.ts";
 
 const PORT = Number(process.env.PORT ?? 8080);
 const DATA_DIR = process.env.DATA_DIR ?? (existsSync("/data") ? "/data" : "./data");
@@ -36,6 +38,7 @@ db.exec(`
 const eventCols = db.prepare("PRAGMA table_info(events)").all() as { name: string }[];
 if (!eventCols.some((c) => c.name === "room_key")) db.exec("ALTER TABLE events ADD COLUMN room_key TEXT");
 db.exec("CREATE UNIQUE INDEX IF NOT EXISTS events_room_key ON events(room_key)");
+const handleMaze = createMazeHandler(db);
 
 type Actor = { id: string; name: string };
 type Obj = {
@@ -227,6 +230,7 @@ async function handle(req: IncomingMessage, res: ServerResponse) {
   if (method === "GET" && !path.startsWith("/api/") && serveFile(res, "public", path)) return;
 
   if (path === "/api/session" && method === "POST") {
+    validateMazeMutation(req);
     const { name } = await readJson(req);
     const clean = typeof name === "string" ? name.trim().slice(0, 40) : "";
     if (!clean) return send(res, 400, { code: "NAME_REQUIRED", message: "Choose a display name." });
@@ -240,6 +244,8 @@ async function handle(req: IncomingMessage, res: ServerResponse) {
   }
 
   const actor = currentActor(req);
+
+  if (path.startsWith("/api/maze/")) return handleMaze(req, res, actor);
 
   if (path === "/api/me" && method === "GET") {
     return actor ? send(res, 200, actor) : send(res, 401, { code: "NO_SESSION", message: "Choose a name first." });
@@ -391,6 +397,7 @@ async function handle(req: IncomingMessage, res: ServerResponse) {
 
 createServer((req, res) => {
   handle(req, res).catch((err) => {
+    if (err instanceof GameError && !res.headersSent) return send(res, err.status, { code: err.code, message: err.message });
     log({ action: "error", message: String(err) });
     if (!res.headersSent) send(res, 500, { code: "SERVER_ERROR", message: "Something went wrong." });
     else res.end();
