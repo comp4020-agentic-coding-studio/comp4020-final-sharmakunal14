@@ -1,9 +1,13 @@
 export type Point = { x: number; y: number };
 export type Gate = Point & { switch: number; openWhen: boolean };
-export type Layout = { mazeId: string; maze: string[]; switches: Point[]; gates: Gate[] };
+// A wall that opens for openMs then closes for closedMs, repeating from the race start.
+export type Pulse = Point & { openMs: number; closedMs: number };
+export type Layout = { mazeId: string; maze: string[]; switches: Point[]; gates: Gate[]; pulses: Pulse[] };
 
 export const CELLS = 7;
 export const SIZE = CELLS * 2 + 1;
+export const PULSE_OPEN_MS = 2_500;
+export const PULSE_CLOSED_MS = 2_500;
 
 export function sydneyDate(now: number): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Australia/Sydney" }).format(now);
@@ -38,16 +42,18 @@ function distances(grid: string[][], from: Point, open = new Set<string>()): Map
 }
 
 export function generate(mazeId: string): Layout {
-  const rand = random(mazeId);
+  // Pulses draw from their own stream so adding them left every date's
+  // maze, switches and gates exactly as before.
+  const rand = random(mazeId), pulseRand = random(`${mazeId}:pulse`);
   // Deterministic retries on the same stream until a layout has a switch pair.
   for (let attempt = 0; attempt < 50; attempt++) {
-    const layout = attemptLayout(mazeId, rand);
+    const layout = attemptLayout(mazeId, rand, pulseRand);
     if (layout.gates.length) return layout;
   }
   throw new Error(`No playable layout for ${mazeId}`);
 }
 
-function attemptLayout(mazeId: string, rand: () => number): Layout {
+function attemptLayout(mazeId: string, rand: () => number, pulseRand: () => number): Layout {
   const grid = Array.from({ length: SIZE }, () => Array<string>(SIZE).fill("#"));
   for (let y = 1; y < SIZE; y += 2) for (let x = 1; x < SIZE; x += 2) grid[y][x] = ".";
 
@@ -116,5 +122,22 @@ function attemptLayout(mazeId: string, rand: () => number): Layout {
       );
     }
   }
-  return { mazeId, maze: grid.map((row) => row.join("")), switches, gates };
+
+  // One symmetric pulse pair: a shortcut away from the switch gates and both
+  // entrances. Closed, it is just a wall, so it can never disconnect the maze.
+  const pulses: Pulse[] = [];
+  const clear = (w: Point, others: Point[], gap: number) =>
+    others.every((o) => Math.abs(o.x - w.x) + Math.abs(o.y - w.y) >= gap);
+  const taken = gates.flatMap((g) => [g, rot(g)]);
+  const pulseOptions = walls.filter((w) => grid[w.y][w.x] === "#" && key(w) !== key(rot(w))
+    && clear(w, taken, 2) && clear(rot(w), taken, 2) && clear(w, [start, goal], 2) && clear(w, [rot(w)], 2))
+    .map((w) => ({ w, saving: base - distances(grid, start, new Set([key(w), key(rot(w))])).get(key(goal))! }))
+    .filter((c) => c.saving >= 1)
+    .sort((a, b) => b.saving - a.saving);
+  // Choose among the best few so the shortcut is worth timing.
+  const pick = pulseOptions[Math.floor(pulseRand() * Math.min(3, pulseOptions.length))];
+  if (pick) {
+    for (const p of [pick.w, rot(pick.w)]) pulses.push({ ...p, openMs: PULSE_OPEN_MS, closedMs: PULSE_CLOSED_MS });
+  }
+  return { mazeId, maze: grid.map((row) => row.join("")), switches, gates, pulses };
 }

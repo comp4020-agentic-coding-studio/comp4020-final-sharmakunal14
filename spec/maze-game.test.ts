@@ -11,6 +11,8 @@ const ready = (layout = LAYOUT) => readyPlayer(readyPlayer(joinGame(newGame("tes
 const racing = (layout = LAYOUT) => advanceGame(ready(layout), COUNTDOWN_MS);
 const rotate = <T extends { x: number; y: number }>(p: T, size: number) => ({ x: size - 1 - p.x, y: size - 1 - p.y });
 
+const opposite = (d: keyof typeof DIRECTIONS) => ({ up: "down", down: "up", left: "right", right: "left" } as const)[d];
+
 // Positions a player directly, bypassing movement, to set up a rule check.
 const place = (game: Game, id: string, at: { x: number; y: number }): Game =>
   ({ ...game, players: game.players.map((p) => p.id === id ? { ...p, ...at } : p) });
@@ -33,6 +35,14 @@ describe("daily maze generation", () => {
         expect(layout.maze[gate.y][gate.x]).toBe("#");
         expect(layout.gates).toContainEqual({ ...rotate(gate, size), switch: 1 - gate.switch, openWhen: gate.openWhen });
       }
+      expect(layout.pulses.length === 0 || layout.pulses.length === 2).toBe(true);
+      for (const pulse of layout.pulses) {
+        expect(layout.maze[pulse.y][pulse.x]).toBe("#");
+        expect(layout.pulses).toContainEqual({ ...rotate(pulse, size), openMs: pulse.openMs, closedMs: pulse.closedMs });
+        expect(layout.gates.some((g) => g.x === pulse.x && g.y === pulse.y)).toBe(false);
+      }
+      // No time given: pulse gates count as closed, so this proves reachability
+      // in every pulse phase too (opening one only adds a passage).
       for (const switchOn of [[false, false], [true, false], [false, true], [true, true]]) {
         const board = { ...layout, switchOn };
         for (const slot of [0, 1]) {
@@ -43,6 +53,18 @@ describe("daily maze generation", () => {
         }
       }
     }
+  });
+
+  it("gives nearly every day a pulse pair, without changing the maze, switches or gates", () => {
+    let missing = 0;
+    for (let day = 0; day < 200; day++) if (!generate(`seed-${day}`).pulses.length) missing++;
+    expect(missing).toBeLessThan(20);
+    // Switches and gates for this date as generated before pulses existed.
+    const { switches, gates } = generate("2026-11-01");
+    expect({ switches, gates }).toEqual({
+      switches: [{ x: 5, y: 5 }, { x: 9, y: 9 }],
+      gates: [{ x: 10, y: 11, switch: 0, openWhen: true }, { x: 8, y: 9, switch: 0, openWhen: false }, { x: 4, y: 3, switch: 1, openWhen: true }, { x: 6, y: 5, switch: 1, openWhen: false }],
+    });
   });
 
   it("gives each player the same shortest distance whatever the switches", () => {
@@ -120,6 +142,24 @@ describe("race rules", () => {
     expect(applyActions(before, alice.id, 1, [step], COUNTDOWN_MS).error?.message).toMatch(/gate is closed/);
     const open = { ...before, switchOn: [true, false] };
     expect(applyActions(open, alice.id, 1, [step], COUNTDOWN_MS).game.players[0]).toMatchObject({ x: gate.x, y: gate.y });
+  });
+
+  it("opens pulse gates for openMs then closes them for closedMs, from the race start", () => {
+    const layout = generate("seed-0");
+    const game = racing(layout), pulse = game.pulses![0], cycle = pulse.openMs + pulse.closedMs;
+    const step = (Object.keys(DIRECTIONS) as (keyof typeof DIRECTIONS)[]).find((d) => {
+      const [dx, dy] = DIRECTIONS[d];
+      return layout.maze[pulse.y - dy]?.[pulse.x - dx] === ".";
+    })!;
+    const [dx, dy] = DIRECTIONS[step];
+    const before = place(game, alice.id, { x: pulse.x - dx, y: pulse.y - dy });
+    expect(applyActions(before, alice.id, 1, [step], COUNTDOWN_MS).game.players[0]).toMatchObject({ x: pulse.x, y: pulse.y });
+    expect(applyActions(before, alice.id, 1, [step], COUNTDOWN_MS + pulse.openMs - 1).error).toBeNull();
+    expect(applyActions(before, alice.id, 1, [step], COUNTDOWN_MS + pulse.openMs).error?.message).toMatch(/gate is closed/);
+    expect(applyActions(before, alice.id, 1, [step], COUNTDOWN_MS + cycle).error).toBeNull();
+    // A gate closing on a player never traps them: they can step back out.
+    const inside = place(game, alice.id, pulse);
+    expect(applyActions(inside, alice.id, 1, [opposite(step)], COUNTDOWN_MS + pulse.openMs).error).toBeNull();
   });
 
   it("allows players to cross, settles one winner, and refuses subsequent moves", () => {

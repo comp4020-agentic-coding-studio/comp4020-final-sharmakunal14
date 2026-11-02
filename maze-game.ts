@@ -1,5 +1,5 @@
 import { generate, sydneyDate } from "./maze-gen.ts";
-import type { Gate, Layout, Point } from "./maze-gen.ts";
+import type { Gate, Layout, Point, Pulse } from "./maze-gen.ts";
 import { DIRECTIONS, gateOpen, goalOf, passable, switchAt } from "./public/maze-rules.js";
 import { defaultLook } from "./public/maze-look.js";
 import { cleanText, MAX_CHAT, REACTIONS } from "./public/maze-chat-rules.js";
@@ -27,6 +27,8 @@ export type Game = {
   maze: readonly string[];
   switches: Point[];
   gates: Gate[];
+  // Timed gates (decision 0010). Absent in races saved before they existed.
+  pulses?: Pulse[];
   switchOn: boolean[];
   switchAt: number[];
   players: Player[];
@@ -94,7 +96,7 @@ function player(game: Pick<Game, "maze">, identity: Identity, slot: 0 | 1, look?
 
 export function newGame(id: string, identity: Identity, now: number, layout = todaysLayout(now), look?: Look): Game {
   const base = {
-    id, mazeId: layout.mazeId, maze: layout.maze, switches: layout.switches, gates: layout.gates,
+    id, mazeId: layout.mazeId, maze: layout.maze, switches: layout.switches, gates: layout.gates, pulses: layout.pulses,
     switchOn: layout.switches.map(() => false), switchAt: layout.switches.map(() => 0),
   };
   return {
@@ -203,8 +205,8 @@ function act(game: Game, actorId: string, action: Action, sequence: number, now:
   if (tokens < 1) throw new GameError("TOO_FAST", "Move a little more slowly.", 429);
   const [dx, dy] = DIRECTIONS[action];
   const x = current.x + dx, y = current.y + dy;
-  if (!passable(game, x, y)) {
-    const gate = game.gates.some((g: Gate) => g.x === x && g.y === y);
+  if (!passable(game, x, y, now)) {
+    const gate = [...game.gates, ...(game.pulses ?? [])].some((g: Point) => g.x === x && g.y === y);
     throw new GameError("WALL", gate ? "That gate is closed." : "There is a wall in that direction.");
   }
   const goal = entrance(game, 1 - current.slot);

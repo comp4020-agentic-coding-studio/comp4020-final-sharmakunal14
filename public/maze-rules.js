@@ -6,8 +6,23 @@ export function gateOpen(game, gate) {
   return (game.switchOn?.[gate.switch] ?? false) === gate.openWhen;
 }
 
-export function passable(game, x, y) {
+// Pulse gates cycle open then closed from the race start. Without a time (or
+// before the start) they count as closed, the answer that never adds a route.
+export function pulseOpen(game, pulse, now) {
+  if (now == null || game.startsAt == null || now < game.startsAt) return false;
+  return (now - game.startsAt) % (pulse.openMs + pulse.closedMs) < pulse.openMs;
+}
+
+// Milliseconds until a pulse gate next changes, or null when it is not running.
+export function pulseRemaining(game, pulse, now) {
+  if (now == null || game.startsAt == null || now < game.startsAt) return null;
+  const phase = (now - game.startsAt) % (pulse.openMs + pulse.closedMs);
+  return phase < pulse.openMs ? pulse.openMs - phase : pulse.openMs + pulse.closedMs - phase;
+}
+
+export function passable(game, x, y, now) {
   if (game.maze[y]?.[x] === ".") return true;
+  if ((game.pulses ?? []).some((pulse) => pulse.x === x && pulse.y === y && pulseOpen(game, pulse, now))) return true;
   return (game.gates ?? []).some((gate) => gate.x === x && gate.y === y && gateOpen(game, gate));
 }
 
