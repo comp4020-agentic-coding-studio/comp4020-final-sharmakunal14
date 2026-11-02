@@ -1,8 +1,8 @@
 import { DIRECTIONS, entrance } from "../maze-game.ts";
 import type { Direction, Game } from "../maze-game.ts";
-import { passable } from "../public/maze-rules.js";
+import { landing, passable } from "../public/maze-rules.js";
 
-type Board = Pick<Game, "maze"> & Partial<Pick<Game, "gates" | "switchOn">>;
+type Board = Pick<Game, "maze"> & Partial<Pick<Game, "gates" | "switchOn" | "rifts">>;
 
 // Test-only breadth-first solver. Production clients do not receive a route.
 export function route(game: Board, start = entrance(game, 0), end = entrance(game, 1)): Direction[] {
@@ -11,8 +11,10 @@ export function route(game: Board, start = entrance(game, 0), end = entrance(gam
   for (const point of queue) {
     if (point.x === end.x && point.y === end.y) return point.path;
     for (const [dir, [dx, dy]] of Object.entries(DIRECTIONS)) {
-      const x = point.x + dx, y = point.y + dy, key = `${x},${y}`;
-      if (!passable(game, x, y) || seen.has(key)) continue;
+      if (!passable(game, point.x + dx, point.y + dy)) continue;
+      // A step onto a rift lands on its partner, as on the server.
+      const { x, y } = landing(game, point.x + dx, point.y + dy), key = `${x},${y}`;
+      if (seen.has(key)) continue;
       seen.add(key);
       queue.push({ x, y, path: [...point.path, dir as Direction] });
     }
@@ -24,8 +26,9 @@ export function route(game: Board, start = entrance(game, 0), end = entrance(gam
 export function reachable(game: Board, from: { x: number; y: number }): Set<string> {
   const seen = new Set([`${from.x},${from.y}`]), queue = [from];
   for (const p of queue) for (const [dx, dy] of Object.values(DIRECTIONS)) {
-    const x = p.x + dx, y = p.y + dy, key = `${x},${y}`;
-    if (passable(game, x, y) && !seen.has(key)) { seen.add(key); queue.push({ x, y }); }
+    if (!passable(game, p.x + dx, p.y + dy)) continue;
+    const { x, y } = landing(game, p.x + dx, p.y + dy), key = `${x},${y}`;
+    if (!seen.has(key)) { seen.add(key); queue.push({ x, y }); }
   }
   return seen;
 }

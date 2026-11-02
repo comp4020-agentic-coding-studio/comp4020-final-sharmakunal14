@@ -40,3 +40,11 @@ export const FOG_RADIUS = 3;
 export function inSight(viewer, x, y, radius = FOG_RADIUS) {
   return !viewer || (x - viewer.x) ** 2 + (y - viewer.y) ** 2 <= radius * radius;
 }
+
+// Linked rifts (decision 0012): stepping onto one arrives on the other.
+// Returns where a step to (x, y) actually lands.
+export function landing(game, x, y) {
+  const rifts = game.rifts ?? [];
+  const i = rifts.findIndex((r) => r.x === x && r.y === y);
+  return i < 0 || rifts.length !== 2 ? { x, y, rift: false } : { ...rifts[1 - i], rift: true };
+}

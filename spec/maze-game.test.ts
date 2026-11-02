@@ -55,6 +55,28 @@ describe("daily maze generation", () => {
     }
   });
 
+  it("over 200 seeds: a rotationally paired rift pair on open cells, worth taking, with equal routes for both players", () => {
+    let missing = 0;
+    for (let day = 0; day < 200; day++) {
+      const layout = generate(`seed-${day}`), size = layout.maze.length;
+      if (!layout.rifts.length) { missing++; continue; }
+      const [a, b] = layout.rifts;
+      expect(b).toEqual(rotate(a, size));
+      for (const r of layout.rifts) {
+        expect(layout.maze[r.y][r.x]).toBe(".");
+        expect(layout.switches).not.toContainEqual(r);
+      }
+      for (const switchOn of [[false, false], [true, true]]) {
+        const board = { ...layout, switchOn };
+        const there = route(board).length, back = route(board, entrance(board, 1), entrance(board, 0)).length;
+        expect(there).toBe(back);
+        // Worth taking with the switches as the race starts; a flipped switch may beat it.
+        if (!switchOn[0]) expect(there).toBeLessThanOrEqual(route({ ...board, rifts: [] }).length - 4);
+      }
+    }
+    expect(missing).toBeLessThan(10);
+  });
+
   it("gives nearly every day a pulse pair, without changing the maze, switches or gates", () => {
     let missing = 0;
     for (let day = 0; day < 200; day++) if (!generate(`seed-${day}`).pulses.length) missing++;
@@ -178,6 +200,30 @@ describe("race rules", () => {
 
   it("ends abandoned races after the fixed time limit", () => {
     expect(advanceGame(ready(), COUNTDOWN_MS + RACE_LIMIT_MS)).toMatchObject({ status: "interrupted", interruption: "time_limit", winnerId: null });
+  });
+});
+
+describe("rifts", () => {
+  it("moves a player stepping onto a rift to its partner in one step, logged as a rift", () => {
+    const layout = generate("seed-0"), game = racing(layout);
+    const [a, b] = game.rifts!;
+    const step = (Object.keys(DIRECTIONS) as (keyof typeof DIRECTIONS)[]).find((d) => {
+      const [dx, dy] = DIRECTIONS[d];
+      return layout.maze[a.y - dy]?.[a.x - dx] === ".";
+    })!;
+    const [dx, dy] = DIRECTIONS[step];
+    const before = place(game, alice.id, { x: a.x - dx, y: a.y - dy });
+    const jumped = applyActions(before, alice.id, 1, [step], COUNTDOWN_MS);
+    expect(jumped.error).toBeNull();
+    expect(jumped.game.players[0]).toMatchObject({ x: b.x, y: b.y, sequence: 1 });
+    expect(jumped.log[0]).toMatchObject({ kind: "rift", x: b.x, y: b.y });
+    // Standing on the arrival rift does not bounce back; stepping off is a normal step.
+    const off = (Object.keys(DIRECTIONS) as (keyof typeof DIRECTIONS)[]).find((d) => {
+      const [ex, ey] = DIRECTIONS[d];
+      return layout.maze[b.y + ey]?.[b.x + ex] === ".";
+    })!;
+    const later = applyActions(jumped.game, alice.id, 2, [off], COUNTDOWN_MS + MOVE_INTERVAL_MS);
+    expect(later.log[0]).toMatchObject({ kind: "step" });
   });
 });
 

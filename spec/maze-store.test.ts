@@ -55,3 +55,25 @@ it("limits room creation per identity without preventing existing room access", 
     expect(() => store.create(actor, 3_600_011)).not.toThrow();
   } finally { db.close(); }
 });
+
+it("upgrades a step log made before rifts so it accepts rift steps and keeps old rows", () => {
+  const dir = mkdtempSync(join(tmpdir(), "maze-store-"));
+  const db = new DatabaseSync(join(dir, "old.db"));
+  try {
+    db.exec(`CREATE TABLE maze_matches (id TEXT PRIMARY KEY, owner_id TEXT NOT NULL, created_at INTEGER NOT NULL, state TEXT NOT NULL CHECK (json_valid(state)));
+      CREATE TABLE maze_steps (match_id TEXT NOT NULL REFERENCES maze_matches(id), n INTEGER NOT NULL, at INTEGER NOT NULL,
+        slot INTEGER NOT NULL, kind TEXT NOT NULL CHECK (kind IN ('step', 'flip')),
+        x INTEGER NOT NULL, y INTEGER NOT NULL, switch INTEGER, switch_on INTEGER, PRIMARY KEY (match_id, n));
+      INSERT INTO maze_matches VALUES ('old', 'alice', 0, '{}');
+      INSERT INTO maze_steps VALUES ('old', 1, 5, 0, 'step', 1, 2, NULL, NULL);`);
+    const store = new MazeStore(db);
+    expect(store.steps("old")).toEqual([{ at: 5, slot: 0, kind: "step", x: 1, y: 2, switch: null, on: null }]);
+    db.exec("INSERT INTO maze_steps VALUES ('old', 2, 6, 0, 'rift', 3, 4, NULL, NULL)");
+    expect(store.steps("old")).toHaveLength(2);
+    new MazeStore(db); // a second start leaves the upgraded table alone
+    expect(store.steps("old")).toHaveLength(2);
+  } finally {
+    db.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

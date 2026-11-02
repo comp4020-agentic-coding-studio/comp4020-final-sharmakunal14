@@ -44,7 +44,7 @@ export class MazeStore {
     ); CREATE INDEX IF NOT EXISTS maze_matches_owner ON maze_matches(owner_id, created_at);
     CREATE TABLE IF NOT EXISTS maze_steps (
       match_id TEXT NOT NULL REFERENCES maze_matches(id), n INTEGER NOT NULL, at INTEGER NOT NULL,
-      slot INTEGER NOT NULL, kind TEXT NOT NULL CHECK (kind IN ('step', 'flip')),
+      slot INTEGER NOT NULL, kind TEXT NOT NULL CHECK (kind IN ('step', 'flip', 'rift')),
       x INTEGER NOT NULL, y INTEGER NOT NULL, switch INTEGER, switch_on INTEGER,
       PRIMARY KEY (match_id, n)
     );
@@ -55,6 +55,25 @@ export class MazeStore {
     CREATE TABLE IF NOT EXISTS maze_spectators (
       token TEXT PRIMARY KEY, match_id TEXT NOT NULL UNIQUE REFERENCES maze_matches(id)
     );`);
+    this.allowRiftSteps();
+  }
+
+  // Databases made before rifts (decision 0012) refuse kind 'rift'. SQLite
+  // cannot change a CHECK in place, so copy the log into a new table once.
+  private allowRiftSteps(): void {
+    const row = this.db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'maze_steps'").get() as { sql: string };
+    if (row.sql.includes("'rift'")) return;
+    this.transaction(() => {
+      this.db.exec(`CREATE TABLE maze_steps_new (
+        match_id TEXT NOT NULL REFERENCES maze_matches(id), n INTEGER NOT NULL, at INTEGER NOT NULL,
+        slot INTEGER NOT NULL, kind TEXT NOT NULL CHECK (kind IN ('step', 'flip', 'rift')),
+        x INTEGER NOT NULL, y INTEGER NOT NULL, switch INTEGER, switch_on INTEGER,
+        PRIMARY KEY (match_id, n)
+      );
+      INSERT INTO maze_steps_new SELECT match_id, n, at, slot, kind, x, y, switch, switch_on FROM maze_steps;
+      DROP TABLE maze_steps;
+      ALTER TABLE maze_steps_new RENAME TO maze_steps;`);
+    });
   }
 
   private transaction<T>(work: () => T): T {
@@ -188,7 +207,7 @@ export class MazeStore {
 
   steps(id: string): LogEntry[] {
     return (this.db.prepare("SELECT at, slot, kind, x, y, switch, switch_on FROM maze_steps WHERE match_id = ? ORDER BY n").all(id) as
-      { at: number; slot: 0 | 1; kind: "step" | "flip"; x: number; y: number; switch: number | null; switch_on: number | null }[])
+      { at: number; slot: 0 | 1; kind: LogEntry["kind"]; x: number; y: number; switch: number | null; switch_on: number | null }[])
       .map((r) => ({ at: r.at, slot: r.slot, kind: r.kind, x: r.x, y: r.y, switch: r.switch, on: r.switch_on === null ? null : Boolean(r.switch_on) }));
   }
 
