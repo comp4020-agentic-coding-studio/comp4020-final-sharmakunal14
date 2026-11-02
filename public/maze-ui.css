@@ -507,5 +507,15 @@ body[data-phase="replay"] .hud-views { display: none; }
   .hud-top { top: 64px; }
   .hud-players { top: 108px; }
   .hud-clock { top: 64px; }
-  .hud-views { top: 64px; }
+  .hud-views { top: auto; }
+  .follow-btn span { display: inline; }
+}
+
+/* Follow-up fixes from the browser check */
+.hud-players { top: 150px; }
+body[data-phase="finished"] .hud-key, body[data-phase="interrupted"] .hud-key { display: none; }
+@media (max-width: 720px) {
+  .hud-players { top: 112px; }
+  body[data-mode="spectator"] .hud-views { top: 64px; right: 10px; bottom: auto; left: auto; }
+  body[data-mode="spectator"] #connection { top: 120px; }
 }
