@@ -115,6 +115,11 @@ Keep the earlier Shared Space routes and data working during the transition.
   players' lines, is rate-limited, and is drawn with `textContent`, never HTML.
   The win celebration is client-only, winner-only, live-only, and a still
   banner under reduced motion.
+- Spectators (decision 0008) hold a separate random token, never the race id.
+  They read and stream only: no join, ready, move, chat or rematch. Remove
+  private fields (`publicGame`) from anything a non-player receives, and keep
+  spectator limits separate from player stream limits. A streak is derived
+  from saved matches in Sydney days; do not store it.
 - When writing regexes with `\u` escapes through a script, check the file: the
   escapes were once written as raw invisible characters (including U+2028),
   which broke the file. `node --check` and `pnpm typecheck` catch it.

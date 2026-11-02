@@ -584,3 +584,55 @@ Decision record: [0007](docs/decisions/0007-avatars-chat-celebration.md).
 - Real touch use of the designer and chat on a phone; Safari and Firefox.
 - The "VICTORY" banner and an open chat panel overlap on a phone if the panel is
   left open (seen in the phone screenshot); not changed.
+
+## 2026-11-02 — Spectators, streak and personal best, rematch card, result screens, layout
+
+Decision record: [0008](docs/decisions/0008-spectators-stats-rematch-card.md).
+
+### Changes
+
+- **Avatar designer in front:** a modal opens when creating or joining a race
+  (once per visit); "Edit your avatar" reopens it in the lobby and waiting room.
+- **Layout:** "Today's best times" and "Your recent races" moved under the maze,
+  so the lobby has no empty column. A streak and best-time card sits in the side
+  column.
+- **Result screens:** the loser now sees "<name> wins" with a kind line and a
+  gentle rain; a spectator sees the winner's name; the winner keeps VICTORY.
+  A line under each shows a new personal best and the streak.
+- **Rematch card:** when one player asks for a rematch, the other sees a card
+  slide in with "Join now", announced to screen readers; it takes them into the
+  same new race.
+- **Streak and personal best:** consecutive Sydney days with a finished race
+  (alive through today), and the fastest win per maze. Per browser identity.
+- **Spectators:** a spectator link in the waiting room (separate secret,
+  `/watch/<token>`). Read-only live view with map, 1st and 3rd person and a
+  "follow Alice / Bob" choice. No chat, movement or rematch for spectators;
+  private fields are removed from what they receive. Limits: 20 per race, 64
+  overall.
+
+### Verification
+
+| Check | Result |
+| --- | --- |
+| `pnpm check` against a fresh local database | Typecheck clean; 120/120 tests (new: streak maths incl. month and year boundaries, personal best, spectator token, privacy of the public game, spectator HTTP and stream, stats endpoint, loser and spectator banners, lobby markup). |
+| Agent-driven Chrome, three isolated profiles (two players and a spectator), 1440×900 and 390×844 touch | Designer opens centred in front on Create; spectator link shown in the waiting room; the spectator page loads with no nickname, two follow buttons, no movement or chat; during the race the spectator selected 3rd person, then followed Bob in 1st person; winner saw VICTORY plus "First win on today's maze! · 1-day streak", the loser saw "ALICE WINS / Good race. Ready to go again?", the spectator saw "ALICE WINS"; Bob's rematch produced a card on Alice's page and "Join now" took her to the same race as Bob; the lobby then showed streak 1 and best 00:06.7. No page errors. |
+
+### Problems found
+
+- The leaderboard test failed on the last pushed code too: earlier browser
+  checks had filled the local database with fast wins. Checks now run against a
+  throwaway `DATA_DIR`.
+- A test asserted no requests on mount; mounting now fetches the spectator link,
+  so it now counts only move requests.
+- The first rematch card position covered the race heading; moved to the bottom
+  right. It still overlaps the footer text in the side column; it can be dismissed.
+
+### Not verified
+
+- No human playtest: the spectator link, rematch card, streak and result
+  screens have only been used by an agent.
+- A spectator joining mid-race, many spectators at once, and the spectator limit
+  in a browser; limits are logic only.
+- The streak across a real midnight and across days (tested as pure date maths,
+  not over time); a returning player on a later day.
+- Personal best when two different nicknames share a browser; Safari and Firefox.

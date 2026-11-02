@@ -186,3 +186,28 @@ Raw material, not prose.
 - Evidence: [victory desktop](evidence/2026-11-02-victory-desktop.png),
   [victory phone](evidence/2026-11-02-victory-phone.png),
   [avatar and chat](evidence/2026-11-02-avatar-chat-desktop.png).
+
+## Spectators, streaks, rematch card, result screens (2026-11-02)
+
+Raw material, not prose. Decision record: [0008](decisions/0008-spectators-stats-rematch-card.md).
+
+- Feedback from playing it: the lobby had a large empty area, the avatar
+  designer was buried, only the winner got a result screen, and a rematch gave
+  the other player no sign. Each was a gap a person found by looking at the
+  screen, not something the tests would have caught.
+- Spectator design question: how do you let people watch without weakening
+  "exactly two players"? Answer: a separate secret, read-only, with private
+  fields stripped. Trade-off recorded: a bearer link cannot be revoked.
+- A test that failed for a reason unrelated to the change: the leaderboard
+  test broke because earlier browser checks had filled the local database with
+  fast wins. It also failed on the last pushed code. Fixed by running the
+  checks against a throwaway data directory (`DATA_DIR`).
+- Another test failed because new code made one extra request on start; the
+  test was narrowed to the requests it was about.
+- Not evidence of fun or clarity: no one else has used the spectator link, the
+  rematch card or the streak. Open question: is the streak meaningful when it
+  belongs to a cookie rather than an account?
+- Evidence: [designer dialog](evidence/2026-11-02-avatar-dialog.png),
+  [loser screen](evidence/2026-11-02-loser-screen.png),
+  [spectator first person](evidence/2026-11-02-spectator-first-person.png),
+  [lobby layout](evidence/2026-11-02-lobby-layout.png).
