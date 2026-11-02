@@ -6,6 +6,7 @@ import { mountReplay } from "./maze-replay.js";
 import { setupAudio } from "./maze-audio-ui.js";
 import { setupAvatarPicker } from "./maze-avatar-ui.js";
 import { mountSpectator } from "./maze-spectate.js";
+import { reveal, setStep } from "./maze-flow.js";
 
 export const formatTime = (ms) => `${Math.floor(ms / 60_000).toString().padStart(2, "0")}:${((ms % 60_000) / 1_000).toFixed(1).padStart(4, "0")}`;
 
@@ -26,6 +27,7 @@ async function recentRaces() {
   if (!actor || invitationId) return;
   const { matches } = await request("/api/maze/matches");
   $("recent").hidden = matches.length === 0;
+  syncBoard();
   $("recent-list").replaceChildren(...matches.slice(0, 4).map((game) => {
     const item = document.createElement("li"), link = document.createElement("a"), status = document.createElement("span");
     link.href = `/race/${game.id}`;
@@ -40,64 +42,119 @@ async function recentRaces() {
 async function enter(id) {
   const view = await request(`/api/maze/matches/${id}/join`, { look: picker.chosen() });
   inLobby = false;
-  $("entry").hidden = true;
-  $("recent").hidden = true;
-  $("stats-card").hidden = true;
-  $("avatar-open").hidden = true;
+  leaveLobby();
   mountRace(view, mazeView, showError, audio);
 }
 
+// The wizard: name -> choose -> (join) , one pane at a time. Panes are stacked in
+// one grid cell and slide; only the current one is focusable or announced.
+const PANES = ["name", "choose", "join"];
+let pane = "name";
+function showPane(name, { focus = true } = {}) {
+  const from = PANES.indexOf(pane), to = PANES.indexOf(name);
+  for (const el of document.querySelectorAll(".pane")) {
+    const index = PANES.indexOf(el.dataset.pane);
+    el.dataset.pos = index === to ? "current" : index < to ? "before" : "after";
+    el.inert = index !== to;
+    el.setAttribute("aria-hidden", String(index !== to));
+  }
+  pane = name;
+  document.body.dataset.step = name;
+  setStep(name === "name" ? 0 : 1);
+  if (focus && from !== to) {
+    const target = document.querySelector(`.pane[data-pane="${name}"] [data-autofocus], .pane[data-pane="${name}"] .btn-primary`);
+    setTimeout(() => target?.focus({ preventScroll: true }), 120);
+  }
+}
+function setBusy(button, busy) {
+  button.disabled = busy;
+  button.classList.toggle("is-busy", busy);
+  button.setAttribute("aria-busy", String(busy));
+}
+function fieldError(id, input, message) {
+  const el = $(id);
+  el.hidden = !message;
+  el.textContent = message ?? "";
+  input.setAttribute("aria-invalid", String(Boolean(message)));
+}
+function leaveLobby() {
+  for (const id of ["entry"]) $(id).hidden = true;
+  setStep(-1);
+  $("avatar-open").hidden = true;
+}
+function syncBoard() {
+  $("board-empty").hidden = !$("best").hidden || !$("recent").hidden;
+}
+
 function showIdentity() {
-  $("name-label").hidden = Boolean(actor);
-  $("nickname").required = !actor;
-  $("identity").hidden = !actor;
-  if (actor) $("identity").textContent = `Racing as ${actor.name}`;
+  $("identity").textContent = actor ? `WELCOME, ${actor.name.toUpperCase()}` : "WELCOME";
+  $("choose-title").textContent = "What’s the plan?";
 }
 
 // Lobby buttons click too; the race view handles its own panel.
-$("entry-form").addEventListener("click", (event) => {
+$("entry").addEventListener("click", (event) => {
   const button = event.target.closest?.("button");
   if (button && !button.disabled) audio.play("click");
 });
 
-$("entry-form").addEventListener("submit", async (event) => {
+// Step 1: a nickname. Everything else waits until it exists.
+$("name-form").addEventListener("submit", async (event) => {
   event.preventDefault();
-  const joining = Boolean(invitationId) || event.submitter?.value === "join";
-  const id = invitationId ?? (joining ? raceId($("invite").value) : null);
-  if (joining && !id) {
-    showError(new Error("Paste the full invitation link from a race on this site."));
-    $("invite").focus();
-    return;
-  }
-  // The avatar designer comes up in front before anyone enters a race, so it is
-  // never buried. Skipping it keeps whatever was saved (or the default).
-  if (!(await askAvatar(joining ? "Join the race" : "Create the race"))) return;
-  $("entry-fields").disabled = true;
-  $("error").hidden = true;
+  const name = $("nickname").value.trim();
+  if (!name) { fieldError("name-error", $("nickname"), "Pick a nickname so your rival knows who you are."); $("nickname").focus(); return; }
+  fieldError("name-error", $("nickname"), null);
+  setBusy($("name-next"), true);
   try {
-    if (!actor) {
-      actor = await request("/api/session", { name: $("nickname").value.trim() });
-      showIdentity();
-    }
-    if (invitationId) await enter(invitationId);
-    else {
-      const view = await request(id ? `/api/maze/matches/${id}/join` : "/api/maze/matches", { look: picker.chosen() });
-      location.assign(`/race/${view.game.id}`);
-    }
-  } catch (error) {
-    showError(error);
-    try { await recentRaces(); } catch { /* Preserve the original actionable error. */ }
-  } finally { $("entry-fields").disabled = false; }
+    actor = await request("/api/session", { name });
+    if (replayId) return location.reload();
+    if (invitationId) return void (await go(invitationId));
+    showIdentity();
+    await showStats();
+    showPane("choose");
+  } catch (error) { fieldError("name-error", $("nickname"), error.message ?? "Could not save your nickname. Try again."); }
+  finally { setBusy($("name-next"), false); }
+});
+$("nickname").addEventListener("input", () => fieldError("name-error", $("nickname"), null));
+
+// Step 2: create or join. Both go through the avatar step, then straight to the waiting room.
+$("create-race").addEventListener("click", () => go(null));
+$("to-join").addEventListener("click", () => showPane("join"));
+$("join-back").addEventListener("click", () => showPane("choose"));
+$("invite").addEventListener("input", () => fieldError("join-error", $("invite"), null));
+$("join-form").addEventListener("submit", (event) => {
+  event.preventDefault();
+  const id = raceId($("invite").value);
+  if (!id) { fieldError("join-error", $("invite"), "That does not look like a race link from this site. Paste the whole link your friend sent."); $("invite").focus(); return; }
+  go(id);
 });
 
+// Step 3 and on: choose an avatar, then create or join and land in the waiting room.
+async function go(id) {
+  const button = id ? (invitationId ? $("name-next") : $("join-race")) : $("create-race");
+  $("error").hidden = true;
+  setStep(2);
+  if (!(await askAvatar(id ? "Join the race" : "Create the race"))) { setStep(invitationId ? 0 : 1); return; }
+  setStep(3);
+  setBusy(button, true);
+  try {
+    if (invitationId) return await enter(id);
+    const view = await request(id ? `/api/maze/matches/${id}/join` : "/api/maze/matches", { look: picker.chosen() });
+    location.assign(`/race/${view.game.id}`);
+  } catch (error) {
+    setStep(invitationId ? 0 : 1);
+    if (invitationId) showError(error);
+    else if (id) fieldError("join-error", $("invite"), error.message);
+    else showError(error);
+    setBusy(button, false);
+    try { await recentRaces(); } catch { /* Preserve the original actionable error. */ }
+  }
+}
+
 // Opens the designer in front and resolves true when the player continues.
-// It is shown once per visit; later races reuse the saved look unless they
-// press "Edit your avatar".
-let askedAvatar = false;
-function askAvatar(label, force = false) {
+// Back returns to the plan. It is shown for every new race, and again on request.
+function askAvatar(label, force = true) {
   const dialog = $("avatar-card");
-  if (askedAvatar && !force || typeof dialog.showModal !== "function") return Promise.resolve(true);
-  askedAvatar = true;
+  if (!force || typeof dialog.showModal !== "function") return Promise.resolve(true);
   $("avatar-go-label").textContent = label;
   return new Promise((resolve) => {
     dialog.addEventListener("close", () => resolve(dialog.returnValue === "go"), { once: true });
@@ -107,8 +164,14 @@ function askAvatar(label, force = false) {
   });
 }
 $("avatar-open").addEventListener("click", () => { void askAvatar("Done", true); });
+document.addEventListener("click", (event) => {
+  const opener = event.target.closest?.("[data-open]");
+  if (!opener) return;
+  const dialog = $(opener.dataset.open);
+  if (typeof dialog?.showModal === "function") { audio.play("click"); dialog.showModal(); }
+});
 
-// Streak and personal best: shown in the lobby once a nickname exists.
+// Streak and personal best: shown once a nickname exists.
 async function showStats() {
   if (!actor) return;
   try {
@@ -158,6 +221,7 @@ async function initialize() {
   picker = setupAvatarPicker(preview);
   // The maze preview shows the chosen avatar at entrance A until a race begins.
   picker.onChange?.(() => { if (inLobby && today) drawPreview(); });
+  document.body.dataset.step = "name";
   today = await request("/api/maze/today");
   const n = today.maze.length;
   $("maze-date").textContent = `MAZE OF ${today.mazeId}`;
@@ -175,50 +239,54 @@ async function initialize() {
   }));
   if (watchToken) {
     // Spectators need no nickname: they only watch.
-    for (const id of ["entry", "recent", "best", "stats-card", "avatar-open"]) { const el = $(id); if (el) el.hidden = true; }
+    leaveLobby();
     inLobby = false;
     return mountSpectator(watchToken, mazeView, showError);
   }
-  if (replayId) {
+  if (replayId || invitationId) {
     try { actor = await request("/api/me"); }
     catch (error) { if (!(error instanceof ApiError) || error.status !== 401) throw error; }
+  }
+  if (replayId) {
     if (!actor) {
       $("entry-eyebrow").textContent = "REPLAY";
       $("entry-title").textContent = "Choose a nickname to watch.";
-      $("create-race").textContent = "Watch the replay";
-      $("join-divider").hidden = true;
-      $("invite-label").hidden = true;
-      $("join-race").hidden = true;
-      $("entry-fields").disabled = false;
-      $("entry-form").addEventListener("submit", async (event) => {
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        try {
-          actor = await request("/api/session", { name: $("nickname").value.trim() });
-          location.reload();
-        } catch (error) { showError(error); }
-      }, { capture: true });
+      $("entry-copy").textContent = "Then the replay starts straight away.";
+      $("name-next").querySelector("span").textContent = "Watch the replay";
+      showPane("name", { focus: false });
+      mazeView.autoRotate = true;
       return;
     }
-    $("entry").hidden = true;
-    $("recent").hidden = true;
+    leaveLobby();
+    inLobby = false;
     return mountReplay(await request(`/api/maze/matches/${replayId}/replay`), mazeView);
   }
   if (invitationId) {
+    if (actor) {
+      // Already seated (the creator after reload, or a refresh): straight to the waiting room.
+      let seated = true;
+      try { await request(`/api/maze/matches/${invitationId}`); } catch { seated = false; }
+      if (seated) return void (await enter(invitationId));
+      $("entry").hidden = true;
+      return void (await go(invitationId));
+    }
     $("entry-eyebrow").textContent = "YOU’VE BEEN CHALLENGED";
     $("entry-title").textContent = "Your rival awaits.";
-    $("entry-copy").textContent = "Choose a nickname and join the other side of the maze.";
-    $("create-race").hidden = true;
-    $("join-divider").hidden = true;
-    $("invite-label").hidden = true;
+    $("entry-copy").textContent = "Pick a nickname, then choose how you look.";
+    $("name-next").querySelector("span").textContent = "Pick your look";
+    showPane("name", { focus: false });
+    mazeView.autoRotate = true;
+    return;
   }
   try { actor = await request("/api/me"); }
   catch (error) { if (!(error instanceof ApiError) || error.status !== 401) throw error; }
-  showIdentity();
-  $("entry-fields").disabled = false;
-  $("avatar-open").hidden = false;
-  if (invitationId && actor) await enter(invitationId);
-  else { await recentRaces(); await showStats(); }
+  mazeView.autoRotate = true;
+  $("avatar-open").hidden = true;
+  if (actor) {
+    showIdentity();
+    showPane("choose", { focus: false });
+    await recentRaces(); await showStats();
+  } else showPane("name", { focus: false });
 }
 
 initialize().catch(showError);

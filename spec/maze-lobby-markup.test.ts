@@ -36,9 +36,20 @@ it("has a rematch card that is announced politely and can be dismissed", () => {
   expect(d.getElementById("toast-close")!.getAttribute("aria-label")).toBe("Dismiss");
 });
 
-it("keeps today's lists under the maze, not in the side column", () => {
-  const d = doc();
-  expect(d.getElementById("best")!.closest(".under-stage")).not.toBeNull();
-  expect(d.getElementById("recent")!.closest(".under-stage")).not.toBeNull();
-  expect(d.getElementById("best")!.closest(".panel-col")).toBeNull();
+it("moves today's lists into a leaderboard dialog, off the first screen", () => {
+  const d = doc(), board = d.getElementById("board-dialog")!;
+  expect(board.tagName).toBe("DIALOG");
+  expect(board.querySelector("#best")).not.toBeNull();
+  expect(board.querySelector("#recent")).not.toBeNull();
+  expect(d.getElementById("how-to-play")).toBeNull();
+  expect(d.querySelector('[data-open="board-dialog"]')).not.toBeNull();
+});
+
+it("shows one step at a time: only the name pane starts in view, the rest wait beside it", () => {
+  const d = doc(), panes = [...d.querySelectorAll(".pane")] as HTMLElement[];
+  expect(panes.map((p) => p.dataset.pane)).toEqual(["name", "choose", "join"]);
+  expect(panes.map((p) => p.dataset.pos)).toEqual(["current", "after", "after"]);
+  expect(d.querySelectorAll("#entry .btn-primary").length).toBeGreaterThan(0);
+  expect(d.getElementById("avatar-back")).not.toBeNull(); // every step has a way back
+  expect(d.getElementById("join-back")).not.toBeNull();
 });

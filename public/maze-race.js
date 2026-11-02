@@ -138,7 +138,6 @@ export function mountRace(initial, mazeView, showError, audio) {
     $("race-clock").hidden = game.startsAt === null || game.status === "interrupted";
     $("countdown").hidden = game.status !== "countdown";
     text("your-goal", `You are ${player.slot === 0 ? "A" : "B"} · reach entrance ${goal}`);
-    text("position", `Your position: row ${player.y}, column ${player.x}`);
     text("board-note", done ? "RACE RECORDED" : game.status === "racing" ? "THE RACE IS ON · V switches camera" : "Drag to orbit · scroll to zoom");
     $("maze").setAttribute("aria-label", `Maze. You are player ${player.slot === 0 ? "A" : "B"}, row ${player.y}, column ${player.x}. Your goal is entrance ${goal}. Use the directional controls to move.`);
     $("flip").hidden = !onSwitch;
