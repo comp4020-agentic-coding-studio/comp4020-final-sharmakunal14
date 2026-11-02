@@ -251,6 +251,9 @@ export class Maze3D {
     this.motion = new Map();
     this.view = "overview";
     this.focusId = null;
+    this.autoRotate = false;
+    this.grabbed = false;
+    this.shift = 0;
     this.orbit = { yaw: 0.6, pitch: 0.78, dist: 0.82 };
     this.mazeKey = "";
     this.board = {};
@@ -270,6 +273,7 @@ export class Maze3D {
     el.addEventListener("pointerdown", (e) => {
       if (this.view !== "overview") return;
       drag = { x: e.clientX, y: e.clientY, yaw: this.orbit.yaw, pitch: this.orbit.pitch };
+      this.grabbed = true;
       el.setPointerCapture(e.pointerId);
     });
     el.addEventListener("pointermove", (e) => {
@@ -277,7 +281,7 @@ export class Maze3D {
       this.orbit.yaw = drag.yaw - (e.clientX - drag.x) * 0.006;
       this.orbit.pitch = Math.min(1.45, Math.max(0.35, drag.pitch + (e.clientY - drag.y) * 0.004));
     });
-    const end = () => { drag = null; };
+    const end = () => { drag = null; this.grabbed = false; };
     el.addEventListener("pointerup", end);
     el.addEventListener("pointercancel", end);
     el.addEventListener("wheel", (e) => {
@@ -292,6 +296,11 @@ export class Maze3D {
     if (!w || !h) return;
     this.renderer.setSize(w, h, false);
     this.camera.aspect = w / h;
+    // The page can ask for the maze to sit off-centre (CSS --stage-shift), so a
+    // floating card does not cover it. Zero means centred.
+    const shift = Number.parseFloat(getComputedStyle(this.container).getPropertyValue("--stage-shift")) || 0;
+    if (shift) this.camera.setViewOffset(w, h, -w * shift, 0, w, h);
+    else this.camera.clearViewOffset();
     this.camera.updateProjectionMatrix();
   }
 
@@ -523,6 +532,8 @@ export class Maze3D {
   loop() {
     const now = performance.now(), dt = Math.min(0.05, this.clock.getDelta()), t = now / 1000;
     const calm = this.reducedMotion.matches;
+    // A slow idle turn behind the lobby; stops when grabbed, hidden, or motion is reduced.
+    if (this.autoRotate && !calm && !this.grabbed && this.view === "overview" && !document.hidden) this.orbit.yaw += dt * 0.1;
     const shared = new Map();
     for (const [id, a] of this.avatars) {
       const m = this.motion.get(id), p = this.position(m, now);
