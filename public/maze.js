@@ -138,7 +138,8 @@ async function go(id) {
   setBusy(button, true);
   try {
     if (invitationId) return await enter(id);
-    const view = await request(id ? `/api/maze/matches/${id}/join` : "/api/maze/matches", { look: picker.chosen() });
+    const fog = document.querySelector('input[name="fog"]:checked')?.value === "fog";
+    const view = await request(id ? `/api/maze/matches/${id}/join` : "/api/maze/matches", id ? { look: picker.chosen() } : { look: picker.chosen(), fog });
     location.assign(`/race/${view.game.id}`);
   } catch (error) {
     setStep(invitationId ? 0 : 1);
@@ -232,6 +233,7 @@ async function initialize() {
     const item = document.createElement("li"), link = document.createElement("a"), time = document.createElement("span");
     link.href = `/race/${entry.matchId}/replay`;
     link.append(entry.name);
+    if (entry.fog) { const tag = document.createElement("small"); tag.className = "fog-tag"; tag.textContent = "fog"; link.append(" ", tag); }
     time.textContent = formatTime(entry.timeMs);
     link.append(time);
     item.append(link);
