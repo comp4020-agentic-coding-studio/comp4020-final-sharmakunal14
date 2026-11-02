@@ -297,6 +297,9 @@ export class Maze3D {
 
   setView(view) { this.view = view; }
 
+  // A spectator picks whose point of view to follow; a player always follows themselves.
+  setFocus(id) { this.focusId = id ?? null; }
+
   buildMaze(maze) {
     this.world.clear();
     const n = maze.length;
@@ -533,7 +536,7 @@ export class Maze3D {
       a.userData.legs[1].rotation.x = -swing;
       a.userData.beacon.position.y = 1.25 + (calm ? 0 : Math.sin(t * 3) * 0.05);
       a.userData.beacon.rotation.y = calm ? 0 : t * 2;
-      const hidden = this.view === "first" && m.mine;
+      const hidden = this.view === "first" && id === this.focusId;
       a.visible = !hidden;
     }
     for (const g of this.gates ?? []) {

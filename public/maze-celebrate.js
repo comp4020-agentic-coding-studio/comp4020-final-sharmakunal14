@@ -5,24 +5,35 @@
 const COLORS = ["#3dffa8", "#2fd8ff", "#ff4fd8", "#ffd34d", "#ff7a3d", "#ffffff"];
 const MAX_PARTICLES = 700;
 
-export function celebrate(stage, { hue = 152, reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches, seconds = 7 } = {}) {
+// mode "win": your victory. "lose": the rival won, shown kindly with a gentle
+// rain and an invitation to go again. "watch": a spectator sees the winner celebrated.
+const WORDS = { win: ["VICTORY", ""], lose: ["", "Good race. Ready to go again?"], watch: ["", ""] };
+
+export function celebrate(stage, { hue = 152, reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches, seconds = 7, mode = "win", name = "" } = {}) {
   const banner = document.createElement("div");
-  banner.className = "win-banner";
+  banner.className = `win-banner mode-${mode}`;
   banner.setAttribute("aria-hidden", "true");
-  banner.innerHTML = "<strong>VICTORY</strong>";
+  const big = document.createElement("strong"), small = document.createElement("span"), note = document.createElement("em");
+  const [head, sub] = WORDS[mode] ?? WORDS.win;
+  // The winner's name is set as text, never markup.
+  big.textContent = head || `${name || "Your rival"} WINS`.toUpperCase();
+  small.textContent = sub;
+  banner.append(big, small, note);
   stage.append(banner);
-  if (reducedMotion) return { stop: () => banner.remove(), banner };
+  // A line under the banner, e.g. a new personal best, once it is known.
+  const setNote = (value) => { note.textContent = value; };
+  if (reducedMotion) return { stop: () => banner.remove(), banner, setNote };
 
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
   // No 2D context (rare, or a blocked canvas): the banner alone still celebrates.
-  if (!ctx) return { stop: () => banner.remove(), banner };
+  if (!ctx) return { stop: () => banner.remove(), banner, setNote };
   canvas.className = "win-fx";
   canvas.setAttribute("aria-hidden", "true");
   stage.append(canvas);
   const parts = [];
   let last = performance.now(), until = last + seconds * 1000, nextBurst = last, raf = 0, stopped = false;
-  const palette = [`hsl(${hue} 90% 60%)`, ...COLORS];
+  const palette = mode === "lose" ? [`hsl(${hue} 70% 65%)`, "#9bb8ff", "#c9a8ff", "#ffffff"] : [`hsl(${hue} 90% 60%)`, ...COLORS];
 
   function size() {
     const ratio = Math.min(window.devicePixelRatio || 1, 2);
@@ -57,7 +68,7 @@ export function celebrate(stage, { hue = 152, reducedMotion = matchMedia("(prefe
     const w = stage.clientWidth, h = stage.clientHeight;
     if (now < until - 1200) {
       confetti();
-      if (now >= nextBurst) { burst(w * (0.15 + Math.random() * 0.7), h * (0.15 + Math.random() * 0.4)); nextBurst = now + 260 + Math.random() * 320; }
+      if (mode !== "lose" && now >= nextBurst) { burst(w * (0.15 + Math.random() * 0.7), h * (0.15 + Math.random() * 0.4)); nextBurst = now + 260 + Math.random() * 320; }
     }
     ctx.clearRect(0, 0, w, h);
     for (let i = parts.length - 1; i >= 0; i--) {
@@ -86,5 +97,5 @@ export function celebrate(stage, { hue = 152, reducedMotion = matchMedia("(prefe
     canvas.remove();
     banner.remove();
   }
-  return { stop, banner, canvas, count: () => parts.length };
+  return { stop, banner, canvas, setNote, count: () => parts.length };
 }

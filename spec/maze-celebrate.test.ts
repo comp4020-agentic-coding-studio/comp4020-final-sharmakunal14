@@ -79,3 +79,35 @@ it("mutes the rival locally: their lines vanish and make no sound", () => {
   expect(audio.play).not.toHaveBeenCalled();
   expect(document.querySelectorAll("#chat-log li")).toHaveLength(0);
 });
+
+it("shows the losing side a kind banner naming the winner, with no victory word", () => {
+  const stage = document.querySelector(".stage") as HTMLElement;
+  const fx = celebrate(stage, { reducedMotion: true, mode: "lose", name: "Bob" });
+  const banner = stage.querySelector(".win-banner")!;
+  expect(banner.classList.contains("mode-lose")).toBe(true);
+  expect(banner.textContent).toContain("BOB WINS");
+  expect(banner.textContent).toContain("Ready to go again");
+  expect(banner.textContent).not.toContain("VICTORY");
+  fx.stop();
+});
+
+it("shows a spectator the winner's name, and sets names as text, never markup", () => {
+  const stage = document.querySelector(".stage") as HTMLElement;
+  const fx = celebrate(stage, { reducedMotion: true, mode: "watch", name: "<img src=x onerror=alert(1)>" });
+  const banner = stage.querySelector(".win-banner")!;
+  expect(banner.querySelector("img")).toBeNull();
+  expect(banner.textContent).toContain("<IMG SRC=X ONERROR=ALERT(1)> WINS");
+  fx.setNote("★ New personal best!");
+  expect(banner.textContent).toContain("New personal best");
+  fx.stop();
+});
+
+it("keeps VICTORY for the winner and adds a falling-only canvas for the loser", () => {
+  const stage = document.querySelector(".stage") as HTMLElement;
+  const win = celebrate(stage, { reducedMotion: true, mode: "win" });
+  expect(stage.querySelector(".win-banner")!.textContent).toContain("VICTORY");
+  win.stop();
+  const lose = celebrate(stage, { reducedMotion: false, mode: "lose", name: "Bob" });
+  expect(stage.querySelector("canvas.win-fx")).not.toBeNull();
+  lose.stop();
+});

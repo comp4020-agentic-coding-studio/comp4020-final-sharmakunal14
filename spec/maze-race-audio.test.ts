@@ -109,12 +109,16 @@ it("follows the game with a different tune per phase, and silences it when disco
 });
 
 it("gives refusal feedback without claiming a rejected flip succeeded", async () => {
-  request.mockRejectedValueOnce(new ApiError("Switch cooling down", "SWITCH_COOLDOWN", 409, snapshot(state())));
+  // Starting a race also asks for the spectator link; only moves are under test here.
+  request.mockImplementation((path: string) => path.endsWith("/move")
+    ? Promise.reject(new ApiError("Switch cooling down", "SWITCH_COOLDOWN", 409, snapshot(state())))
+    : new Promise(() => {}));
+  const moves = () => request.mock.calls.filter(([path]) => String(path).endsWith("/move"));
   mountRace(snapshot(state()), view, vi.fn(), audio);
   streams[0]!.emit(state());
   press("up"); // A local wall refusal does not send a request.
   expect(audio.play).toHaveBeenLastCalledWith("bump");
-  expect(request).not.toHaveBeenCalled();
+  expect(moves()).toHaveLength(0);
   audio.play.mockClear();
   press("flip");
   await Promise.resolve();
