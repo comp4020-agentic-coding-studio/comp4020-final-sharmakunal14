@@ -658,11 +658,29 @@ dialogs; the spectator link is collapsed.
 - The connection chip and player pills sat under the new fixed top bar; moved down.
 - The lobby markup test asserted the old layout and was rewritten.
 
+### Second browser pass (same day, agent-driven Chrome)
+
+Checked after the rewrite: second player joining by invitation link, the
+spectator link on a 390×844 phone, ready, countdown and race, a forfeit
+leading to the result card with Rematch, a signed-out replay link under
+reduced motion ([script](evidence/2026-11-02-flow-check-2.mjs),
+[phone spectator](evidence/2026-11-02-flow-phone-spectator.png),
+[result](evidence/2026-11-02-flow-desk-result.png)). 121/121 tests still pass.
+
+Problems found and fixed:
+
+- Phone spectator: the Map/3rd/1st buttons stretched into a tall column and
+  the follow buttons lost their names. Moved the camera buttons to the top
+  right and restored the labels.
+- In-race HUD (player pills) overlapped the title card; moved down.
+- The "race recorded" hint overlapped the result card; hidden on result screens.
+
 ### Not verified
 
-- Joining through an invitation link as a second player, replay and spectator
-  entry, and reduced-motion transitions were not re-run in a browser after the
-  rewrite; only the creator path was.
-- Racing, result and rematch screens were not re-checked visually with the new
-  top bar and hidden steps.
+- A second player joining was driven over HTTP for the later steps, not
+  through a second browser window for the whole race.
+- The step indicator still shows five steps on the replay entry, where only
+  the first applies.
+- Winner screen with fireworks, loser screen and rematch toast were not
+  re-checked visually with the new layout (forfeit result only).
 - No human playtest; Safari and Firefox untried.
