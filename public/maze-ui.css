@@ -200,7 +200,7 @@ fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
   .hud-pad { right: 10px; bottom: 10px; gap: 8px; }
   .dpad { grid-template-columns: repeat(3, 52px); grid-template-rows: repeat(3, 52px); gap: 5px; }
   .flip-btn { width: 64px; height: 64px; }
-  .hud-hint { bottom: auto; top: 108px; max-width: calc(100% - 20px); font-size: 13px; }
+  .hud-hint { bottom: auto; top: 136px; max-width: calc(100% - 20px); font-size: 13px; }
   .hud-key { display: none; }
   .card { padding: 18px; }
   .how ol, .keys { grid-template-columns: 1fr; }
