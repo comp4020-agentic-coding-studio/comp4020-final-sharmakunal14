@@ -51,7 +51,7 @@ export function mountRace(initial, mazeView, showError, audio) {
     const p = self(), now = serverNow();
     const near = (game.pulses ?? []).find((g) => Math.abs(g.x - p.x) + Math.abs(g.y - p.y) <= 1);
     if (!near) return "";
-    const left = (pulseRemaining(game, near, now) / 1_000).toFixed(1);
+    const left = Math.max(0.1, Math.ceil(pulseRemaining(game, near, now) / 100) / 10).toFixed(1);
     return pulseOpen(game, near, now) ? `Timed gate open — closes in ${left} s.` : `Timed gate closed — opens in ${left} s.`;
   }
 
@@ -159,8 +159,12 @@ export function mountRace(initial, mazeView, showError, audio) {
     $("maze").setAttribute("aria-label", `Maze. You are player ${player.slot === 0 ? "A" : "B"}, row ${player.y}, column ${player.x}. Your goal is entrance ${goal}. Use the directional controls to move.`);
     $("flip").hidden = !onSwitch;
     $("flip").disabled = !canMove();
+    $("race-mode").hidden = !game.fog;
+    text("race-mode", game.fog ? "Fog race: you see only 3 steps around you. Your rival sees the same." : "");
     text("switch-hint", onSwitch ? "You’re on a switch. Press E or Space to flip it — it changes gates for both of you." : pulseHint());
-    mazeView.update(game.maze, game.players.map((p) => p.id === me ? { ...view.player, mine: true } : { ...p, mine: false }), view.board);
+    // Fog limits sight only while racing; the waiting room and result show the maze.
+    const viewer = game.fog && game.status === "racing" ? view.player : null;
+    mazeView.update(game.maze, game.players.map((p) => p.id === me ? { ...view.player, mine: true } : { ...p, mine: false }), { ...view.board, viewer });
     renderClock();
   }
 

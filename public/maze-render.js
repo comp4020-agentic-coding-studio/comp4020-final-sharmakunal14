@@ -1,5 +1,5 @@
 import { lookColor, lookOf } from "./maze-look.js";
-import { pulseOpen, pulseRemaining } from "./maze-rules.js";
+import { inSight, pulseOpen, pulseRemaining } from "./maze-rules.js";
 const WIDTH = 880, HEIGHT = 640;
 const COLORS = ["#c7ee89", "#efb17b"];
 
@@ -201,6 +201,12 @@ export class MazeView {
         else this.gateTile(x, y, SWITCH_COLORS[gate.switch], true);
       }
     }
+    // Fog race (decision 0011): cloud over every cell out of sight. The two
+    // entrance portals are drawn after, as landmarks.
+    const viewer = this.board?.viewer;
+    if (viewer) for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+      if (!inSight(viewer, x, y)) this.tile(x, y, (x * 7 + y * 3) % 5 === 0 ? "#cfc4b2" : "#d9cfbf", 0.55);
+    }
     this.portal(1, 1, 0);
     this.portal(n - 2, n - 2, 1);
     const now = performance.now();
@@ -210,6 +216,7 @@ export class MazeView {
       const amount = this.reducedMotion.matches ? 1 : Math.min(1, (now - p.at) / 110);
       animating ||= amount < 1;
       const x = p.fromX + (p.x - p.fromX) * amount, y = p.fromY + (p.y - p.fromY) * amount;
+      if (viewer && !player.mine && !inSight(viewer, player.x, player.y)) continue;
       const shared = this.players.some((other) => other.id !== player.id && other.x === player.x && other.y === player.y);
       this.marker(player, x + (shared ? (player.slot === 0 ? -0.23 : 0.23) : 0), y, player.mine);
     }
