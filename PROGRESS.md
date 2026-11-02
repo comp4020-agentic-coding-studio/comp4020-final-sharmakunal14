@@ -684,3 +684,38 @@ Problems found and fixed:
 - Winner screen with fireworks, loser screen and rematch toast were not
   re-checked visually with the new layout (forfeit result only).
 - No human playtest; Safari and Firefox untried.
+
+## 2026-11-02 — Pulse gates (local branch `pulse-gates`, not pushed)
+
+The author proposed a 12-level design; we agreed to add one mechanic at a time.
+First: pulse gates, a symmetric pair of timed gates per maze ([decision 0010](docs/decisions/0010-pulse-gates.md)).
+
+| Work completed | Commit |
+| --- | --- |
+| Decision record before code. | `9588827` |
+| Generator, shared rule, server timing, unit tests. | `a27f112` |
+| 3D and 2D drawing with a warning before closing. | `30642f9` |
+| Prediction, timing hint, replay drawing, help text. | `54e500f` |
+| HTTP check of server timing. | `1c3f8ef` |
+| Phone race hint moved below the title card. | `40de5fc` |
+
+| Check | Result |
+| --- | --- |
+| `pnpm check` with `APP_URL` pointing at the new code on port 8090, throwaway `DATA_DIR` | 124/124, typecheck clean |
+| Same unit and HTTP pulse tests with the server rule disabled | both fail, as intended |
+| Committed vs new generator, 800 ids | 0 changed mazes/switches/gates |
+| Agent-driven Chrome 1440×900 (WebGL), 2D fallback (WebGL off), 390×844 touch | gates drawn open/closed/warning; phone player refused at a closed gate, walked through when open; hint counts down; no page errors |
+
+### Problems found
+
+- Placement rules left 154 of 400 mazes without pulses; loosened to 13 of 400.
+- The first HTTP pulse check passed only because it hit an old server on 8080
+  and skipped. Fixed the test's timing base and checked it fails without the rule.
+- Bars were hard to see from the map camera; thickened and recoloured.
+- The phone race hint covered the title card (also true of the switch hint).
+
+### Not verified
+
+- Replay drawing of pulse gates was not checked in a browser.
+- The race clock still overlaps the "Live" chip at 390×844 (existing issue).
+- No human playtest of the 2.5 s rhythm; Safari and Firefox untried.

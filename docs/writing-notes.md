@@ -227,3 +227,32 @@ Raw material, not prose. Decision record: [0008](decisions/0008-spectators-stats
   [avatar step](evidence/2026-11-02-flow-desk-4-avatar.png),
   [waiting room](evidence/2026-11-02-flow-desk-5-wait.png),
   [phone plan](evidence/2026-11-02-flow-phone-2-choose.png).
+
+## 0010 pulse gates (2026-11-02)
+
+- Trigger: the author brought a large "Rift Runners" design (12 levels, many
+  mechanics). The agent recommended one mechanic instead; the author agreed to
+  go step by step. Decision: [0010](decisions/0010-pulse-gates.md).
+- Why pulse gates: deterministic, server-owned, symmetric, fit the "maze
+  changes on its own" idea, and keep the existing reachability proof (closed
+  = wall). Rejected for now: rotating rooms (move cells), portals (camera and
+  replay jumps), reveal ability and footprints (already out of scope).
+- Design constraint kept: pulses use a separate seed stream. Checked against
+  the committed generator over 800 ids: 0 layouts changed, so today's best
+  times stay comparable. 13 of 400 seeds have no pulse pair and play without.
+- Correction 1: the first placement rules were too strict; 154/400 mazes had
+  no pulse pair. Loosened spacing to bring it to 13/400.
+- Correction 2: the first new HTTP check passed vacuously, because the test
+  run hit an older server on port 8080 with no pulses and the test skipped.
+  Re-ran against the new code on another port; then it failed because it
+  timed phases from a `startsAt` read before ready (null). Fixed, and checked
+  it fails when the server ignores pulse timing.
+- Correction 3: first 3D bars were thin amber on sand and hard to see from the
+  map camera; made thicker and orange.
+- Open question for playtest: is 2.5 s / 2.5 s the right rhythm, and does a
+  timed shortcut create a real choice?
+- Evidence: [3D open](evidence/2026-11-02-pulse-open-3d.png),
+  [3D closed](evidence/2026-11-02-pulse-closed-3d.png),
+  [2D closed](evidence/2026-11-02-pulse-closed-2d.png),
+  [phone hint](evidence/2026-11-02-pulse-phone-hint.png),
+  [script](evidence/2026-11-02-pulse-check.mjs).

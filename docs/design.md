@@ -26,6 +26,9 @@ create another race. Milestone 2 adds:
 - client-side prediction with batched commands;
 - a server step log, today's best times and replays.
 
+Decision 0010 adds one symmetric pair of pulse gates per maze that open for
+2.5 s and close for 2.5 s on the race clock.
+
 Accounts, power-ups, map reveals and a free 3D camera stay deferred.
 
 ## Architecture
@@ -93,6 +96,12 @@ identity; repeating its nickname does not recover it.
   four switch states, every open cell reaches both goals; a 200-seed sweep
   checks this.
 - A flip cannot close a gate on a player, and each switch has a 1.5 s cooldown.
+- Pulse gates also sit on base walls, so closed they are plain walls and the
+  sweep (which treats them as closed) proves reachability in every phase. The
+  server times them from `startsAt` with its own clock; the browser predicts
+  from its estimate of server time and is corrected on refusal. A gate that
+  closes on a player does not trap them. Pulses use a separate seed stream so
+  each date's maze, switches and gates are unchanged.
 - A daily maze can be memorised within the day. That is accepted, because it
   makes times comparable.
 - Speed is an allowance: one step per 140 ms on average, with at most four
@@ -137,6 +146,7 @@ be always correct. That needs human playtesting before more mechanics.
 - [0006: Audible, on-by-default audio](decisions/0006-audible-retro-audio.md) — louder levels, per-scene music, mute button, page-load unlock.
 - [0008: Spectators, streak and personal best, rematch card](decisions/0008-spectators-stats-rematch-card.md) — separate watch secret, private fields removed, derived streak, result screens for all, designer in front.
 - [0009: One step at a time flow](decisions/0009-one-step-at-a-time-flow.md) — full-bleed maze, one card per step, avatar step with Back, secondary content in dialogs.
+- [0010: Pulse gates](decisions/0010-pulse-gates.md) — one symmetric pair of timed gates per maze; why not rotating rooms, portals, reveal or trails.
 - [0007: Avatar looks, chat with reactions, win celebration](decisions/0007-avatars-chat-celebration.md) — validated looks locked at countdown, rate-limited chat saved with the game, client-only fireworks.
 
 For future changes, update this overview when behaviour or architecture changes.
