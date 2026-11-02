@@ -1,6 +1,6 @@
 import { describe, expect, inject, it } from "vitest";
 import type { Game } from "../maze-game.ts";
-import { entrance, MOVE_INTERVAL_MS } from "../maze-game.ts";
+import { DIRECTIONS, entrance, MOVE_INTERVAL_MS } from "../maze-game.ts";
 import { route } from "./maze-path.ts";
 
 const base = inject("baseUrl");
@@ -188,7 +188,38 @@ describe("milestone 2: batches, today's maze, results and replays", () => {
     const { game } = await create(await person("Alice"));
     expect(game.mazeId).toBe(today.mazeId);
     expect(game.maze).toEqual(today.maze);
+    expect(game.pulses).toEqual((today as { pulses?: unknown }).pulses);
   });
+
+  it("refuses a step into a closed pulse gate and accepts it once the gate opens, by the server clock", async () => {
+    const { alice, game, path } = await race();
+    const pulse = game.pulses?.[0];
+    if (!pulse) return; // A few dates have no pulse pair; covered by the unit tests.
+    const sides = Object.entries(DIRECTIONS).map(([d, [dx, dy]]) => ({ d, at: { x: pulse.x - dx, y: pulse.y - dy } }))
+      .filter(({ at }) => game.maze[at.y]?.[at.x] === ".");
+    const { d, at } = sides[0];
+    const steps = route(game, entrance(game, 0), at);
+    let sequence = 1;
+    for (let i = 0; i < steps.length; i += 4) {
+      await new Promise((resolve) => setTimeout(resolve, 4 * MOVE_INTERVAL_MS));
+      await api(alice, `${path}/move`, { actions: steps.slice(i, i + 4), sequence });
+      sequence += Math.min(4, steps.length - i);
+    }
+    const cycle = pulse.openMs + pulse.closedMs;
+    const started = await (await api(alice, path)).json() as View;
+    expect(started.game.players[0]).toMatchObject(at);
+    const waitFor = async (phase: number) => {
+      const into = (Date.now() - started.game.startsAt!) % cycle;
+      await new Promise((resolve) => setTimeout(resolve, (phase - into + cycle) % cycle));
+    };
+    await waitFor(pulse.openMs + pulse.closedMs / 2);
+    const closed = await api(alice, `${path}/move`, { actions: [d], sequence });
+    expect(closed.status).toBe(409);
+    expect((await closed.json() as { message: string }).message).toMatch(/gate is closed/);
+    await waitFor(pulse.openMs / 2);
+    const open = await (await api(alice, `${path}/move`, { actions: [d], sequence })).json() as View;
+    expect(open.game.players[0]).toMatchObject({ x: pulse.x, y: pulse.y });
+  }, 20_000);
 
   it("keeps average speed over a 300 ms round trip by batching banked steps", async () => {
     const { alice, game, path } = await race();
