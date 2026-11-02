@@ -271,6 +271,30 @@ describe("milestone 2: batches, today's maze, results and replays", () => {
     expect(matches[0]).toMatchObject({ id: game.id, winner: "Alice" });
   }, 20_000);
 
+  it("saves the fog choice, refuses a bad one, keeps it in a rematch and marks fog runs on the board", async () => {
+    const alice = await person("Alice"), bob = await person("Bob");
+    expect((await api(alice, "matches", { fog: "yes" })).status).toBe(400);
+    const clear = await create(alice);
+    expect(clear.game.fog).toBeUndefined();
+    const { game } = await (await api(alice, "matches", { fog: true })).json() as View;
+    expect(game.fog).toBe(true);
+    const path = `matches/${game.id}`;
+    const joined = await (await api(bob, `${path}/join`, {})).json() as View;
+    expect(joined.game.fog).toBe(true);
+    await api(alice, `${path}/ready`, {});
+    const { game: started } = await (await api(bob, `${path}/ready`, {})).json() as View;
+    await new Promise((resolve) => setTimeout(resolve, started.startsAt! - Date.now() + 20));
+    const steps = route(started);
+    for (let i = 0; i < steps.length; i += 4) {
+      await new Promise((resolve) => setTimeout(resolve, 4 * MOVE_INTERVAL_MS + 5));
+      await api(alice, `${path}/move`, { actions: steps.slice(i, i + 4), sequence: i + 1 });
+    }
+    const today = await (await fetch(new URL("/api/maze/today", base))).json() as { best: { matchId: string; fog: boolean }[] };
+    expect(today.best.find((b) => b.matchId === game.id)?.fog).toBe(true);
+    const next = await (await api(bob, `${path}/rematch`, {})).json() as View;
+    expect(next.game.fog).toBe(true);
+  }, 20_000);
+
   it("keeps an unfinished race's replay private", async () => {
     const alice = await person("Alice"), visitor = await person("Visitor");
     const { game } = await create(alice);

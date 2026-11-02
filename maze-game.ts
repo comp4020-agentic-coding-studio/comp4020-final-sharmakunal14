@@ -27,6 +27,8 @@ export type Game = {
   maze: readonly string[];
   switches: Point[];
   gates: Gate[];
+  // Limited sight for both players (decision 0011). Presentation only.
+  fog?: boolean;
   // Timed gates (decision 0010). Absent in races saved before they existed.
   pulses?: Pulse[];
   switchOn: boolean[];
@@ -94,13 +96,13 @@ function player(game: Pick<Game, "maze">, identity: Identity, slot: 0 | 1, look?
   return { ...identity, slot, ...entrance(game, slot), ready: false, sequence: 0, tokens: 0, tokensAt: 0, look: look ?? defaultLook(slot) };
 }
 
-export function newGame(id: string, identity: Identity, now: number, layout = todaysLayout(now), look?: Look): Game {
+export function newGame(id: string, identity: Identity, now: number, layout = todaysLayout(now), look?: Look, fog = false): Game {
   const base = {
     id, mazeId: layout.mazeId, maze: layout.maze, switches: layout.switches, gates: layout.gates, pulses: layout.pulses,
     switchOn: layout.switches.map(() => false), switchAt: layout.switches.map(() => 0),
   };
   return {
-    ...base, players: [player(base, identity, 0, look)], status: "waiting", revision: 1,
+    ...base, ...(fog ? { fog: true } : {}), players: [player(base, identity, 0, look)], status: "waiting", revision: 1,
     createdAt: now, startsAt: null, finishedAt: null, winnerId: null, interruption: null,
   };
 }

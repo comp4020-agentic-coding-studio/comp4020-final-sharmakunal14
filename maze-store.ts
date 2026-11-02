@@ -22,7 +22,7 @@ export function streakFrom(days: ReadonlySet<string>, today: string): number {
   return count;
 }
 
-export type BestTime = { matchId: string; name: string; timeMs: number; finishedAt: number };
+export type BestTime = { matchId: string; name: string; timeMs: number; finishedAt: number; fog: boolean };
 
 function summary(game: Game): Summary {
   return {
@@ -76,12 +76,12 @@ export class MazeStore {
     return JSON.parse(row.state) as Game;
   }
 
-  create(identity: Identity, now = Date.now(), look?: Look): Game {
+  create(identity: Identity, now = Date.now(), look?: Look, fog = false): Game {
     return this.transaction(() => {
       const { total } = this.db.prepare("SELECT COUNT(*) AS total FROM maze_matches WHERE owner_id = ? AND created_at > ?")
         .get(identity.id, now - 3_600_000) as { total: number };
       if (total >= 20) throw new GameError("ROOM_LIMIT", "You have created 20 races this hour. Rejoin a recent race or try later.", 429);
-      const game = newGame(randomUUID(), identity, now, undefined, look);
+      const game = newGame(randomUUID(), identity, now, undefined, look, fog);
       this.db.prepare("INSERT INTO maze_matches (id, owner_id, created_at, state) VALUES (?, ?, ?, ?)")
         .run(game.id, identity.id, now, JSON.stringify(game));
       return game;
@@ -98,7 +98,7 @@ export class MazeStore {
       if (old.rematchId) return this.get(old.rematchId);
       const [first, second] = old.players;
       if (!second) throw new GameError("NO_RIVAL", "There is nobody to rematch.");
-      const seated = joinGame(newGame(randomUUID(), first, now, undefined, first.look), second, second.look);
+      const seated = joinGame(newGame(randomUUID(), first, now, undefined, first.look, old.fog), second, second.look);
       this.db.prepare("INSERT INTO maze_matches (id, owner_id, created_at, state) VALUES (?, ?, ?, ?)")
         .run(seated.id, first.id, now, JSON.stringify(seated));
       const linked: Game = { ...old, rematchId: seated.id, rematchBy: actor.id, revision: old.revision + 1 };
@@ -144,10 +144,12 @@ export class MazeStore {
   }
 
   best(mazeId: string, limit = 10): BestTime[] {
-    return (this.db.prepare(`SELECT match_id, winner_name, time_ms, finished_at FROM maze_results
-      WHERE maze_id = ? ORDER BY time_ms, finished_at LIMIT ?`).all(mazeId, limit) as
-      { match_id: string; winner_name: string; time_ms: number; finished_at: number }[])
-      .map((r) => ({ matchId: r.match_id, name: r.winner_name, timeMs: r.time_ms, finishedAt: r.finished_at }));
+    return (this.db.prepare(`SELECT r.match_id, r.winner_name, r.time_ms, r.finished_at,
+        COALESCE(json_extract(m.state, '$.fog'), 0) AS fog
+      FROM maze_results r JOIN maze_matches m ON m.id = r.match_id
+      WHERE r.maze_id = ? ORDER BY r.time_ms, r.finished_at LIMIT ?`).all(mazeId, limit) as
+      { match_id: string; winner_name: string; time_ms: number; finished_at: number; fog: number }[])
+      .map((r) => ({ matchId: r.match_id, name: r.winner_name, timeMs: r.time_ms, finishedAt: r.finished_at, fog: Boolean(r.fog) }));
   }
 
   // The spectator link is a separate secret from the players' invitation, so

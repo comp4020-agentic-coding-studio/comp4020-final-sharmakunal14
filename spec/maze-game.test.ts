@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { advanceGame, applyActions, BURST, COUNTDOWN_MS, entrance, forfeitGame, joinGame, layoutFor, MOVE_INTERVAL_MS, movePlayer, newGame, RACE_LIMIT_MS, readyPlayer, SWITCH_COOLDOWN_MS } from "../maze-game.ts";
 import type { Game } from "../maze-game.ts";
 import { generate, sydneyDate } from "../maze-gen.ts";
-import { DIRECTIONS } from "../public/maze-rules.js";
+import { DIRECTIONS, inSight } from "../public/maze-rules.js";
 import { reachable, route } from "./maze-path.ts";
 
 const alice = { id: "alice", name: "Alice" }, bob = { id: "bob", name: "Bob" };
@@ -178,6 +178,24 @@ describe("race rules", () => {
 
   it("ends abandoned races after the fixed time limit", () => {
     expect(advanceGame(ready(), COUNTDOWN_MS + RACE_LIMIT_MS)).toMatchObject({ status: "interrupted", interruption: "time_limit", winnerId: null });
+  });
+});
+
+describe("fog sight", () => {
+  it("sees within three steps in a straight line, and everything with no viewer", () => {
+    const me = { x: 5, y: 5 };
+    expect(inSight(me, 8, 5)).toBe(true);
+    expect(inSight(me, 9, 5)).toBe(false);
+    expect(inSight(me, 7, 7)).toBe(true);
+    expect(inSight(me, 8, 8)).toBe(false);
+    expect(inSight(null, 0, 0)).toBe(true);
+  });
+  it("is saved only when chosen, and never changes the rules", () => {
+    expect(newGame("c", alice, 0, LAYOUT).fog).toBeUndefined();
+    const fog = newGame("f", alice, 0, LAYOUT, undefined, true);
+    expect(fog.fog).toBe(true);
+    const { fog: _f, ...rest } = fog;
+    expect(rest).toEqual({ ...newGame("f", alice, 0, LAYOUT) });
   });
 });
 

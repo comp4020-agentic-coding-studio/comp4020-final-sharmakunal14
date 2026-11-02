@@ -34,3 +34,9 @@ export function goalOf(game, slot) {
   const size = game.maze.length;
   return slot === 0 ? { x: size - 2, y: size - 2 } : { x: 1, y: 1 };
 }
+
+// Sight radius in a fog race (decision 0011): straight-line grid distance.
+export const FOG_RADIUS = 3;
+export function inSight(viewer, x, y, radius = FOG_RADIUS) {
+  return !viewer || (x - viewer.x) ** 2 + (y - viewer.y) ** 2 <= radius * radius;
+}

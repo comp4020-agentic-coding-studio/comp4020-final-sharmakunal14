@@ -36,7 +36,7 @@ it("keeps completed results across database reopening and records interrupted ac
     const steps = route(complete).length;
     expect(restored.steps(complete.id)).toHaveLength(steps);
     expect(restored.steps(complete.id).at(-1)).toMatchObject({ slot: 0, kind: "step", ...entrance(complete, 1) });
-    expect(restored.best(complete.mazeId)).toEqual([{ matchId: complete.id, name: "Alice", timeMs: (steps - 1) * MOVE_INTERVAL_MS, finishedAt: COUNTDOWN_MS + (steps - 1) * MOVE_INTERVAL_MS }]);
+    expect(restored.best(complete.mazeId)).toEqual([{ matchId: complete.id, name: "Alice", timeMs: (steps - 1) * MOVE_INTERVAL_MS, finishedAt: COUNTDOWN_MS + (steps - 1) * MOVE_INTERVAL_MS, fog: false }]);
     expect(restored.recent(alice.id)[0]).toMatchObject({ winner: "Alice", timeMs: (steps - 1) * MOVE_INTERVAL_MS, players: ["Alice", "Bob"] });
     expect(restored.recent("stranger")).toEqual([]);
   } finally {
