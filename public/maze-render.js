@@ -1,4 +1,5 @@
 import { lookColor, lookOf } from "./maze-look.js";
+import { pulseOpen, pulseRemaining } from "./maze-rules.js";
 const WIDTH = 880, HEIGHT = 640;
 const COLORS = ["#c7ee89", "#efb17b"];
 
@@ -7,6 +8,7 @@ const COLORS = ["#c7ee89", "#efb17b"];
 let scale = 1;
 const project = (x, y, z = 0) => [88 + (x * 46 + y * 8) * scale, 92 + (y * 35 - z * 25) * scale];
 const SWITCH_COLORS = ["#8fd3ff", "#e9a0ff"];
+const PULSE_COLOR = "#ff6a10";
 
 export class MazeView {
   constructor(canvas) {
@@ -25,6 +27,7 @@ export class MazeView {
   update(maze, players, board = {}) {
     this.maze = maze;
     this.board = board;
+    if (board.now !== undefined) this.pulseClock = board.now;
     const now = performance.now();
     for (const player of players) {
       const old = this.positions.get(player.id);
@@ -35,6 +38,13 @@ export class MazeView {
     this.players = players;
     for (const id of this.positions.keys()) if (!players.some((p) => p.id === id)) this.positions.delete(id);
     this.draw();
+  }
+
+  // Timed gates change on the clock alone; redraw only when one changes state.
+  pulseTime(now) {
+    this.pulseClock = now;
+    const state = (this.board?.pulses ?? []).map((p) => pulseOpen(this.board, p, now) + ":" + ((pulseRemaining(this.board, p, now) ?? 1e9) <= 700)).join();
+    if (state !== this.pulseState) { this.pulseState = state; this.draw(); }
   }
 
   polygon(points, fill, stroke) {
@@ -179,6 +189,12 @@ export class MazeView {
     for (let y = 0; y < n; y++) {
       for (let x = 0; x < n; x++) {
         if (this.maze[y][x] !== "#") continue;
+        const pulse = (this.board?.pulses ?? []).find((g) => g.x === x && g.y === y);
+        if (pulse) {
+          const open = pulseOpen(this.board, pulse, this.pulseClock), left = pulseRemaining(this.board, pulse, this.pulseClock);
+          this.gateTile(x, y, open && left !== null && left <= 700 ? "#ffe14d" : PULSE_COLOR, !open);
+          continue;
+        }
         const gate = gates.find((g) => g.x === x && g.y === y);
         if (!gate) this.tile(x, y, (x + y) % 3 === 0 ? "#526546" : "#4a5e40", 0.5);
         else if ((switchOn[gate.switch] ?? false) === gate.openWhen) this.gateTile(x, y, SWITCH_COLORS[gate.switch], false);

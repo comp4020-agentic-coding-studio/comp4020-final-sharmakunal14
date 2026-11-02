@@ -1,11 +1,14 @@
 import * as THREE from "./vendor/three-0.170.0.module.min.js";
 import { lookOf } from "./maze-look.js";
+import { pulseOpen, pulseRemaining } from "./maze-rules.js";
 
 // Presentation only: the server owns positions on a grid. One grid cell is
 // one world unit on x/z; walls stand on cells marked "#".
 const WALL_H = 1.15;
 const PLAYER_COLORS = [0x3dffa8, 0xff7a3d];
 const SWITCH_COLORS = [0x2fd8ff, 0xff4fd8];
+const PULSE_COLOR = 0xff6a10;
+const PULSE_WARN_MS = 700;
 const TURN_MS = 160;
 const STEP_MS = 120;
 const HEADINGS = { up: Math.PI, right: Math.PI / 2, down: 0, left: -Math.PI / 2 };
@@ -331,7 +334,7 @@ export class Maze3D {
     capTex.repeat.set(0.5, 0.5);
     capTex.needsUpdate = true;
     const capMat = new THREE.MeshStandardMaterial({ map: capTex, color: 0xd9c09a, roughness: 0.9 });
-    const gateCells = new Set((this.board.gates ?? []).map((g) => `${g.x},${g.y}`));
+    const gateCells = new Set([...(this.board.gates ?? []), ...(this.board.pulses ?? [])].map((g) => `${g.x},${g.y}`));
     const cells = [];
     for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) if (maze[y][x] === "#" && !gateCells.has(`${x},${y}`)) cells.push([x, y]);
     // One box per wall with a sandstone top face and brick sides. Separate,
@@ -368,6 +371,33 @@ export class Maze3D {
       group.add(field, strip);
       this.world.add(group);
       return { gate, field, level: 1 };
+    });
+
+    // Timed gates: amber bars that rise and fall on the race clock.
+    this.pulses = (this.board.pulses ?? []).map((pulse) => {
+      const group = new THREE.Group();
+      group.position.set(pulse.x, 0, pulse.y);
+      const horizontal = maze[pulse.y]?.[pulse.x - 1] === "." || maze[pulse.y]?.[pulse.x + 1] === ".";
+      const frame = new THREE.MeshStandardMaterial({ color: 0x3a3226, metalness: 0.6, roughness: 0.4, emissive: PULSE_COLOR, emissiveIntensity: 0.3 });
+      for (const offset of [-0.45, 0.45]) {
+        const post = new THREE.Mesh(new THREE.BoxGeometry(0.14, WALL_H + 0.1, 0.14), frame);
+        post.position.set(horizontal ? 0 : offset, (WALL_H + 0.1) / 2, horizontal ? offset : 0);
+        post.castShadow = true;
+        group.add(post);
+      }
+      const barMat = new THREE.MeshStandardMaterial({ color: PULSE_COLOR, emissive: PULSE_COLOR, emissiveIntensity: 1.2, metalness: 0.3, roughness: 0.3 });
+      const bars = new THREE.Group();
+      for (const h of [0.2, 0.48, 0.76, 1.04]) {
+        const bar = new THREE.Mesh(new THREE.BoxGeometry(horizontal ? 0.16 : 0.9, 0.16, horizontal ? 0.9 : 0.16), barMat);
+        bar.position.y = h;
+        bar.castShadow = true;
+        bars.add(bar);
+      }
+      const strip = new THREE.Mesh(new THREE.BoxGeometry(horizontal ? 0.1 : 0.9, 0.02, horizontal ? 0.9 : 0.1), new THREE.MeshBasicMaterial({ color: PULSE_COLOR }));
+      strip.position.y = 0.035;
+      group.add(bars, strip);
+      this.world.add(group);
+      return { pulse, bars, barMat, level: 1 };
     });
 
     this.switches = (this.board.switches ?? []).map((sw, i) => {
@@ -425,7 +455,8 @@ export class Maze3D {
 
   update(maze, players, board = {}) {
     this.board = board;
-    const key = maze.join("") + JSON.stringify(board.gates ?? []);
+    const key = maze.join("") + JSON.stringify(board.gates ?? []) + JSON.stringify(board.pulses ?? []);
+    if (board.now !== undefined) this.pulseClock = board.now;
     if (key !== this.mazeKey) {
       this.mazeKey = key;
       this.buildMaze(maze);
@@ -558,6 +589,18 @@ export class Maze3D {
       g.field.visible = g.level > 0.02;
       g.field.material.opacity = (calm ? 0.5 : 0.5 + 0.08 * Math.sin(t * 2)) * Math.min(1, g.level * 1.5);
     }
+    for (const g of this.pulses ?? []) {
+      const open = pulseOpen(this.board, g.pulse, this.pulseClock);
+      const left = pulseRemaining(this.board, g.pulse, this.pulseClock);
+      g.level += ((open ? 0 : 1) - g.level) * Math.min(1, dt * 14);
+      g.bars.position.y = -WALL_H * (1 - g.level);
+      g.bars.visible = g.level > 0.02;
+      // Warn before closing: flicker, or a steady brighter glow with reduced motion.
+      const warning = open && left !== null && left <= PULSE_WARN_MS;
+      g.bars.visible ||= warning;
+      if (warning) g.bars.position.y = -WALL_H * 0.75;
+      g.barMat.emissiveIntensity = warning ? (calm ? 2.4 : 1.2 + 1.4 * (Math.sin(t * 40) > 0 ? 1 : 0)) : 1.2;
+    }
     for (const s of this.switches ?? []) {
       s.crystal.rotation.y = calm ? 0 : t * (s.on ? 3 : 1);
       s.crystal.position.y = 0.55 + (calm ? 0 : Math.sin(t * 2) * 0.05);
@@ -605,6 +648,9 @@ export class Maze3D {
     this.cameraReady = true;
     this.camera.lookAt(this.lookAt);
   }
+
+  // The race clock (estimated server time) for drawing timed gates.
+  pulseTime(now) { this.pulseClock = now; }
 
   dispose() {
     this.renderer.setAnimationLoop(null);
