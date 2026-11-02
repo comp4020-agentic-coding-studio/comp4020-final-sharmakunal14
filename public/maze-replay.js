@@ -44,6 +44,7 @@ export function mountReplay(replay, mazeView) {
     const state = stateAt(replay, t);
     mazeView.update(game.maze, state.players.map((p) => ({ ...p, mine: false })), {
       gates: game.gates, switches: game.switches, switchOn: state.switchOn, trails: state.trails,
+      pulses: game.pulses, startsAt: game.startsAt, now: game.startsAt + t,
     });
     $("replay-scrub").value = String(t);
     $("replay-time").textContent = `${format(t)} / ${format(duration)}`;
