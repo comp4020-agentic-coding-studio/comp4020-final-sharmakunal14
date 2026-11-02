@@ -317,3 +317,62 @@ body[data-phase="countdown"] .hud-chat, body[data-phase="racing"] .hud-chat { bo
   .opt-group legend { width: 100%; float: none; }
   .hud-chat { bottom: 70px; }
 }
+
+/* Lobby layout: the stage and the lists share the left column, so the page has no empty gap. */
+.main-col { display: grid; gap: 14px; min-width: 0; align-content: start; }
+.under-stage { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+.under-stage:not(:has(> :not([hidden]))) { display: none; }
+.under-stage .card { margin: 0; }
+@media (min-width: 1101px) { .game { align-items: start; } .stage { height: min(74dvh, 800px); } }
+.btn-primary + .btn-ghost.avatar-open, .avatar-open { margin-top: 10px; }
+.mini-hue { width: 20px; height: 20px; border-radius: 50%; background: hsl(var(--avatar-hue, 152) 85% 55%); box-shadow: 0 0 10px hsl(var(--avatar-hue, 152) 85% 55% / .7); }
+.stats-card { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; padding: 14px 22px; }
+.stats-card .fine { grid-column: 1 / -1; margin: 0; }
+.stat { display: grid; }
+.stat-n { font-family: var(--font-display); font-size: 30px; line-height: 1.1; background: linear-gradient(90deg, var(--a), var(--cyan)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.stat-l { font-family: var(--font-mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+
+/* Avatar designer, in front */
+.avatar-dialog { border: 1px solid var(--line-strong); border-radius: 20px; background: var(--bg-2); color: var(--text); width: min(760px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); padding: 22px; box-shadow: 0 40px 100px rgba(0, 0, 0, .7); overflow: auto; }
+.avatar-dialog::backdrop { background: rgba(4, 6, 16, .78); backdrop-filter: blur(6px); }
+.avatar-dialog[open] { animation: popin .28s var(--ease); }
+@keyframes popin { from { transform: translateY(14px) scale(.97); opacity: 0; } to { transform: none; opacity: 1; } }
+.avatar-grid { display: grid; grid-template-columns: 250px 1fr; gap: 20px; align-items: center; margin: 8px 0; }
+.avatar-dialog .avatar-preview { height: 280px; margin: 0; background: radial-gradient(circle at 50% 40%, hsl(var(--avatar-hue, 152) 60% 30% / .6), rgba(10, 14, 34, .7)); }
+.avatar-dialog .dialog-actions { margin-top: 10px; }
+.avatar-dialog .btn-primary { width: auto; min-width: 200px; }
+.opt-group legend { width: 84px; }
+@media (max-width: 700px) {
+  .avatar-grid { grid-template-columns: 1fr; }
+  .avatar-dialog .avatar-preview { height: 190px; }
+  .avatar-dialog .btn-primary { width: 100%; }
+}
+
+/* Rematch card slides in from the right */
+.toast { position: fixed; z-index: 200; right: 18px; bottom: 18px; width: min(360px, calc(100vw - 28px)); display: flex; align-items: center; gap: 12px; padding: 14px 14px 14px 16px; border-radius: 16px; border: 1px solid rgba(61, 255, 168, .55); background: var(--glass-strong); backdrop-filter: blur(14px); box-shadow: 0 20px 60px rgba(0, 0, 0, .6), 0 0 30px rgba(61, 255, 168, .25); transform: translateX(120%); opacity: 0; transition: transform .45s var(--ease), opacity .3s; }
+.toast.in { transform: none; opacity: 1; }
+.toast-icon { font-size: 28px; }
+.toast-text { display: grid; flex: 1; min-width: 0; line-height: 1.3; }
+.toast-text strong { font-family: var(--font-display); font-weight: 400; font-size: 16px; }
+.toast-text span { color: var(--muted); font-size: 13px; }
+.toast-btn { min-height: 40px; padding: 0 14px; border-radius: 10px; border: 0; background: var(--a); color: var(--on-primary); font-weight: 700; animation: glow 1.6s ease-in-out infinite; }
+.toast-x { position: absolute; top: 2px; right: 6px; width: 28px; height: 28px; border: 0; background: none; color: var(--muted); font-size: 20px; line-height: 1; }
+@media (prefers-reduced-motion: reduce) { .toast { transition: none; } .toast-btn { animation: none; } }
+
+/* Spectator */
+.spectate-box label { display: block; margin-bottom: 6px; font-weight: 600; }
+.follow { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 12px 0; }
+.follow .eyebrow { margin: 0 6px 0 0; }
+.follow-btn { border: 1px solid var(--line-strong); }
+.dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+.dot.a { background: var(--a); } .dot.b { background: var(--b); }
+body[data-mode="spectator"] .hud-pad, body[data-mode="spectator"] #movement, body[data-mode="spectator"] .exit-btn, body[data-mode="spectator"] #chat { display: none !important; }
+body[data-mode="spectator"][data-phase="countdown"] .stage, body[data-mode="spectator"][data-phase="racing"] .stage { position: relative; inset: auto; z-index: auto; width: auto; height: min(78dvh, 860px); min-height: 460px; border-radius: 20px; border: 1px solid var(--line-strong); }
+body[data-mode="spectator"][data-phase="countdown"] .topbar, body[data-mode="spectator"][data-phase="racing"] .topbar { position: sticky; top: 0; right: auto; padding: 14px clamp(16px, 3vw, 40px); background: rgba(7, 11, 26, .7); border-bottom: 1px solid var(--line); backdrop-filter: blur(14px); }
+body[data-mode="spectator"][data-phase="countdown"] .topbar .brand, body[data-mode="spectator"][data-phase="racing"] .topbar .brand, body[data-mode="spectator"][data-phase="countdown"] .topbar nav, body[data-mode="spectator"][data-phase="racing"] .topbar nav { display: flex; }
+
+/* Result screens: losing side and spectators */
+.win-banner span { display: block; margin-top: 6px; font-family: var(--font-body); font-size: clamp(16px, 2.4vw, 24px); color: #fff; text-shadow: 0 2px 12px rgba(0, 0, 0, .7); }
+.win-banner em { display: block; margin-top: 8px; font-style: normal; font-weight: 700; font-size: clamp(15px, 2.2vw, 22px); color: #ffd34d; text-shadow: 0 2px 12px rgba(0, 0, 0, .8); }
+.win-banner.mode-lose strong, .win-banner.mode-watch strong { font-size: clamp(30px, 6vw, 70px); background: linear-gradient(180deg, #fff, #9bb8ff 70%, #c9a8ff); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 0 22px rgba(155, 184, 255, .6)); }
+.stats-line { border-color: rgba(255, 211, 77, .5); color: #ffd34d; }

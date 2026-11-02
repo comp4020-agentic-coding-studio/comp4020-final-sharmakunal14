@@ -29,6 +29,18 @@
     <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
   </svg>
 
+  <dialog id="avatar-card" class="avatar-dialog" aria-labelledby="avatar-title">
+    <form method="dialog" class="avatar-form">
+      <div class="row-between"><h2 id="avatar-title" class="display-sm">Make it yours</h2><button id="avatar-random" type="button" class="btn btn-icon" aria-label="Surprise me: random avatar" title="Surprise me">🎲</button></div>
+      <div class="avatar-grid">
+        <div id="avatar-preview" class="avatar-preview" aria-hidden="true"></div>
+        <div id="avatar-options" class="avatar-options"></div>
+      </div>
+      <p class="fine">Your rival sees this avatar. You can change it until the countdown starts.</p>
+      <div class="dialog-actions"><button id="avatar-go" class="btn btn-primary" value="go"><span id="avatar-go-label">Done</span><svg aria-hidden="true"><use href="#i-arrow"/></svg></button></div>
+    </form>
+  </dialog>
+
   <header class="topbar">
     <a class="brand" href="/" aria-label="Maze Duel home"><span class="brand-mark" aria-hidden="true"></span><span class="brand-word">MAZE<b>DUEL</b></span></a>
     <nav aria-label="Main"><a href="#how-to-play">How to play</a><a href="/readme/">About</a></nav>
@@ -49,6 +61,7 @@
   <main id="main">
     <h1 class="sr-only">Maze Duel — a live two-player 3D maze race</h1>
     <div class="game">
+      <div class="main-col">
       <section class="stage" aria-labelledby="arena-title">
         <div id="maze" class="viewport" role="img" aria-label="Today’s 3D maze, with entrance A at one corner and entrance B at the opposite corner."></div>
 
@@ -109,6 +122,11 @@
         <p id="switch-hint" class="hud hud-hint"></p>
         <p class="hud hud-key" id="board-note">Drag to orbit · scroll to zoom</p>
       </section>
+      <div class="under-stage">
+        <section id="best" class="card card-list" hidden><h2 class="list-title"><svg aria-hidden="true"><use href="#i-trophy"/></svg>Today’s best times</h2><ol id="best-list"></ol></section>
+        <section id="recent" class="card card-list" hidden><h2 class="list-title">Your recent races</h2><ul id="recent-list"></ul></section>
+      </div>
+      </div>
 
       <aside class="panel-col" aria-label="Race lobby">
         <section id="entry" class="card">
@@ -133,6 +151,11 @@
           <h2 id="race-title" class="display-sm" role="status">Waiting for a rival.</h2>
           <p id="race-description" class="muted">Share your link to fill the second spot.</p>
           <div id="invitation" class="invitation"><label for="race-link">Invite your opponent</label><div class="copy-row"><input id="race-link" readonly><button id="copy-link" type="button" class="btn btn-icon" aria-label="Copy invitation link"><svg aria-hidden="true"><use href="#i-copy"/></svg></button></div><p id="copy-status" role="status" class="fine"></p></div>
+          <div id="spectate-box" class="invitation spectate-box">
+            <label for="spectate-link">Spectator link <span class="fine">· share it so friends can watch</span></label>
+            <div class="copy-row"><input id="spectate-link" readonly placeholder="Preparing link…"><button id="copy-spectate" type="button" class="btn btn-icon" aria-label="Copy spectator link"><svg aria-hidden="true"><use href="#i-copy"/></svg></button></div>
+            <p id="spectate-status" role="status" class="fine"></p>
+          </div>
           <div class="roster" aria-label="Players">
             <div class="roster-row a"><i aria-hidden="true">A</i><div><strong id="player-a-name">Player A</strong><span id="player-a-status">Waiting</span></div><span id="player-a-ready" class="ready-tag"></span></div>
             <div class="roster-row b"><i aria-hidden="true">B</i><div><strong id="player-b-name">Open spot</strong><span id="player-b-status">Invite a friend</span></div><span id="player-b-ready" class="ready-tag"></span></div>
@@ -142,12 +165,27 @@
           <p id="position" class="fine center"></p>
           <button id="another-race" class="btn btn-primary" type="button" hidden><span>Create another race</span><svg aria-hidden="true"><use href="#i-arrow"/></svg></button>
           <p id="result-card" class="result-card" hidden></p>
+          <p id="stats-line" class="result-card stats-line" hidden></p>
           <button id="rematch" class="btn btn-primary" type="button" hidden><span>Rematch</span><svg aria-hidden="true"><use href="#i-arrow"/></svg></button>
           <p id="rematch-note" class="fine center" role="status"></p>
           <a id="watch-replay" class="btn btn-ghost" href="#" hidden><span>Watch the replay</span><svg aria-hidden="true"><use href="#i-play"/></svg></a>
           <button id="copy-replay" type="button" class="btn btn-ghost" hidden><span>Copy replay link</span><svg aria-hidden="true"><use href="#i-copy"/></svg></button>
           <p id="replay-status" role="status" class="fine center"></p>
           <p class="fine race-note">A lost connection does not pause the clock. Reopen this link in the same browser to return.</p>
+        </section>
+
+        <section id="spectator-panel" class="card" hidden>
+          <p class="eyebrow">SPECTATING · READ ONLY</p>
+          <h2 id="spec-title" class="display-sm" role="status">Loading…</h2>
+          <p id="spec-players" class="muted"></p>
+          <p id="spec-watching" class="fine"></p>
+          <div class="follow" role="group" aria-label="Follow a player">
+            <p class="eyebrow">FOLLOW</p>
+            <button type="button" class="view-btn follow-btn" data-follow="0" aria-pressed="true"><i class="dot a" aria-hidden="true"></i><span>Player A</span></button>
+            <button type="button" class="view-btn follow-btn" data-follow="1" aria-pressed="false"><i class="dot b" aria-hidden="true"></i><span>Player B</span></button>
+          </div>
+          <p class="fine">Use the Map, 3rd and 1st buttons on the maze. 3rd and 1st show the player you follow.</p>
+          <a class="btn btn-primary" href="/"><span>Play your own race</span><svg aria-hidden="true"><use href="#i-arrow"/></svg></a>
         </section>
 
         <section id="replay-panel" class="card" hidden>
@@ -166,17 +204,16 @@
           <a class="btn btn-ghost" href="/"><span>Back to today’s maze</span><svg aria-hidden="true"><use href="#i-arrow"/></svg></a>
         </section>
 
-        <section id="avatar-card" class="card" aria-labelledby="avatar-title">
-          <div class="row-between"><p class="eyebrow" id="avatar-title">YOUR AVATAR</p><button id="avatar-random" type="button" class="btn btn-icon" aria-label="Surprise me: random avatar" title="Surprise me">🎲</button></div>
-          <div id="avatar-preview" class="avatar-preview" aria-hidden="true"></div>
-          <div id="avatar-options" class="avatar-options"></div>
-          <p class="fine">Your rival sees this avatar. You can change it until the countdown starts.</p>
+        <section id="stats-card" class="card stats-card" hidden aria-label="Your progress">
+          <div class="stat"><span class="stat-n" id="stat-streak">0</span><span class="stat-l">day streak 🔥</span></div>
+          <div class="stat"><span class="stat-n" id="stat-best">—</span><span class="stat-l">your best today</span></div>
+          <p id="stat-note" class="fine"></p>
         </section>
+
+        <button id="avatar-open" type="button" class="btn btn-ghost avatar-open" hidden><span id="avatar-open-label">Edit your avatar</span><i class="mini-hue" aria-hidden="true"></i></button>
 
         <p id="error" class="error" role="alert" hidden></p>
 
-        <section id="best" class="card card-list" hidden><h2 class="list-title"><svg aria-hidden="true"><use href="#i-trophy"/></svg>Today’s best times</h2><ol id="best-list"></ol></section>
-        <section id="recent" class="card card-list" hidden><h2 class="list-title">Your recent races</h2><ul id="recent-list"></ul></section>
       </aside>
     </div>
 
@@ -195,6 +232,12 @@
     </section>
   </main>
   <footer class="foot"><span>MAZE DUEL · an experiment in friendly rivalry</span><a href="/readme/">Project notes</a></footer>
+  <div id="rematch-toast" class="toast" hidden role="status">
+    <span class="toast-icon" aria-hidden="true">⚔️</span>
+    <span class="toast-text"><strong id="toast-title">Rematch?</strong><span id="toast-body"></span></span>
+    <button id="toast-join" type="button" class="toast-btn">Join now</button>
+    <button id="toast-close" type="button" class="toast-x" aria-label="Dismiss">×</button>
+  </div>
   <p id="announcement" class="sr-only" role="status" aria-live="polite"></p>
   <noscript><p class="error">JavaScript is required for live multiplayer. Enable it and reload to join a race.</p></noscript>
   <script type="module" src="/maze.js"></script>

@@ -5,12 +5,14 @@ import { mountRace } from "./maze-race.js";
 import { mountReplay } from "./maze-replay.js";
 import { setupAudio } from "./maze-audio-ui.js";
 import { setupAvatarPicker } from "./maze-avatar-ui.js";
+import { mountSpectator } from "./maze-spectate.js";
 
 export const formatTime = (ms) => `${Math.floor(ms / 60_000).toString().padStart(2, "0")}:${((ms % 60_000) / 1_000).toFixed(1).padStart(4, "0")}`;
 
 const $ = (id) => document.getElementById(id);
 const replayId = /^\/race\/([a-f0-9-]{36})\/replay\/?$/.exec(location.pathname)?.[1] ?? null;
-const invitationId = replayId ? null : raceId(location.href);
+const watchToken = /^\/watch\/([a-f0-9-]{36})\/?$/.exec(location.pathname)?.[1] ?? null;
+const invitationId = replayId || watchToken ? null : raceId(location.href);
 let actor = null;
 let mazeView, picker, preview = null, inLobby = true, today = null;
 const audio = setupAudio();
@@ -40,6 +42,8 @@ async function enter(id) {
   inLobby = false;
   $("entry").hidden = true;
   $("recent").hidden = true;
+  $("stats-card").hidden = true;
+  $("avatar-open").hidden = true;
   mountRace(view, mazeView, showError, audio);
 }
 
@@ -65,6 +69,9 @@ $("entry-form").addEventListener("submit", async (event) => {
     $("invite").focus();
     return;
   }
+  // The avatar designer comes up in front before anyone enters a race, so it is
+  // never buried. Skipping it keeps whatever was saved (or the default).
+  if (!(await askAvatar(joining ? "Join the race" : "Create the race"))) return;
   $("entry-fields").disabled = true;
   $("error").hidden = true;
   try {
@@ -82,6 +89,38 @@ $("entry-form").addEventListener("submit", async (event) => {
     try { await recentRaces(); } catch { /* Preserve the original actionable error. */ }
   } finally { $("entry-fields").disabled = false; }
 });
+
+// Opens the designer in front and resolves true when the player continues.
+// It is shown once per visit; later races reuse the saved look unless they
+// press "Edit your avatar".
+let askedAvatar = false;
+function askAvatar(label, force = false) {
+  const dialog = $("avatar-card");
+  if (askedAvatar && !force || typeof dialog.showModal !== "function") return Promise.resolve(true);
+  askedAvatar = true;
+  $("avatar-go-label").textContent = label;
+  return new Promise((resolve) => {
+    dialog.addEventListener("close", () => resolve(dialog.returnValue === "go"), { once: true });
+    dialog.returnValue = "";
+    dialog.showModal();
+    preview?.draw?.(0);
+  });
+}
+$("avatar-open").addEventListener("click", () => { void askAvatar("Done", true); });
+
+// Streak and personal best: shown in the lobby once a nickname exists.
+async function showStats() {
+  if (!actor) return;
+  try {
+    const stats = await request("/api/maze/stats");
+    $("stats-card").hidden = false;
+    $("stat-streak").textContent = String(stats.streak);
+    $("stat-best").textContent = stats.best === null ? "—" : formatTime(stats.best);
+    $("stat-note").textContent = stats.streak === 0 ? "Finish a race today to start a streak."
+      : stats.playedToday ? "You have raced today. Come back tomorrow to keep it going."
+      : "Race today to keep your streak alive.";
+  } catch { /* stats are a bonus; the lobby works without them */ }
+}
 
 // WebGL can be unavailable (old devices, blocked GPU); fall back to the 2D projection.
 async function createView(container) {
@@ -134,6 +173,12 @@ async function initialize() {
     item.append(link);
     return item;
   }));
+  if (watchToken) {
+    // Spectators need no nickname: they only watch.
+    for (const id of ["entry", "recent", "best", "stats-card", "avatar-open"]) { const el = $(id); if (el) el.hidden = true; }
+    inLobby = false;
+    return mountSpectator(watchToken, mazeView, showError);
+  }
   if (replayId) {
     try { actor = await request("/api/me"); }
     catch (error) { if (!(error instanceof ApiError) || error.status !== 401) throw error; }
@@ -157,7 +202,6 @@ async function initialize() {
     }
     $("entry").hidden = true;
     $("recent").hidden = true;
-    $("avatar-card").hidden = true;
     return mountReplay(await request(`/api/maze/matches/${replayId}/replay`), mazeView);
   }
   if (invitationId) {
@@ -172,8 +216,9 @@ async function initialize() {
   catch (error) { if (!(error instanceof ApiError) || error.status !== 401) throw error; }
   showIdentity();
   $("entry-fields").disabled = false;
+  $("avatar-open").hidden = false;
   if (invitationId && actor) await enter(invitationId);
-  else await recentRaces();
+  else { await recentRaces(); await showStats(); }
 }
 
 initialize().catch(showError);

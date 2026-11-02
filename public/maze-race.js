@@ -7,6 +7,7 @@ import { celebrate } from "./maze-celebrate.js";
 import { lookOf } from "./maze-look.js";
 
 const $ = (id) => document.getElementById(id);
+const clock = (ms) => `${Math.floor(ms / 60_000).toString().padStart(2, "0")}:${((ms % 60_000) / 1_000).toFixed(1).padStart(4, "0")}`;
 const text = (id, value) => { if ($(id).textContent !== value) $(id).textContent = value; };
 
 export function mountRace(initial, mazeView, showError, audio) {
@@ -67,8 +68,9 @@ export function mountRace(initial, mazeView, showError, audio) {
       if (!document.fullscreenElement) document.documentElement.requestFullscreen?.().catch(() => {});
     }
     if (done && document.fullscreenElement) document.exitFullscreen().catch(() => {});
-    // The avatar designer is only for the waiting room; the server locks looks after that.
-    $("avatar-card").hidden = game.status !== "waiting";
+    // The designer is only for the waiting room; the server locks looks after that.
+    $("avatar-open").hidden = game.status !== "waiting";
+    if (game.status !== "waiting" && $("avatar-card").open) $("avatar-card").close();
     // Show what the server saved for this seat once; after that the picker leads.
     if (!lookSynced) {
       lookSynced = true;
@@ -114,6 +116,8 @@ export function mountRace(initial, mazeView, showError, audio) {
       text(`legend-${label}`, p ? `${p.id === me ? "You" : p.name} → ${slot === 0 ? "B" : "A"}` : "Waiting for a rival");
     }
     $("invitation").hidden = Boolean(opponent);
+    // Sharing the watch link makes sense before the race starts, and stays handy after.
+    $("spectate-box").hidden = game.status === "racing" || done;
     $("ready").hidden = game.status !== "waiting";
     $("ready").disabled = busy || !connected || player.ready;
     text("ready", player.ready ? "Ready ✓" : "I’m ready ✓");
@@ -122,7 +126,11 @@ export function mountRace(initial, mazeView, showError, audio) {
     $("another-race").hidden = !done;
     $("rematch").hidden = !done || game.players.length < 2;
     $("rematch").disabled = rematching;
-    text("rematch-note", done && game.rematchId ? "Your rival asked for a rematch. Press Rematch to join." : "");
+    // The other player is told with a card that slides in; the first asker is not.
+    const asked = done && game.rematchId && game.rematchBy && game.rematchBy !== me;
+    if (asked) showRematch(opponent?.name ?? "Your rival", game.rematchId);
+    else if (!done || !game.rematchId) hideRematch();
+    text("rematch-note", done && game.rematchId && game.rematchBy === me ? "Rematch sent. Waiting for your rival…" : "");
     $("copy-replay").hidden = game.status !== "finished";
     if (game.status === "finished") showResult();
     $("watch-replay").hidden = !done;
@@ -158,12 +166,48 @@ export function mountRace(initial, mazeView, showError, audio) {
     } catch { resultShown = false; }
   }
 
+  let toastFor = null, toastDismissed = null;
+  function showRematch(name, id) {
+    if (toastDismissed === id) return;
+    if (toastFor !== id) { toastFor = id; audio.play("join"); text("announcement", `${name} wants a rematch.`); }
+    text("toast-title", `${name} wants a rematch`);
+    text("toast-body", "Tap to jump straight into the next race.");
+    $("rematch-toast").hidden = false;
+    requestAnimationFrame(() => $("rematch-toast").classList.add("in"));
+  }
+  function hideRematch() {
+    $("rematch-toast").classList.remove("in");
+    $("rematch-toast").hidden = true;
+    toastFor = null;
+  }
+  $("toast-join").addEventListener("click", () => { $("rematch").click(); });
+  $("toast-close").addEventListener("click", () => { toastDismissed = toastFor; hideRematch(); });
+
+  // After a win, show whether it is a new personal best and the streak.
+  async function noteResult(id) {
+    try {
+      const stats = await request(`/api/maze/stats?match=${id}`);
+      const r = stats.result;
+      const parts = [];
+      if (r) parts.push(r.newBest ? (r.previousBest === null ? "First win on today's maze!" : "★ New personal best!") : `Personal best: ${clock(r.previousBest)}`);
+      if (stats.streak > 0) parts.push(`${stats.streak}-day streak 🔥`);
+      const line = parts.join(" · ");
+      celebration?.setNote?.(line);
+      if (line) text("stats-line", line);
+      $("stats-line").hidden = !line;
+    } catch { /* a bonus line; the result stands without it */ }
+  }
+
   function apply(view, audible = connected) {
     if (view.game.revision < game.revision) return;
     if (audible) for (const cue of raceCues(game, view.game, me)) audio.play(cue);
-    // Celebrate a win that happens while watching, never one found by reloading.
-    if (audible && game.status !== "finished" && view.game.status === "finished" && view.game.winnerId === me && !celebration) {
-      celebration = celebrate(document.querySelector(".stage"), { hue: lookOf(view.game.players.find((p) => p.id === me)).hue });
+    // A result seen live gets a screen for each side; one found by reloading does not replay it.
+    if (audible && game.status !== "finished" && view.game.status === "finished" && view.game.winnerId && !celebration) {
+      const won = view.game.winnerId === me, winner = view.game.players.find((p) => p.id === view.game.winnerId);
+      celebration = celebrate(document.querySelector(".stage"), {
+        mode: won ? "win" : "lose", name: winner.name, hue: lookOf(view.game.players.find((p) => p.id === me)).hue,
+      });
+      noteResult(view.game.id);
     }
     // A reconnect establishes current state, not an opportunity to replay the
     // result, flips or countdown seconds missed while offline.
@@ -294,6 +338,19 @@ export function mountRace(initial, mazeView, showError, audio) {
     try { apply(await request(`${path}/ready`, {})); }
     catch (error) { showError(error); }
     finally { busy = false; render(); }
+  });
+  // The spectator link is a separate secret; it is created the first time it is needed.
+  request(`${path}/spectate`).then(({ token }) => {
+    $("spectate-link").value = `${location.origin}/watch/${token}`;
+  }).catch(() => text("spectate-status", "The spectator link is not available right now."));
+  $("copy-spectate").addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText($("spectate-link").value);
+      text("spectate-status", "Copied. Anyone with this link can watch, not play.");
+    } catch {
+      $("spectate-link").focus(); $("spectate-link").select();
+      text("spectate-status", "Select and copy the spectator link above.");
+    }
   });
   $("copy-link").addEventListener("click", async () => {
     try {
