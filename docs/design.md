@@ -136,6 +136,7 @@ be always correct. That needs human playtesting before more mechanics.
 - [0005: Optional original retro audio](decisions/0005-retro-audio.md) — synthesized chiptunes, gesture unlock, bounded scheduling and confirmed-event feedback; partly amended by 0006.
 - [0006: Audible, on-by-default audio](decisions/0006-audible-retro-audio.md) — louder levels, per-scene music, mute button, page-load unlock.
 - [0008: Spectators, streak and personal best, rematch card](decisions/0008-spectators-stats-rematch-card.md) — separate watch secret, private fields removed, derived streak, result screens for all, designer in front.
+- [0009: One step at a time flow](decisions/0009-one-step-at-a-time-flow.md) — full-bleed maze, one card per step, avatar step with Back, secondary content in dialogs.
 - [0007: Avatar looks, chat with reactions, win celebration](decisions/0007-avatars-chat-celebration.md) — validated looks locked at countdown, rate-limited chat saved with the game, client-only fireworks.
 
 For future changes, update this overview when behaviour or architecture changes.

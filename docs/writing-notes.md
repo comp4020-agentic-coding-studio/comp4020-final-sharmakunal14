@@ -211,3 +211,19 @@ Raw material, not prose. Decision record: [0008](decisions/0008-spectators-stats
   [loser screen](evidence/2026-11-02-loser-screen.png),
   [spectator first person](evidence/2026-11-02-spectator-first-person.png),
   [lobby layout](evidence/2026-11-02-lobby-layout.png).
+
+## 0009 one-step-at-a-time flow (2026-11-02)
+
+- Trigger: the player said the landing page felt cluttered and "bombarded with
+  everything at one screen". Decision: [0009](decisions/0009-one-step-at-a-time-flow.md).
+- Reason for the design: one primary action per screen, secondary content on
+  request, a step indicator, directional slides. Used the ui-ux-pro-max guidance.
+- Bug found by browsing the result: the avatar dialog opened twice for the
+  creator. Fixed with a seat check before the invitation branch.
+- Not evidence of clarity: no other person has used the new flow. The join-as-
+  second-player path was not re-run in a browser.
+- Evidence: [name step](evidence/2026-11-02-flow-desk-1-name.png),
+  [plan step](evidence/2026-11-02-flow-desk-2-choose.png),
+  [avatar step](evidence/2026-11-02-flow-desk-4-avatar.png),
+  [waiting room](evidence/2026-11-02-flow-desk-5-wait.png),
+  [phone plan](evidence/2026-11-02-flow-phone-2-choose.png).

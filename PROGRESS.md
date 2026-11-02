@@ -636,3 +636,33 @@ Decision record: [0008](docs/decisions/0008-spectators-stats-rematch-card.md).
 - The streak across a real midnight and across days (tested as pure date maths,
   not over time); a returning player on a later day.
 - Personal best when two different nicknames share a browser; Safari and Firefox.
+
+## 2026-11-02 — One-step-at-a-time flow (local, not pushed)
+
+The player found the landing page cluttered and asked for one step per screen
+with smooth transitions (decision 0009). The maze is now full-bleed behind a
+single card that moves through name, plan, join link, avatar dialog and the
+waiting room, with a step indicator. Leaderboard and how-to-play moved into
+dialogs; the spectator link is collapsed.
+
+| Check | Result |
+| --- | --- |
+| `pnpm vitest run` against a local app with a throwaway `DATA_DIR`; `pnpm typecheck` | 121/121 tests, typecheck clean |
+| Agent-driven Chrome, 1440×900 and 390×844 touch: name, plan, join, avatar, waiting room ([script](evidence/2026-11-02-flow-check.mjs)) | Flow completes on both sizes; no page errors beyond expected 401/404 probes |
+
+### Problems found
+
+- After creating a race the page reloaded and asked for the avatar a second
+  time, because the invitation branch could not tell a seated creator from a new
+  joiner. It now checks for a seat first.
+- The connection chip and player pills sat under the new fixed top bar; moved down.
+- The lobby markup test asserted the old layout and was rewritten.
+
+### Not verified
+
+- Joining through an invitation link as a second player, replay and spectator
+  entry, and reduced-motion transitions were not re-run in a browser after the
+  rewrite; only the creator path was.
+- Racing, result and rematch screens were not re-checked visually with the new
+  top bar and hidden steps.
+- No human playtest; Safari and Firefox untried.
