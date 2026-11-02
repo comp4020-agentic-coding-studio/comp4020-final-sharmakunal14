@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { DatabaseSync } from "node:sqlite";
-import { addChat, applyActions, BURST, forfeitGame, GameError, isAction, joinGame, MAX_BATCH, MOVE_INTERVAL_MS, readyPlayer, setLook, SWITCH_COOLDOWN_MS, todaysLayout } from "./maze-game.ts";
+import { addChat, applyActions, BURST, forfeitGame, GameError, isAction, joinGame, MAX_BATCH, MOVE_INTERVAL_MS, publicGame, readyPlayer, setLook, SWITCH_COOLDOWN_MS, todaysLayout } from "./maze-game.ts";
 import type { Action } from "./maze-game.ts";
 import type { Game, Identity } from "./maze-game.ts";
 import type { Look } from "./public/maze-look.js";
@@ -70,7 +70,27 @@ export function createMazeHandler(db: DatabaseSync) {
         const layout = todaysLayout();
         return send(res, 200, { ...layout, best: store.best(layout.mazeId) });
       }
+      // Spectators hold only a secret link, no identity: read-only, and no chat.
+      const watch = /^\/api\/maze\/watch\/([a-f0-9-]{36})(?:\/(stream))?$/.exec(path);
+      if (watch && req.method === "GET") {
+        const raceId = store.matchForToken(watch[1]);
+        if (watch[2] === "stream") return live.watch(res, store.current(raceId));
+        return send(res, 200, { game: publicGame(store.current(raceId)), serverNow: Date.now(), ...rules });
+      }
       if (!actor) throw new GameError("NO_SESSION", "Choose a nickname first.", 401);
+      if (path === "/api/maze/stats" && req.method === "GET") {
+        const asked = new URL(req.url ?? "/", "http://local").searchParams.get("match");
+        const stats = store.stats(actor.id);
+        if (!asked) return send(res, 200, stats);
+        // How a finished race went for this player: personal best and streak.
+        const finished = /^[a-f0-9-]{36}$/.test(asked) ? store.get(asked) : null;
+        let result = null;
+        if (finished?.players.some((p) => p.id === actor.id) && finished.status === "finished" && finished.winnerId === actor.id) {
+          const timeMs = finished.finishedAt! - finished.startsAt!, previousBest = store.personalBest(actor.id, finished.mazeId, finished.id);
+          result = { timeMs, previousBest, newBest: previousBest === null || timeMs < previousBest };
+        }
+        return send(res, 200, { ...stats, result });
+      }
       if (path === "/api/maze/matches" && req.method === "POST") {
         const input = await body(req);
         return send(res, 201, snapshot(store.create(actor, Date.now(), parseOptionalLook(input.look, 0)), actor));
@@ -78,7 +98,7 @@ export function createMazeHandler(db: DatabaseSync) {
       if (path === "/api/maze/matches" && req.method === "GET") {
         return send(res, 200, { matches: store.recent(actor.id) });
       }
-      const match = /^\/api\/maze\/matches\/([a-f0-9-]{36})(?:\/(join|ready|move|stream|replay|forfeit|rematch|look|chat))?$/.exec(path);
+      const match = /^\/api\/maze\/matches\/([a-f0-9-]{36})(?:\/(join|ready|move|stream|replay|forfeit|rematch|look|chat|spectate))?$/.exec(path);
       if (!match) throw new GameError("NOT_FOUND", "Unknown game address.", 404);
       const [, id, action] = match;
       if (req.method === "POST" && action === "join") {
@@ -93,11 +113,13 @@ export function createMazeHandler(db: DatabaseSync) {
         const game = store.get(id);
         if (game.status !== "finished" && game.status !== "interrupted") requireMember(game, actor);
         if (game.status !== "finished" && game.status !== "interrupted") throw new GameError("NOT_FINISHED", "A replay is available once the race ends.");
-        return send(res, 200, { game, steps: store.steps(id) });
+        // Outsiders see the race and its replay, never the players' private chat.
+        return send(res, 200, { game: game.players.some((p) => p.id === actor.id) ? game : publicGame(game), steps: store.steps(id) });
       }
       requireMember(store.get(id), actor);
       if (req.method === "GET" && action === "stream") return live.open(res, actor, store.current(id));
       if (req.method === "GET" && !action) return send(res, 200, snapshot(store.current(id), actor));
+      if (req.method === "GET" && action === "spectate") return send(res, 200, { token: store.spectatorToken(id) });
       if (req.method !== "POST" || !action) throw new GameError("NOT_FOUND", "Unknown game action.", 404);
       const input = await body(req);
       let game: Game;

@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import { advanceGame, GameError, joinGame, newGame } from "./maze-game.ts";
+import { sydneyDate } from "./maze-gen.ts";
 import type { Look } from "./public/maze-look.js";
 import type { Game, Identity, LogEntry } from "./maze-game.ts";
 
@@ -8,6 +9,19 @@ export type Summary = {
   id: string; status: Game["status"]; createdAt: number; mazeId: string;
   winner: string | null; timeMs: number | null; players: string[];
 };
+export type Stats = { mazeId: string; streak: number; playedToday: boolean; best: number | null };
+
+const previousDay = (day: string) => new Date(Date.parse(`${day}T00:00:00Z`) - 86_400_000).toISOString().slice(0, 10);
+
+// Consecutive Sydney days with a finished race, ending today. A streak is still
+// alive until the end of today even if you have not played yet, so it counts
+// back from yesterday when today is empty.
+export function streakFrom(days: ReadonlySet<string>, today: string): number {
+  let day = days.has(today) ? today : previousDay(today), count = 0;
+  while (days.has(day)) { count++; day = previousDay(day); }
+  return count;
+}
+
 export type BestTime = { matchId: string; name: string; timeMs: number; finishedAt: number };
 
 function summary(game: Game): Summary {
@@ -37,7 +51,10 @@ export class MazeStore {
     CREATE TABLE IF NOT EXISTS maze_results (
       match_id TEXT PRIMARY KEY REFERENCES maze_matches(id), maze_id TEXT NOT NULL,
       winner_id TEXT NOT NULL, winner_name TEXT NOT NULL, time_ms INTEGER NOT NULL, finished_at INTEGER NOT NULL
-    ); CREATE INDEX IF NOT EXISTS maze_results_board ON maze_results(maze_id, time_ms);`);
+    ); CREATE INDEX IF NOT EXISTS maze_results_board ON maze_results(maze_id, time_ms);
+    CREATE TABLE IF NOT EXISTS maze_spectators (
+      token TEXT PRIMARY KEY, match_id TEXT NOT NULL UNIQUE REFERENCES maze_matches(id)
+    );`);
   }
 
   private transaction<T>(work: () => T): T {
@@ -84,7 +101,7 @@ export class MazeStore {
       const seated = joinGame(newGame(randomUUID(), first, now, undefined, first.look), second, second.look);
       this.db.prepare("INSERT INTO maze_matches (id, owner_id, created_at, state) VALUES (?, ?, ?, ?)")
         .run(seated.id, first.id, now, JSON.stringify(seated));
-      const linked: Game = { ...old, rematchId: seated.id, revision: old.revision + 1 };
+      const linked: Game = { ...old, rematchId: seated.id, rematchBy: actor.id, revision: old.revision + 1 };
       this.db.prepare("UPDATE maze_matches SET state = ? WHERE id = ?").run(JSON.stringify(linked), id);
       return seated;
     });
@@ -131,6 +148,40 @@ export class MazeStore {
       WHERE maze_id = ? ORDER BY time_ms, finished_at LIMIT ?`).all(mazeId, limit) as
       { match_id: string; winner_name: string; time_ms: number; finished_at: number }[])
       .map((r) => ({ matchId: r.match_id, name: r.winner_name, timeMs: r.time_ms, finishedAt: r.finished_at }));
+  }
+
+  // The spectator link is a separate secret from the players' invitation, so
+  // sharing it never lets anyone take a seat. Made on first request.
+  spectatorToken(matchId: string): string {
+    return this.transaction(() => {
+      const row = this.db.prepare("SELECT token FROM maze_spectators WHERE match_id = ?").get(matchId) as { token: string } | undefined;
+      if (row) return row.token;
+      const token = randomUUID();
+      this.db.prepare("INSERT INTO maze_spectators (token, match_id) VALUES (?, ?)").run(token, matchId);
+      return token;
+    });
+  }
+
+  matchForToken(token: string): string {
+    const row = this.db.prepare("SELECT match_id FROM maze_spectators WHERE token = ?").get(token) as { match_id: string } | undefined;
+    if (!row) throw new GameError("NOT_FOUND", "This spectator link is not valid.", 404);
+    return row.match_id;
+  }
+
+  // Fastest win on one maze, optionally leaving one race out so a finished
+  // race can be compared with the player's earlier ones.
+  personalBest(actorId: string, mazeId: string, exceptMatchId?: string): number | null {
+    const row = this.db.prepare("SELECT MIN(time_ms) AS best FROM maze_results WHERE winner_id = ? AND maze_id = ? AND match_id IS NOT ?")
+      .get(actorId, mazeId, exceptMatchId ?? null) as { best: number | null };
+    return row.best;
+  }
+
+  stats(actorId: string, now = Date.now()): Stats {
+    const rows = this.db.prepare(`SELECT DISTINCT json_extract(state, '$.mazeId') AS day FROM maze_matches
+      WHERE json_extract(state, '$.status') = 'finished'
+      AND EXISTS (SELECT 1 FROM json_each(state, '$.players') WHERE json_extract(value, '$.id') = ?)`).all(actorId) as { day: string }[];
+    const days = new Set(rows.map((r) => r.day)), today = sydneyDate(now);
+    return { mazeId: today, streak: streakFrom(days, today), playedToday: days.has(today), best: this.personalBest(actorId, today) };
   }
 
   steps(id: string): LogEntry[] {

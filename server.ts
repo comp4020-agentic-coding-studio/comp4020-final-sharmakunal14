@@ -240,7 +240,7 @@ async function handle(req: IncomingMessage, res: ServerResponse) {
     res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
     return res.end(readmePage());
   }
-  if (method === "GET" && (path === "/" || /^\/race\/[a-f0-9-]{36}(?:\/replay)?\/?$/.test(path))) return serveFile(res, "public", "maze.html");
+  if (method === "GET" && (path === "/" || /^\/(?:race\/[a-f0-9-]{36}(?:\/replay)?|watch\/[a-f0-9-]{36})\/?$/.test(path))) return serveFile(res, "public", "maze.html");
   if (method === "GET" && (path === "/shared-space" || path === "/shared-space/")) return serveFile(res, "public", "index.html");
   if (method === "GET" && /^\/events\/[\w-]+\/?$/.test(path)) return serveFile(res, "public", "plan.html");
   if (method === "GET" && path.startsWith("/docs/") && serveFile(res, "docs", path.slice(6))) return;

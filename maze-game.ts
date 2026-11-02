@@ -44,7 +44,17 @@ export type Game = {
   chat?: ChatLine[];
   // Set once either player asks for a rematch; both then join this game.
   rematchId?: string;
+  // Who asked first, so the other player can be told.
+  rematchBy?: string;
 };
+
+// What a spectator or an outside visitor may see: the race, not the players'
+// private chat or rematch plans.
+export type PublicGame = Omit<Game, "chat" | "rematchId" | "rematchBy">;
+export function publicGame(game: Game): PublicGame {
+  const { chat: _chat, rematchId: _id, rematchBy: _by, ...rest } = game;
+  return rest;
+}
 export type ChatLine = { n: number; at: number; slot: 0 | 1; kind: "text" | "reaction"; text: string };
 export const CHAT_KEEP = 30;
 export const CHAT_GAP_MS = 400;
