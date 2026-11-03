@@ -9,6 +9,19 @@ export const SIZE = CELLS * 2 + 1;
 export const PULSE_OPEN_MS = 2_500;
 export const PULSE_CLOSED_MS = 2_500;
 
+// What a maze contains. The daily maze uses DAILY; levels (decision 0013)
+// choose their own size and mechanics.
+export type Spec = {
+  cells: number;
+  switches: boolean;
+  // One entry per symmetric pulse pair: its open and closed time in ms.
+  pulses: [number, number][];
+  rifts: boolean;
+  // Extra walls opened (in symmetric pairs) to add loops, as a share of walls left.
+  loops?: number;
+};
+export const DAILY: Spec = { cells: CELLS, switches: true, pulses: [[PULSE_OPEN_MS, PULSE_CLOSED_MS]], rifts: true };
+
 export function sydneyDate(now: number): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Australia/Sydney" }).format(now);
 }
@@ -24,7 +37,6 @@ function random(seed: string): () => number {
   };
 }
 
-const rot = (p: Point): Point => ({ x: SIZE - 1 - p.x, y: SIZE - 1 - p.y });
 const key = (p: Point) => `${p.x},${p.y}`;
 
 function distances(grid: string[][], from: Point, open = new Set<string>()): Map<string, number> {
@@ -58,19 +70,23 @@ function riftDistance(grid: string[][], from: Point, to: Point, a: Point | null,
   return seen.get(key(to)) ?? null;
 }
 
-export function generate(mazeId: string): Layout {
+// `seed` defaults to the maze id; levels pass a tuned seed so their
+// mechanics are guaranteed present.
+export function generate(mazeId: string, spec: Spec = DAILY, seed = mazeId): Layout {
   // Pulses draw from their own stream so adding them left every date's
   // maze, switches and gates exactly as before.
-  const rand = random(mazeId), pulseRand = random(`${mazeId}:pulse`), riftRand = random(`${mazeId}:rift`);
+  const rand = random(seed), pulseRand = random(`${seed}:pulse`), riftRand = random(`${seed}:rift`);
   // Deterministic retries on the same stream until a layout has a switch pair.
   for (let attempt = 0; attempt < 50; attempt++) {
-    const layout = attemptLayout(mazeId, rand, pulseRand, riftRand);
-    if (layout.gates.length) return layout;
+    const layout = attemptLayout(mazeId, spec, rand, pulseRand, riftRand);
+    if (layout.gates.length || !spec.switches) return layout;
   }
   throw new Error(`No playable layout for ${mazeId}`);
 }
 
-function attemptLayout(mazeId: string, rand: () => number, pulseRand: () => number, riftRand: () => number): Layout {
+function attemptLayout(mazeId: string, spec: Spec, rand: () => number, pulseRand: () => number, riftRand: () => number): Layout {
+  const CELLS = spec.cells, SIZE = CELLS * 2 + 1;
+  const rot = (p: Point): Point => ({ x: SIZE - 1 - p.x, y: SIZE - 1 - p.y });
   const grid = Array.from({ length: SIZE }, () => Array<string>(SIZE).fill("#"));
   for (let y = 1; y < SIZE; y += 2) for (let x = 1; x < SIZE; x += 2) grid[y][x] = ".";
 
@@ -99,6 +115,16 @@ function attemptLayout(mazeId: string, rand: () => number, pulseRand: () => numb
     const r = rot(w);
     if (grid[r.y][r.x] === "#") separate(r) ? join(r) : (grid[r.y][r.x] = ".");
   }
+  // Extra loops (more than one route) for levels that ask for them. Only
+  // walls between two passages, in symmetric pairs; the daily maze adds none.
+  if (spec.loops) {
+    const closed = walls.filter((w) => grid[w.y][w.x] === "#" && key(w) !== key(rot(w)));
+    for (const w of closed.slice(0, Math.round(closed.length * spec.loops / 2))) {
+      grid[w.y][w.x] = ".";
+      const r = rot(w);
+      grid[r.y][r.x] = ".";
+    }
+  }
 
   const start = { x: 1, y: 1 }, goal = { x: SIZE - 2, y: SIZE - 2 };
   const base = distances(grid, start).get(key(goal))!;
@@ -124,7 +150,7 @@ function attemptLayout(mazeId: string, rand: () => number, pulseRand: () => numb
 
   const switches: Point[] = [];
   const gates: Gate[] = [];
-  if (chosen.length === 2) {
+  if (spec.switches && chosen.length === 2) {
     const options = [...fromStart].map(([k, d]) => {
       const [x, y] = k.split(",").map(Number);
       return { x, y, d };
@@ -140,21 +166,23 @@ function attemptLayout(mazeId: string, rand: () => number, pulseRand: () => numb
     }
   }
 
-  // One symmetric pulse pair: a shortcut away from the switch gates and both
-  // entrances. Closed, it is just a wall, so it can never disconnect the maze.
+  // Symmetric pulse pairs: shortcuts away from the switch gates and both
+  // entrances. Closed, each is just a wall, so it can never disconnect the maze.
   const pulses: Pulse[] = [];
   const clear = (w: Point, others: Point[], gap: number) =>
     others.every((o) => Math.abs(o.x - w.x) + Math.abs(o.y - w.y) >= gap);
-  const taken = gates.flatMap((g) => [g, rot(g)]);
-  const pulseOptions = walls.filter((w) => grid[w.y][w.x] === "#" && key(w) !== key(rot(w))
-    && clear(w, taken, 2) && clear(rot(w), taken, 2) && clear(w, [start, goal], 2) && clear(w, [rot(w)], 2))
-    .map((w) => ({ w, saving: base - distances(grid, start, new Set([key(w), key(rot(w))])).get(key(goal))! }))
-    .filter((c) => c.saving >= 1)
-    .sort((a, b) => b.saving - a.saving);
-  // Choose among the best few so the shortcut is worth timing.
-  const pick = pulseOptions[Math.floor(pulseRand() * Math.min(3, pulseOptions.length))];
-  if (pick) {
-    for (const p of [pick.w, rot(pick.w)]) pulses.push({ ...p, openMs: PULSE_OPEN_MS, closedMs: PULSE_CLOSED_MS });
+  for (const [openMs, closedMs] of spec.pulses) {
+    const taken = [...gates, ...pulses].flatMap((g) => [g, rot(g)]);
+    const pulseOptions = walls.filter((w) => grid[w.y][w.x] === "#" && key(w) !== key(rot(w))
+      && clear(w, taken, 2) && clear(rot(w), taken, 2) && clear(w, [start, goal], 2) && clear(w, [rot(w)], 2))
+      .map((w) => ({ w, saving: base - distances(grid, start, new Set([key(w), key(rot(w))])).get(key(goal))! }))
+      .filter((c) => c.saving >= 1)
+      .sort((a, b) => b.saving - a.saving);
+    // Choose among the best few so the shortcut is worth timing.
+    const pick = pulseOptions[Math.floor(pulseRand() * Math.min(3, pulseOptions.length))];
+    if (pick) {
+      for (const p of [pick.w, rot(pick.w)]) pulses.push({ ...p, openMs, closedMs });
+    }
   }
 
   // One linked rift pair (decision 0012) on two open cells that are each
@@ -180,6 +208,6 @@ function attemptLayout(mazeId: string, rand: () => number, pulseRand: () => numb
   riftOptions.sort((a, b) => b.saving - a.saving);
   const worth = riftOptions.filter((o) => o.saving >= 4);
   const riftPick = worth[Math.floor(riftRand() * Math.min(4, worth.length))];
-  if (riftPick) rifts.push(riftPick.p, rot(riftPick.p));
+  if (spec.rifts && riftPick) rifts.push(riftPick.p, rot(riftPick.p));
   return { mazeId, maze: grid.map((row) => row.join("")), switches, gates, pulses, rifts };
 }
