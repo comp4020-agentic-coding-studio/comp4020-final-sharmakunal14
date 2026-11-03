@@ -8,17 +8,18 @@ export function stateAt(replay, t) {
   const players = game.players.map((p) => ({ ...p, x: p.slot === 0 ? 1 : n - 2, y: p.slot === 0 ? 1 : n - 2 }));
   const switchOn = game.switches.map(() => false);
   const trails = players.map((p) => ({ slot: p.slot, cells: [{ x: p.x, y: p.y }] }));
-  let flips = 0;
+  let flips = 0, jumps = 0;
   for (const step of steps) {
     if (step.at - game.startsAt > t) break;
     if (step.kind === "flip") { switchOn[step.switch] = step.on; flips++; continue; }
+    if (step.kind === "rift") jumps++;
     const p = players.find((q) => q.slot === step.slot);
     p.x = step.x;
     p.y = step.y;
     const trail = trails[step.slot].cells;
     if (!trail.some((c) => c.x === step.x && c.y === step.y)) trail.push({ x: step.x, y: step.y });
   }
-  return { players, switchOn, trails, flips };
+  return { players, switchOn, trails, flips, jumps };
 }
 
 export function mountReplay(replay, mazeView) {
@@ -44,11 +45,11 @@ export function mountReplay(replay, mazeView) {
     const state = stateAt(replay, t);
     mazeView.update(game.maze, state.players.map((p) => ({ ...p, mine: false })), {
       gates: game.gates, switches: game.switches, switchOn: state.switchOn, trails: state.trails,
-      pulses: game.pulses, startsAt: game.startsAt, now: game.startsAt + t,
+      pulses: game.pulses, startsAt: game.startsAt, now: game.startsAt + t, rifts: game.rifts,
     });
     $("replay-scrub").value = String(t);
     $("replay-time").textContent = `${format(t)} / ${format(duration)}`;
-    $("replay-explored").textContent = state.trails.map((tr, i) => `${game.players.find((p) => p.slot === i)?.name ?? "?"} explored ${tr.cells.length} cells`).join(" · ") + ` · ${state.flips} switch flip${state.flips === 1 ? "" : "s"}`;
+    $("replay-explored").textContent = state.trails.map((tr, i) => `${game.players.find((p) => p.slot === i)?.name ?? "?"} explored ${tr.cells.length} cells`).join(" · ") + ` · ${state.flips} switch flip${state.flips === 1 ? "" : "s"}` + (state.jumps ? ` · ${state.jumps} rift jump${state.jumps === 1 ? "" : "s"}` : "");
     $("replay-play").textContent = playing ? "Pause" : t >= duration ? "Replay" : "Play";
   }
   function frame(now) {

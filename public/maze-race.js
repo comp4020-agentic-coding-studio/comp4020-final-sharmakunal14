@@ -1,6 +1,6 @@
 import { ApiError, request } from "./maze-api.js";
 import { createSender, setupControls } from "./maze-controls.js";
-import { DIRECTIONS, goalOf, passable, pulseOpen, pulseRemaining, switchAt } from "./maze-rules.js";
+import { DIRECTIONS, goalOf, landing, passable, pulseOpen, pulseRemaining, switchAt } from "./maze-rules.js";
 import { raceCues } from "./maze-audio-events.js";
 import { setupChat } from "./maze-chat.js";
 import { celebrate } from "./maze-celebrate.js";
@@ -28,7 +28,7 @@ export function mountRace(initial, mazeView, showError, audio) {
         continue;
       }
       const [dx, dy] = DIRECTIONS[action];
-      if (passable(board, p.x + dx, p.y + dy, serverNow())) p = { ...p, x: p.x + dx, y: p.y + dy };
+      if (passable(board, p.x + dx, p.y + dy, serverNow())) p = { ...p, ...landing(board, p.x + dx, p.y + dy) };
     }
     return { player: p, board: { ...board, now: serverNow() } };
   }
@@ -293,7 +293,9 @@ export function mountRace(initial, mazeView, showError, audio) {
       audio.play("step");
       // Stepping onto the opposite portal gets its own whoosh before the result.
       const [sx, sy] = DIRECTIONS[action], goal = goalOf(board, player.slot);
-      if (player.x + sx === goal.x && player.y + sy === goal.y) audio.play("portal");
+      const to = landing(board, player.x + sx, player.y + sy);
+      if (to.x === goal.x && to.y === goal.y) audio.play("portal");
+      if (to.rift) { audio.play("portal"); text("announcement", "Through the rift."); }
     }
     render();
   };

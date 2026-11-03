@@ -209,7 +209,7 @@ function drawPreview() {
   mazeView.update(today.maze, [
     { id: "preview-a", slot: 0, x: 1, y: 1, look: picker.look() },
     { id: "preview-b", slot: 1, x: n - 2, y: n - 2 },
-  ], { gates: today.gates, switches: today.switches, switchOn: today.switches.map(() => false), pulses: today.pulses });
+  ], { gates: today.gates, switches: today.switches, switchOn: today.switches.map(() => false), pulses: today.pulses, rifts: today.rifts });
 }
 
 async function initialize() {
