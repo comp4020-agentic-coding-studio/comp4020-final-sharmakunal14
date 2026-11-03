@@ -55,15 +55,17 @@ export type Game = {
   rematchId?: string;
   // Who asked first, so the other player can be told.
   rematchBy?: string;
+  // Set when the next race is the following level rather than the same one.
+  rematchLevel?: string;
 };
 
 // What a spectator or an outside visitor may see: the race, not the players'
 // private chat or rematch plans.
 // `rematched` tells a spectator to follow the link to the next race, without
 // revealing the new race's id (which would let anyone take a seat).
-export type PublicGame = Omit<Game, "chat" | "rematchId" | "rematchBy"> & { rematched?: true };
+export type PublicGame = Omit<Game, "chat" | "rematchId" | "rematchBy" | "rematchLevel"> & { rematched?: true };
 export function publicGame(game: Game): PublicGame {
-  const { chat: _chat, rematchId: _id, rematchBy: _by, ...rest } = game;
+  const { chat: _chat, rematchId: _id, rematchBy: _by, rematchLevel: _level, ...rest } = game;
   return game.rematchId ? { ...rest, rematched: true } : rest;
 }
 export type ChatLine = { n: number; at: number; slot: 0 | 1; kind: "text" | "reaction"; text: string };

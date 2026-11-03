@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { DatabaseSync } from "node:sqlite";
 import { levelById } from "./public/maze-levels.js";
-import { addChat, applyActions, BURST, forfeitGame, GameError, isAction, joinGame, MAX_BATCH, MOVE_INTERVAL_MS, publicGame, readyPlayer, setLook, SWITCH_COOLDOWN_MS, todaysLayout } from "./maze-game.ts";
+import { addChat, applyActions, BURST, forfeitGame, GameError, isAction, joinGame, levelLayout, MAX_BATCH, MOVE_INTERVAL_MS, publicGame, readyPlayer, setLook, SWITCH_COOLDOWN_MS, todaysLayout } from "./maze-game.ts";
 import type { Action } from "./maze-game.ts";
 import type { Game, Identity } from "./maze-game.ts";
 import type { Look } from "./public/maze-look.js";
@@ -67,6 +67,12 @@ export function createMazeHandler(db: DatabaseSync) {
   return async (req: IncomingMessage, res: ServerResponse, actor: Identity | null): Promise<void> => {
     try {
       const path = new URL(req.url ?? "/", "http://local").pathname;
+      // A campaign level's layout and its best times; public, like today's maze.
+      const levelPath = /^\/api\/maze\/level\/([1-4]-[1-3])$/.exec(path);
+      if (levelPath && req.method === "GET") {
+        const layout = levelLayout(levelPath[1]);
+        return send(res, 200, { ...layout, level: levelPath[1], best: store.best(layout.mazeId) });
+      }
       if ((path === "/api/maze/layout" || path === "/api/maze/today") && req.method === "GET") {
         const layout = todaysLayout();
         return send(res, 200, { ...layout, best: store.best(layout.mazeId) });

@@ -139,7 +139,7 @@ export class MazeStore {
       const seated = joinGame(newGame(randomUUID(), first, now, layout, first.look, fog, level), second, second.look);
       this.db.prepare("INSERT INTO maze_matches (id, owner_id, created_at, state) VALUES (?, ?, ?, ?)")
         .run(seated.id, first.id, now, JSON.stringify(seated));
-      const linked: Game = { ...old, rematchId: seated.id, rematchBy: actor.id, revision: old.revision + 1 };
+      const linked: Game = { ...old, rematchId: seated.id, rematchBy: actor.id, ...(level !== old.level ? { rematchLevel: level } : {}), revision: old.revision + 1 };
       this.db.prepare("UPDATE maze_matches SET state = ? WHERE id = ?").run(JSON.stringify(linked), id);
       return seated;
     });
