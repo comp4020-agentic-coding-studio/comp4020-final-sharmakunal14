@@ -22,7 +22,7 @@ export function streakFrom(days: ReadonlySet<string>, today: string): number {
   return count;
 }
 
-export type BestTime = { matchId: string; name: string; timeMs: number; finishedAt: number };
+export type BestTime = { matchId: string; name: string; timeMs: number; finishedAt: number; fog: boolean };
 
 function summary(game: Game): Summary {
   return {
@@ -44,7 +44,7 @@ export class MazeStore {
     ); CREATE INDEX IF NOT EXISTS maze_matches_owner ON maze_matches(owner_id, created_at);
     CREATE TABLE IF NOT EXISTS maze_steps (
       match_id TEXT NOT NULL REFERENCES maze_matches(id), n INTEGER NOT NULL, at INTEGER NOT NULL,
-      slot INTEGER NOT NULL, kind TEXT NOT NULL CHECK (kind IN ('step', 'flip')),
+      slot INTEGER NOT NULL, kind TEXT NOT NULL CHECK (kind IN ('step', 'flip', 'rift')),
       x INTEGER NOT NULL, y INTEGER NOT NULL, switch INTEGER, switch_on INTEGER,
       PRIMARY KEY (match_id, n)
     );
@@ -55,6 +55,25 @@ export class MazeStore {
     CREATE TABLE IF NOT EXISTS maze_spectators (
       token TEXT PRIMARY KEY, match_id TEXT NOT NULL UNIQUE REFERENCES maze_matches(id)
     );`);
+    this.allowRiftSteps();
+  }
+
+  // Databases made before rifts (decision 0012) refuse kind 'rift'. SQLite
+  // cannot change a CHECK in place, so copy the log into a new table once.
+  private allowRiftSteps(): void {
+    const row = this.db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'maze_steps'").get() as { sql: string };
+    if (row.sql.includes("'rift'")) return;
+    this.transaction(() => {
+      this.db.exec(`CREATE TABLE maze_steps_new (
+        match_id TEXT NOT NULL REFERENCES maze_matches(id), n INTEGER NOT NULL, at INTEGER NOT NULL,
+        slot INTEGER NOT NULL, kind TEXT NOT NULL CHECK (kind IN ('step', 'flip', 'rift')),
+        x INTEGER NOT NULL, y INTEGER NOT NULL, switch INTEGER, switch_on INTEGER,
+        PRIMARY KEY (match_id, n)
+      );
+      INSERT INTO maze_steps_new SELECT match_id, n, at, slot, kind, x, y, switch, switch_on FROM maze_steps;
+      DROP TABLE maze_steps;
+      ALTER TABLE maze_steps_new RENAME TO maze_steps;`);
+    });
   }
 
   private transaction<T>(work: () => T): T {
@@ -76,12 +95,12 @@ export class MazeStore {
     return JSON.parse(row.state) as Game;
   }
 
-  create(identity: Identity, now = Date.now(), look?: Look): Game {
+  create(identity: Identity, now = Date.now(), look?: Look, fog = false): Game {
     return this.transaction(() => {
       const { total } = this.db.prepare("SELECT COUNT(*) AS total FROM maze_matches WHERE owner_id = ? AND created_at > ?")
         .get(identity.id, now - 3_600_000) as { total: number };
       if (total >= 20) throw new GameError("ROOM_LIMIT", "You have created 20 races this hour. Rejoin a recent race or try later.", 429);
-      const game = newGame(randomUUID(), identity, now, undefined, look);
+      const game = newGame(randomUUID(), identity, now, undefined, look, fog);
       this.db.prepare("INSERT INTO maze_matches (id, owner_id, created_at, state) VALUES (?, ?, ?, ?)")
         .run(game.id, identity.id, now, JSON.stringify(game));
       return game;
@@ -98,7 +117,7 @@ export class MazeStore {
       if (old.rematchId) return this.get(old.rematchId);
       const [first, second] = old.players;
       if (!second) throw new GameError("NO_RIVAL", "There is nobody to rematch.");
-      const seated = joinGame(newGame(randomUUID(), first, now, undefined, first.look), second, second.look);
+      const seated = joinGame(newGame(randomUUID(), first, now, undefined, first.look, old.fog), second, second.look);
       this.db.prepare("INSERT INTO maze_matches (id, owner_id, created_at, state) VALUES (?, ?, ?, ?)")
         .run(seated.id, first.id, now, JSON.stringify(seated));
       const linked: Game = { ...old, rematchId: seated.id, rematchBy: actor.id, revision: old.revision + 1 };
@@ -144,10 +163,12 @@ export class MazeStore {
   }
 
   best(mazeId: string, limit = 10): BestTime[] {
-    return (this.db.prepare(`SELECT match_id, winner_name, time_ms, finished_at FROM maze_results
-      WHERE maze_id = ? ORDER BY time_ms, finished_at LIMIT ?`).all(mazeId, limit) as
-      { match_id: string; winner_name: string; time_ms: number; finished_at: number }[])
-      .map((r) => ({ matchId: r.match_id, name: r.winner_name, timeMs: r.time_ms, finishedAt: r.finished_at }));
+    return (this.db.prepare(`SELECT r.match_id, r.winner_name, r.time_ms, r.finished_at,
+        COALESCE(json_extract(m.state, '$.fog'), 0) AS fog
+      FROM maze_results r JOIN maze_matches m ON m.id = r.match_id
+      WHERE r.maze_id = ? ORDER BY r.time_ms, r.finished_at LIMIT ?`).all(mazeId, limit) as
+      { match_id: string; winner_name: string; time_ms: number; finished_at: number; fog: number }[])
+      .map((r) => ({ matchId: r.match_id, name: r.winner_name, timeMs: r.time_ms, finishedAt: r.finished_at, fog: Boolean(r.fog) }));
   }
 
   // The spectator link is a separate secret from the players' invitation, so
@@ -162,10 +183,19 @@ export class MazeStore {
     });
   }
 
+  // A spectator link follows rematches: it resolves to the newest race in
+  // the chain, so the same link keeps working for the next game.
   matchForToken(token: string): string {
     const row = this.db.prepare("SELECT match_id FROM maze_spectators WHERE token = ?").get(token) as { match_id: string } | undefined;
     if (!row) throw new GameError("NOT_FOUND", "This spectator link is not valid.", 404);
-    return row.match_id;
+    let id = row.match_id;
+    // Bounded: a chain longer than this is not followed further.
+    for (let hops = 0; hops < 100; hops++) {
+      const next = this.get(id).rematchId;
+      if (!next) break;
+      id = next;
+    }
+    return id;
   }
 
   // Fastest win on one maze, optionally leaving one race out so a finished
@@ -186,7 +216,7 @@ export class MazeStore {
 
   steps(id: string): LogEntry[] {
     return (this.db.prepare("SELECT at, slot, kind, x, y, switch, switch_on FROM maze_steps WHERE match_id = ? ORDER BY n").all(id) as
-      { at: number; slot: 0 | 1; kind: "step" | "flip"; x: number; y: number; switch: number | null; switch_on: number | null }[])
+      { at: number; slot: 0 | 1; kind: LogEntry["kind"]; x: number; y: number; switch: number | null; switch_on: number | null }[])
       .map((r) => ({ at: r.at, slot: r.slot, kind: r.kind, x: r.x, y: r.y, switch: r.switch, on: r.switch_on === null ? null : Boolean(r.switch_on) }));
   }
 

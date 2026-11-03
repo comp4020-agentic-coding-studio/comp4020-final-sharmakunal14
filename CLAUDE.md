@@ -105,7 +105,7 @@ Keep the earlier Shared Space routes and data working during the transition.
   `docs/decisions/0003-shared-maze-mechanics.md`. The raised view is Canvas
   2D; 0004 replaces it with a vendored Three.js 3D view. Do not promise
   latency-neutral racing.
-- One switch mechanic only. Power-ups, map reveals, live footprint trails
+- One switch mechanic plus the timed pulse gates (decision 0010). A closed pulse gate is a wall; the server times it from `startsAt` with its own clock and the browser only predicts. Pulses keep their own seed stream so existing dates never change. Power-ups, map reveals, live footprint trails
   and accounts stay out of scope: each adds unpredictability without making
   the opponent's choices matter more. Cameras are fixed views (map, 3rd,
   1st), not free-roam movement.
@@ -115,7 +115,7 @@ Keep the earlier Shared Space routes and data working during the transition.
   players' lines, is rate-limited, and is drawn with `textContent`, never HTML.
   The win celebration is client-only, winner-only, live-only, and a still
   banner under reduced motion.
-- Spectators (decision 0008) hold a separate random token, never the race id.
+- Spectators (decision 0008) hold a separate random token, never the race id. The token follows the rematch chain to the newest race; non-players get only `rematched: true`, never the new id.
   They read and stream only: no join, ready, move, chat or rematch. Remove
   private fields (`publicGame`) from anything a non-player receives, and keep
   spectator limits separate from player stream limits. A streak is derived
@@ -192,7 +192,10 @@ These rules continue to apply to the retained event-layout routes.
   pinned file in `public/vendor/` (decision 0004), served gzipped and immutable.
 - A promise the app makes gets a check in `spec/` that runs against the running
   app. Write the check before or with the change, and watch it fail first.
-- After any server change: run the app, then `pnpm check` against it. Report
+- After any server change: restart the app (or run the new code on another
+  port with `APP_URL`), then `pnpm check` against it. A check that found an
+  old server on 8080 once passed vacuously. A test that may skip must not be
+  the only evidence for a feature. Report
   what actually ran; don't claim a check passed that wasn't run.
 - SSE responses must write something immediately after headers (Node buffers
   headers until the first write — this broke the stream once).

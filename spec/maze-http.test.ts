@@ -1,6 +1,6 @@
 import { describe, expect, inject, it } from "vitest";
 import type { Game } from "../maze-game.ts";
-import { entrance, MOVE_INTERVAL_MS } from "../maze-game.ts";
+import { DIRECTIONS, entrance, MOVE_INTERVAL_MS } from "../maze-game.ts";
 import { route } from "./maze-path.ts";
 
 const base = inject("baseUrl");
@@ -188,7 +188,38 @@ describe("milestone 2: batches, today's maze, results and replays", () => {
     const { game } = await create(await person("Alice"));
     expect(game.mazeId).toBe(today.mazeId);
     expect(game.maze).toEqual(today.maze);
+    expect(game.pulses).toEqual((today as { pulses?: unknown }).pulses);
   });
+
+  it("refuses a step into a closed pulse gate and accepts it once the gate opens, by the server clock", async () => {
+    const { alice, game, path } = await race();
+    const pulse = game.pulses?.[0];
+    if (!pulse) return; // A few dates have no pulse pair; covered by the unit tests.
+    const sides = Object.entries(DIRECTIONS).map(([d, [dx, dy]]) => ({ d, at: { x: pulse.x - dx, y: pulse.y - dy } }))
+      .filter(({ at }) => game.maze[at.y]?.[at.x] === ".");
+    const { d, at } = sides[0];
+    const steps = route(game, entrance(game, 0), at);
+    let sequence = 1;
+    for (let i = 0; i < steps.length; i += 4) {
+      await new Promise((resolve) => setTimeout(resolve, 4 * MOVE_INTERVAL_MS));
+      await api(alice, `${path}/move`, { actions: steps.slice(i, i + 4), sequence });
+      sequence += Math.min(4, steps.length - i);
+    }
+    const cycle = pulse.openMs + pulse.closedMs;
+    const started = await (await api(alice, path)).json() as View;
+    expect(started.game.players[0]).toMatchObject(at);
+    const waitFor = async (phase: number) => {
+      const into = (Date.now() - started.game.startsAt!) % cycle;
+      await new Promise((resolve) => setTimeout(resolve, (phase - into + cycle) % cycle));
+    };
+    await waitFor(pulse.openMs + pulse.closedMs / 2);
+    const closed = await api(alice, `${path}/move`, { actions: [d], sequence });
+    expect(closed.status).toBe(409);
+    expect((await closed.json() as { message: string }).message).toMatch(/gate is closed/);
+    await waitFor(pulse.openMs / 2);
+    const open = await (await api(alice, `${path}/move`, { actions: [d], sequence })).json() as View;
+    expect(open.game.players[0]).toMatchObject({ x: pulse.x, y: pulse.y });
+  }, 20_000);
 
   it("keeps average speed over a 300 ms round trip by batching banked steps", async () => {
     const { alice, game, path } = await race();
@@ -200,8 +231,11 @@ describe("milestone 2: batches, today's maze, results and replays", () => {
       await new Promise((resolve) => setTimeout(resolve, 300));
       const batch = steps.slice(sequence - 1, sequence - 1 + Math.floor(300 / MOVE_INTERVAL_MS) + 1);
       const response = await api(alice, `${path}/move`, { actions: batch, sequence });
-      const body = await response.json() as View;
+      const body = await response.json() as View & { code?: string };
+      // A refusal other than pacing would repeat forever; fail with its code instead.
+      if (response.status !== 200 && body.code !== "TOO_FAST") expect.fail(`batch at ${sequence} refused: ${body.code}`);
       sequence = body.game.players[0].sequence + 1;
+      if (body.game.status === "finished") break;
     }
     const perStep = (Date.now() - started) / (sequence - 1);
     expect(perStep).toBeLessThan(MOVE_INTERVAL_MS * 2.5);
@@ -238,6 +272,48 @@ describe("milestone 2: batches, today's maze, results and replays", () => {
     expect(today.best.map((b) => b.matchId)).toContain(game.id);
     const { matches } = await (await api(alice, "matches")).json() as { matches: { id: string; winner: string; timeMs: number }[] };
     expect(matches[0]).toMatchObject({ id: game.id, winner: "Alice" });
+  }, 20_000);
+
+  it("teleports through today's rift on the server and records the jump in the replay log", async () => {
+    const { alice, game, path } = await race();
+    if (!game.rifts?.length) return; // A few dates have no rifts; covered by the unit tests.
+    const steps = route(game);
+    let sequence = 1;
+    for (let i = 0; i < steps.length; i += 4) {
+      await new Promise((resolve) => setTimeout(resolve, 4 * MOVE_INTERVAL_MS + 5));
+      const body = await (await api(alice, `${path}/move`, { actions: steps.slice(i, i + 4), sequence })).json() as View;
+      sequence = body.game.players[0].sequence + 1;
+      if (body.game.status === "finished") break;
+    }
+    const replay = await (await api(alice, `${path}/replay`)).json() as { game: Game; steps: { kind: string; x: number; y: number }[] };
+    expect(replay.game.winnerId).not.toBeNull();
+    // The shortest route uses the rift on a rift day, and the log says so.
+    expect(replay.steps.some((s) => s.kind === "rift")).toBe(true);
+    expect(replay.steps.filter((s) => s.kind !== "flip")).toHaveLength(steps.length);
+  }, 20_000);
+
+  it("saves the fog choice, refuses a bad one, keeps it in a rematch and marks fog runs on the board", async () => {
+    const alice = await person("Alice"), bob = await person("Bob");
+    expect((await api(alice, "matches", { fog: "yes" })).status).toBe(400);
+    const clear = await create(alice);
+    expect(clear.game.fog).toBeUndefined();
+    const { game } = await (await api(alice, "matches", { fog: true })).json() as View;
+    expect(game.fog).toBe(true);
+    const path = `matches/${game.id}`;
+    const joined = await (await api(bob, `${path}/join`, {})).json() as View;
+    expect(joined.game.fog).toBe(true);
+    await api(alice, `${path}/ready`, {});
+    const { game: started } = await (await api(bob, `${path}/ready`, {})).json() as View;
+    await new Promise((resolve) => setTimeout(resolve, started.startsAt! - Date.now() + 20));
+    const steps = route(started);
+    for (let i = 0; i < steps.length; i += 4) {
+      await new Promise((resolve) => setTimeout(resolve, 4 * MOVE_INTERVAL_MS + 5));
+      await api(alice, `${path}/move`, { actions: steps.slice(i, i + 4), sequence: i + 1 });
+    }
+    const today = await (await fetch(new URL("/api/maze/today", base))).json() as { best: { matchId: string; fog: boolean }[] };
+    expect(today.best.find((b) => b.matchId === game.id)?.fog).toBe(true);
+    const next = await (await api(bob, `${path}/rematch`, {})).json() as View;
+    expect(next.game.fog).toBe(true);
   }, 20_000);
 
   it("keeps an unfinished race's replay private", async () => {

@@ -138,7 +138,8 @@ async function go(id) {
   setBusy(button, true);
   try {
     if (invitationId) return await enter(id);
-    const view = await request(id ? `/api/maze/matches/${id}/join` : "/api/maze/matches", { look: picker.chosen() });
+    const fog = document.querySelector('input[name="fog"]:checked')?.value === "fog";
+    const view = await request(id ? `/api/maze/matches/${id}/join` : "/api/maze/matches", id ? { look: picker.chosen() } : { look: picker.chosen(), fog });
     location.assign(`/race/${view.game.id}`);
   } catch (error) {
     setStep(invitationId ? 0 : 1);
@@ -208,7 +209,7 @@ function drawPreview() {
   mazeView.update(today.maze, [
     { id: "preview-a", slot: 0, x: 1, y: 1, look: picker.look() },
     { id: "preview-b", slot: 1, x: n - 2, y: n - 2 },
-  ], { gates: today.gates, switches: today.switches, switchOn: today.switches.map(() => false) });
+  ], { gates: today.gates, switches: today.switches, switchOn: today.switches.map(() => false), pulses: today.pulses, rifts: today.rifts });
 }
 
 async function initialize() {
@@ -232,6 +233,7 @@ async function initialize() {
     const item = document.createElement("li"), link = document.createElement("a"), time = document.createElement("span");
     link.href = `/race/${entry.matchId}/replay`;
     link.append(entry.name);
+    if (entry.fog) { const tag = document.createElement("small"); tag.className = "fog-tag"; tag.textContent = "fog"; link.append(" ", tag); }
     time.textContent = formatTime(entry.timeMs);
     link.append(time);
     item.append(link);

@@ -30,7 +30,8 @@ export function mountSpectator(token, mazeView, showError) {
     const now = serverAt + performance.now() - observedAt;
     const names = game.players.map((p) => p.name);
     const [a, b] = [game.players.find((p) => p.slot === 0), game.players.find((p) => p.slot === 1)];
-    text("spec-title", {
+    if (following) text("spec-title", "Rematch! Following them to the next race…");
+    else text("spec-title", {
       waiting: b ? "Waiting for both players to be ready." : "Waiting for a rival to join.",
       countdown: "Here we go.",
       racing: "The race is on.",
@@ -57,11 +58,15 @@ export function mountSpectator(token, mazeView, showError) {
     text("board-note", game.status === "racing" ? "WATCHING · choose a camera" : "Drag to orbit · scroll to zoom");
     $("maze").setAttribute("aria-label", `Live maze, watched by spectators. ${names.join(" versus ")}.`);
     focus();
-    mazeView.update(game.maze, game.players.map((p) => ({ ...p, mine: false })), { gates: game.gates, switches: game.switches, switchOn: game.switchOn });
+    mazeView.update(game.maze, game.players.map((p) => ({ ...p, mine: false })), {
+      gates: game.gates, switches: game.switches, switchOn: game.switchOn,
+      pulses: game.pulses, rifts: game.rifts, startsAt: game.startsAt, now,
+    });
   }
 
   function apply(view, announce) {
-    if (game && view.game.revision < game.revision) return;
+    // A rematch is a different race whose revision restarts at 1.
+    if (game && view.game.id === game.id && view.game.revision < game.revision) return;
     const before = game;
     game = view.game;
     serverAt = view.serverNow; observedAt = performance.now();
@@ -72,17 +77,30 @@ export function mountSpectator(token, mazeView, showError) {
       if (winner) celebrate(document.querySelector(".stage"), { mode: "watch", name: winner.name, hue: lookOf(winner).hue });
     }
     render();
+    // The players started a rematch: the same link now leads to the new race.
+    if (game.rematched && !following) followRematch();
   }
 
-  const source = new EventSource(`/api/maze/watch/${token}/stream`);
-  let first = true;
-  source.addEventListener("state", (event) => {
-    const announce = connected && !first;
-    connected = true;
-    apply(JSON.parse(event.data), announce);
-    first = false;
-  });
-  source.onerror = () => { connected = false; render(); };
+  let source = null, first = true, following = false;
+  function open() {
+    source?.close();
+    source = new EventSource(`/api/maze/watch/${token}/stream`);
+    first = true;
+    source.addEventListener("state", (event) => {
+      const announce = connected && !first;
+      connected = true;
+      apply(JSON.parse(event.data), announce);
+      first = false;
+    });
+    source.onerror = () => { connected = false; render(); };
+  }
+  function followRematch() {
+    following = true;
+    text("announcement", "Rematch! Following the players to their next race.");
+    // A short pause lets the result be seen before switching.
+    setTimeout(() => { done = false; following = false; open(); }, 2_500);
+  }
+  open();
   const timer = setInterval(render, 100);
   window.addEventListener("pagehide", () => { source.close(); clearInterval(timer); }, { once: true });
   request(`/api/maze/watch/${token}`).then((view) => { if (!game) apply(view, false); }).catch(showError);

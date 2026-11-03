@@ -93,7 +93,8 @@ export function createMazeHandler(db: DatabaseSync) {
       }
       if (path === "/api/maze/matches" && req.method === "POST") {
         const input = await body(req);
-        return send(res, 201, snapshot(store.create(actor, Date.now(), parseOptionalLook(input.look, 0)), actor));
+        if (input.fog !== undefined && typeof input.fog !== "boolean") throw new GameError("INVALID_FOG", "Fog must be on or off.", 400);
+        return send(res, 201, snapshot(store.create(actor, Date.now(), parseOptionalLook(input.look, 0), input.fog === true), actor));
       }
       if (path === "/api/maze/matches" && req.method === "GET") {
         return send(res, 200, { matches: store.recent(actor.id) });

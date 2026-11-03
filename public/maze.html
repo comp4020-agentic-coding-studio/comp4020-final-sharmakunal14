@@ -52,7 +52,7 @@
       <div class="how">
         <ol>
           <li><span class="num">01</span><h3>Meet in the maze</h3><p>Share a race link. You start at portal A, your rival at B. Both press ready for a shared countdown.</p></li>
-          <li><span class="num">02</span><h3>Change the maze</h3><p>Stand on a glowing crystal and press <kbd>E</kbd>. Its energy gates swap: one opens, another closes — for both players.</p></li>
+          <li><span class="num">02</span><h3>Change the maze</h3><p>Stand on a glowing crystal and press <kbd>E</kbd>. Its energy gates swap: one opens, another closes — for both players. Amber barred gates open and close on their own every few seconds; they flicker just before they shut. Step onto a violet rift to jump to its twin across the maze.</p></li>
           <li><span class="num">03</span><h3>Reach their portal</h3><p>First valid finish wins. A new maze appears every day; best times are kept and every race can be replayed.</p></li>
         </ol>
         <dl class="keys">
@@ -180,6 +180,11 @@
               <div class="stat"><span class="stat-n" id="stat-best">—</span><span class="stat-l">best today</span></div>
               <p id="stat-note" class="fine"></p>
             </div>
+            <fieldset class="mode-pick">
+              <legend>Visibility</legend>
+              <label><input type="radio" name="fog" value="clear" checked><span><strong>Clear</strong><small>See the whole maze</small></span></label>
+              <label><input type="radio" name="fog" value="fog"><span><strong>Fog</strong><small>See 3 steps around you</small></span></label>
+            </fieldset>
             <button id="create-race" class="btn btn-primary" type="button"><span>Create a race</span><svg aria-hidden="true"><use href="#i-arrow"/></svg></button>
             <button id="to-join" class="btn btn-ghost" type="button"><span>Join with a link</span><svg aria-hidden="true"><use href="#i-arrow"/></svg></button>
             <div class="quick-links">
@@ -228,6 +233,7 @@
             <p id="spectate-status" role="status" class="fine"></p>
           </details>
           <button id="avatar-open" type="button" class="link-btn" hidden><span id="avatar-open-label">Edit your avatar</span><i class="mini-hue" aria-hidden="true"></i></button>
+          <p id="race-mode" class="fine race-mode" hidden></p>
           <p id="your-goal" class="goal"></p>
           <p class="fine race-note">A lost connection does not pause the clock. Reopen this link in the same browser to return.</p>
         </section>

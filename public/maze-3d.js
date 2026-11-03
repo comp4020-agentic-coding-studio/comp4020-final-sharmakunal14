@@ -1,11 +1,16 @@
 import * as THREE from "./vendor/three-0.170.0.module.min.js";
 import { lookOf } from "./maze-look.js";
+import { inSight, pulseOpen, pulseRemaining } from "./maze-rules.js";
 
 // Presentation only: the server owns positions on a grid. One grid cell is
 // one world unit on x/z; walls stand on cells marked "#".
 const WALL_H = 1.15;
 const PLAYER_COLORS = [0x3dffa8, 0xff7a3d];
 const SWITCH_COLORS = [0x2fd8ff, 0xff4fd8];
+const PULSE_COLOR = 0xff6a10;
+const PULSE_WARN_MS = 700;
+const FOG_COLOR = 0xb9b6c8;
+const RIFT_COLOR = 0x9b5cff;
 const TURN_MS = 160;
 const STEP_MS = 120;
 const HEADINGS = { up: Math.PI, right: Math.PI / 2, down: 0, left: -Math.PI / 2 };
@@ -199,7 +204,8 @@ function portal(slot) {
   const ring = new THREE.Mesh(new THREE.TorusGeometry(0.38, 0.035, 12, 48), new THREE.MeshBasicMaterial({ color }));
   ring.rotation.x = Math.PI / 2;
   ring.position.y = 0.08;
-  const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.36, 2.4, 32, 1, true), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.18, side: THREE.DoubleSide, depthWrite: false }));
+  // fog: false keeps the beam visible through a fog race's haze, as a landmark.
+  const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.36, 2.4, 32, 1, true), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.18, side: THREE.DoubleSide, depthWrite: false, fog: false }));
   beam.position.y = 1.2;
   group.add(pad, ring, beam);
   group.userData = { ring, beam };
@@ -331,7 +337,7 @@ export class Maze3D {
     capTex.repeat.set(0.5, 0.5);
     capTex.needsUpdate = true;
     const capMat = new THREE.MeshStandardMaterial({ map: capTex, color: 0xd9c09a, roughness: 0.9 });
-    const gateCells = new Set((this.board.gates ?? []).map((g) => `${g.x},${g.y}`));
+    const gateCells = new Set([...(this.board.gates ?? []), ...(this.board.pulses ?? [])].map((g) => `${g.x},${g.y}`));
     const cells = [];
     for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) if (maze[y][x] === "#" && !gateCells.has(`${x},${y}`)) cells.push([x, y]);
     // One box per wall with a sandstone top face and brick sides. Separate,
@@ -367,7 +373,34 @@ export class Maze3D {
       strip.position.y = 0.03;
       group.add(field, strip);
       this.world.add(group);
-      return { gate, field, level: 1 };
+      return { gate, group, field, level: 1 };
+    });
+
+    // Timed gates: amber bars that rise and fall on the race clock.
+    this.pulses = (this.board.pulses ?? []).map((pulse) => {
+      const group = new THREE.Group();
+      group.position.set(pulse.x, 0, pulse.y);
+      const horizontal = maze[pulse.y]?.[pulse.x - 1] === "." || maze[pulse.y]?.[pulse.x + 1] === ".";
+      const frame = new THREE.MeshStandardMaterial({ color: 0x3a3226, metalness: 0.6, roughness: 0.4, emissive: PULSE_COLOR, emissiveIntensity: 0.3 });
+      for (const offset of [-0.45, 0.45]) {
+        const post = new THREE.Mesh(new THREE.BoxGeometry(0.14, WALL_H + 0.1, 0.14), frame);
+        post.position.set(horizontal ? 0 : offset, (WALL_H + 0.1) / 2, horizontal ? offset : 0);
+        post.castShadow = true;
+        group.add(post);
+      }
+      const barMat = new THREE.MeshStandardMaterial({ color: PULSE_COLOR, emissive: PULSE_COLOR, emissiveIntensity: 1.2, metalness: 0.3, roughness: 0.3 });
+      const bars = new THREE.Group();
+      for (const h of [0.2, 0.48, 0.76, 1.04]) {
+        const bar = new THREE.Mesh(new THREE.BoxGeometry(horizontal ? 0.16 : 0.9, 0.16, horizontal ? 0.9 : 0.16), barMat);
+        bar.position.y = h;
+        bar.castShadow = true;
+        bars.add(bar);
+      }
+      const strip = new THREE.Mesh(new THREE.BoxGeometry(horizontal ? 0.1 : 0.9, 0.02, horizontal ? 0.9 : 0.1), new THREE.MeshBasicMaterial({ color: PULSE_COLOR }));
+      strip.position.y = 0.035;
+      group.add(bars, strip);
+      this.world.add(group);
+      return { pulse, group, bars, barMat, level: 1 };
     });
 
     this.switches = (this.board.switches ?? []).map((sw, i) => {
@@ -384,8 +417,43 @@ export class Maze3D {
       light.position.y = 0.6;
       group.add(base, crystal, light);
       this.world.add(group);
-      return { crystal, light, on: false };
+      return { sw, group, crystal, light, on: false };
     });
+
+    // Linked rifts (decision 0012): a violet swirl on the floor of each cell.
+    this.rifts = (this.board.rifts ?? []).map((rift) => {
+      const group = new THREE.Group();
+      group.position.set(rift.x, 0, rift.y);
+      const disc = new THREE.Mesh(new THREE.CircleGeometry(0.4, 40), new THREE.MeshBasicMaterial({ color: 0x1a0d33 }));
+      disc.rotation.x = -Math.PI / 2;
+      disc.position.y = 0.04;
+      const swirl = new THREE.Group();
+      for (const [r, w] of [[0.36, 0.04], [0.24, 0.035], [0.12, 0.03]]) {
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(r, w, 8, 40, Math.PI * 1.4), new THREE.MeshBasicMaterial({ color: RIFT_COLOR }));
+        ring.rotation.x = -Math.PI / 2;
+        ring.rotation.z = r * 9;
+        swirl.add(ring);
+      }
+      swirl.position.y = 0.07;
+      const glow = new THREE.PointLight(RIFT_COLOR, 1.4, 2.5, 2);
+      glow.position.y = 0.5;
+      const flash = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 1.6, 24, 1, true), new THREE.MeshBasicMaterial({ color: RIFT_COLOR, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false }));
+      flash.position.y = 0.8;
+      group.add(disc, swirl, glow, flash);
+      this.world.add(group);
+      return { rift, group, swirl, flash, flashAt: -1e9 };
+    });
+
+    // Fog race cover (decision 0011): a cloud block over each unseen cell,
+    // taller than the walls so the layout under it stays hidden. Blocks are
+    // slightly wider than a cell and share one flat colour, so no face lies in
+    // a wall's plane and overlaps between neighbours cannot flicker.
+    const coverGeo = new THREE.BoxGeometry(1.04, WALL_H + 0.6, 1.04);
+    coverGeo.translate(0, (WALL_H + 0.6) / 2 - 0.02, 0);
+    this.cover = new THREE.InstancedMesh(coverGeo, new THREE.MeshLambertMaterial({ color: FOG_COLOR, emissive: 0x6d6a7a, transparent: true, opacity: 0.94 }), n * n);
+    this.cover.visible = false;
+    this.sightKey = null;
+    this.world.add(this.cover);
 
     this.portals = [portal(0), portal(1)];
     this.portals[0].position.set(1, 0, 1);
@@ -425,7 +493,10 @@ export class Maze3D {
 
   update(maze, players, board = {}) {
     this.board = board;
-    const key = maze.join("") + JSON.stringify(board.gates ?? []);
+    const key = maze.join("") + JSON.stringify(board.gates ?? []) + JSON.stringify(board.pulses ?? []);
+    if (board.now !== undefined) this.pulseClock = board.now;
+    this.viewer = board.viewer ?? null;
+    this.applySight();
     if (key !== this.mazeKey) {
       this.mazeKey = key;
       this.buildMaze(maze);
@@ -452,16 +523,24 @@ export class Maze3D {
       }
       const m = this.motion.get(player.id);
       if (m.x !== player.x || m.y !== player.y) {
-        const cur = this.position(m, now);
-        const dx = player.x - m.x, dy = player.y - m.y;
-        const target = Math.atan2(dx, dy);
-        m.headingFrom = this.heading(m, now);
-        let diff = target - m.headingFrom;
-        while (diff > Math.PI) diff -= Math.PI * 2;
-        while (diff < -Math.PI) diff += Math.PI * 2;
-        m.heading = m.headingFrom + diff;
-        m.turnAt = now;
-        Object.assign(m, { fromX: cur.x, fromY: cur.y, x: player.x, y: player.y, at: now });
+        // Arriving on a rift from a cell that is not next to it is a jump:
+        // snap instead of sliding through walls, keep facing, and flash both ends.
+        const jumped = Math.abs(player.x - m.x) + Math.abs(player.y - m.y) > 1 && (this.rifts ?? []).some((r) => r.rift.x === player.x && r.rift.y === player.y);
+        if (jumped) {
+          for (const r of this.rifts) r.flashAt = now;
+          Object.assign(m, { fromX: player.x, fromY: player.y, x: player.x, y: player.y, at: 0 });
+        } else {
+          const cur = this.position(m, now);
+          const dx = player.x - m.x, dy = player.y - m.y;
+          const target = Math.atan2(dx, dy);
+          m.headingFrom = this.heading(m, now);
+          let diff = target - m.headingFrom;
+          while (diff > Math.PI) diff -= Math.PI * 2;
+          while (diff < -Math.PI) diff += Math.PI * 2;
+          m.heading = m.headingFrom + diff;
+          m.turnAt = now;
+          Object.assign(m, { fromX: cur.x, fromY: cur.y, x: player.x, y: player.y, at: now });
+        }
       }
       m.mine = player.mine;
       a.userData.beacon.visible = true;
@@ -548,7 +627,8 @@ export class Maze3D {
       a.userData.beacon.position.y = 1.25 + (calm ? 0 : Math.sin(t * 3) * 0.05);
       a.userData.beacon.rotation.y = calm ? 0 : t * 2;
       const hidden = this.view === "first" && id === this.focusId;
-      a.visible = !hidden;
+      const fogged = this.viewer && id !== this.focusId && !inSight(this.viewer, m.x, m.y);
+      a.visible = !hidden && !fogged;
     }
     for (const g of this.gates ?? []) {
       const open = (this.board.switchOn?.[g.gate.switch] ?? false) === g.gate.openWhen;
@@ -557,6 +637,24 @@ export class Maze3D {
       g.field.position.y = (WALL_H * g.level) / 2;
       g.field.visible = g.level > 0.02;
       g.field.material.opacity = (calm ? 0.5 : 0.5 + 0.08 * Math.sin(t * 2)) * Math.min(1, g.level * 1.5);
+    }
+    for (const g of this.pulses ?? []) {
+      const open = pulseOpen(this.board, g.pulse, this.pulseClock);
+      const left = pulseRemaining(this.board, g.pulse, this.pulseClock);
+      g.level += ((open ? 0 : 1) - g.level) * Math.min(1, dt * 14);
+      g.bars.position.y = -WALL_H * (1 - g.level);
+      g.bars.visible = g.level > 0.02;
+      // Warn before closing: flicker, or a steady brighter glow with reduced motion.
+      const warning = open && left !== null && left <= PULSE_WARN_MS;
+      g.bars.visible ||= warning;
+      if (warning) g.bars.position.y = -WALL_H * 0.75;
+      g.barMat.emissiveIntensity = warning ? (calm ? 2.4 : 1.2 + 1.4 * (Math.sin(t * 40) > 0 ? 1 : 0)) : 1.2;
+    }
+    for (const r of this.rifts ?? []) {
+      r.swirl.rotation.y = calm ? 0 : -t * 2.5;
+      const f = Math.max(0, 1 - (now - r.flashAt) / 450);
+      r.flash.material.opacity = calm ? 0 : 0.55 * f;
+      r.flash.visible = f > 0 && !calm;
     }
     for (const s of this.switches ?? []) {
       s.crystal.rotation.y = calm ? 0 : t * (s.on ? 3 : 1);
@@ -569,6 +667,17 @@ export class Maze3D {
       p.userData.beam.material.opacity = calm ? 0.16 : 0.14 + 0.06 * Math.sin(t * 3);
     }
     this.placeCamera(now, dt);
+    // In a fog race, haze starts just past the visible cells, measured from the
+    // camera; the map camera is far away, so its haze starts at that distance.
+    if (this.viewer) {
+      const m = this.motion.get(this.focusId);
+      const toPlayer = m ? this.camera.position.distanceTo(new THREE.Vector3(m.x, 0, m.y)) : 0;
+      this.scene.fog.near = toPlayer + 2;
+      this.scene.fog.far = toPlayer + 10;
+    } else {
+      this.scene.fog.near = 30;
+      this.scene.fog.far = 75;
+    }
     this.renderer.render(this.scene, this.camera);
   }
 
@@ -605,6 +714,34 @@ export class Maze3D {
     this.cameraReady = true;
     this.camera.lookAt(this.lookAt);
   }
+
+  // Covers every cell out of sight and hides what stands there. Only rebuilt
+  // when the viewer moves to a new cell.
+  applySight() {
+    if (!this.cover) return;
+    const v = this.viewer, key = v ? `${v.x},${v.y}` : null;
+    if (key === this.sightKey) return;
+    this.sightKey = key;
+    this.cover.visible = Boolean(v);
+    this.scene.fog.color.set(v ? 0xc9c4d4 : 0xffcf9a);
+    // Beams rise above the cloud in fog so both goals stay findable.
+    for (const p of this.portals ?? []) { p.userData.beam.scale.y = v ? 2.2 : 1; p.userData.beam.position.y = v ? 2.64 : 1.2; }
+    const hide = (x, y) => v && !inSight(v, x, y);
+    if (v) {
+      const m = new THREE.Matrix4(), zero = new THREE.Matrix4().makeScale(0, 0, 0);
+      for (let y = 0; y < this.n; y++) for (let x = 0; x < this.n; x++) {
+        this.cover.setMatrixAt(y * this.n + x, hide(x, y) ? m.makeTranslation(x, 0, y) : zero);
+      }
+      this.cover.instanceMatrix.needsUpdate = true;
+    }
+    for (const g of this.gates ?? []) g.group.visible = !hide(g.gate.x, g.gate.y);
+    for (const g of this.pulses ?? []) g.group.visible = !hide(g.pulse.x, g.pulse.y);
+    for (const s of this.switches ?? []) s.group.visible = !hide(s.sw.x, s.sw.y);
+    for (const r of this.rifts ?? []) r.group.visible = !hide(r.rift.x, r.rift.y);
+  }
+
+  // The race clock (estimated server time) for drawing timed gates.
+  pulseTime(now) { this.pulseClock = now; }
 
   dispose() {
     this.renderer.setAnimationLoop(null);

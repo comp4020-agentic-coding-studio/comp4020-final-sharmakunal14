@@ -1,4 +1,5 @@
 import { lookColor, lookOf } from "./maze-look.js";
+import { inSight, pulseOpen, pulseRemaining } from "./maze-rules.js";
 const WIDTH = 880, HEIGHT = 640;
 const COLORS = ["#c7ee89", "#efb17b"];
 
@@ -7,6 +8,7 @@ const COLORS = ["#c7ee89", "#efb17b"];
 let scale = 1;
 const project = (x, y, z = 0) => [88 + (x * 46 + y * 8) * scale, 92 + (y * 35 - z * 25) * scale];
 const SWITCH_COLORS = ["#8fd3ff", "#e9a0ff"];
+const PULSE_COLOR = "#ff6a10";
 
 export class MazeView {
   constructor(canvas) {
@@ -25,16 +27,26 @@ export class MazeView {
   update(maze, players, board = {}) {
     this.maze = maze;
     this.board = board;
+    if (board.now !== undefined) this.pulseClock = board.now;
     const now = performance.now();
     for (const player of players) {
       const old = this.positions.get(player.id);
       if (!old || old.x !== player.x || old.y !== player.y) {
-        this.positions.set(player.id, { x: player.x, y: player.y, fromX: old?.x ?? player.x, fromY: old?.y ?? player.y, at: now });
+        // A rift jump moves more than one cell: snap rather than slide over walls.
+        const jump = old && Math.abs(old.x - player.x) + Math.abs(old.y - player.y) > 1;
+        this.positions.set(player.id, { x: player.x, y: player.y, fromX: jump ? player.x : old?.x ?? player.x, fromY: jump ? player.y : old?.y ?? player.y, at: now });
       }
     }
     this.players = players;
     for (const id of this.positions.keys()) if (!players.some((p) => p.id === id)) this.positions.delete(id);
     this.draw();
+  }
+
+  // Timed gates change on the clock alone; redraw only when one changes state.
+  pulseTime(now) {
+    this.pulseClock = now;
+    const state = (this.board?.pulses ?? []).map((p) => pulseOpen(this.board, p, now) + ":" + ((pulseRemaining(this.board, p, now) ?? 1e9) <= 700)).join();
+    if (state !== this.pulseState) { this.pulseState = state; this.draw(); }
   }
 
   polygon(points, fill, stroke) {
@@ -179,11 +191,41 @@ export class MazeView {
     for (let y = 0; y < n; y++) {
       for (let x = 0; x < n; x++) {
         if (this.maze[y][x] !== "#") continue;
+        const pulse = (this.board?.pulses ?? []).find((g) => g.x === x && g.y === y);
+        if (pulse) {
+          const open = pulseOpen(this.board, pulse, this.pulseClock), left = pulseRemaining(this.board, pulse, this.pulseClock);
+          this.gateTile(x, y, open && left !== null && left <= 700 ? "#ffe14d" : PULSE_COLOR, !open);
+          continue;
+        }
         const gate = gates.find((g) => g.x === x && g.y === y);
         if (!gate) this.tile(x, y, (x + y) % 3 === 0 ? "#526546" : "#4a5e40", 0.5);
         else if ((switchOn[gate.switch] ?? false) === gate.openWhen) this.gateTile(x, y, SWITCH_COLORS[gate.switch], false);
         else this.gateTile(x, y, SWITCH_COLORS[gate.switch], true);
       }
+    }
+    // Linked rifts (decision 0012): violet swirls on the floor.
+    for (const rift of this.board?.rifts ?? []) {
+      const [cx, cy] = project(rift.x + 0.5, rift.y + 0.5);
+      ctx.save();
+      ctx.shadowColor = "#9b5cff";
+      ctx.shadowBlur = 14;
+      ctx.strokeStyle = "#b98cff";
+      ctx.fillStyle = "#1a0d33";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, 17 * scale, 12 * scale, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, 9 * scale, 6 * scale, 0, 0.4, Math.PI * 1.8);
+      ctx.stroke();
+      ctx.restore();
+    }
+    // Fog race (decision 0011): cloud over every cell out of sight. The two
+    // entrance portals are drawn after, as landmarks.
+    const viewer = this.board?.viewer;
+    if (viewer) for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+      if (!inSight(viewer, x, y)) this.tile(x, y, (x * 7 + y * 3) % 5 === 0 ? "#cfc4b2" : "#d9cfbf", 0.55);
     }
     this.portal(1, 1, 0);
     this.portal(n - 2, n - 2, 1);
@@ -194,6 +236,7 @@ export class MazeView {
       const amount = this.reducedMotion.matches ? 1 : Math.min(1, (now - p.at) / 110);
       animating ||= amount < 1;
       const x = p.fromX + (p.x - p.fromX) * amount, y = p.fromY + (p.y - p.fromY) * amount;
+      if (viewer && !player.mine && !inSight(viewer, player.x, player.y)) continue;
       const shared = this.players.some((other) => other.id !== player.id && other.x === player.x && other.y === player.y);
       this.marker(player, x + (shared ? (player.slot === 0 ? -0.23 : 0.23) : 0), y, player.mine);
     }

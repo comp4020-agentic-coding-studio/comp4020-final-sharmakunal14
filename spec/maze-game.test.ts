@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { advanceGame, applyActions, BURST, COUNTDOWN_MS, entrance, forfeitGame, joinGame, layoutFor, MOVE_INTERVAL_MS, movePlayer, newGame, RACE_LIMIT_MS, readyPlayer, SWITCH_COOLDOWN_MS } from "../maze-game.ts";
 import type { Game } from "../maze-game.ts";
 import { generate, sydneyDate } from "../maze-gen.ts";
-import { DIRECTIONS } from "../public/maze-rules.js";
+import { DIRECTIONS, inSight } from "../public/maze-rules.js";
 import { reachable, route } from "./maze-path.ts";
 
 const alice = { id: "alice", name: "Alice" }, bob = { id: "bob", name: "Bob" };
@@ -10,6 +10,8 @@ const LAYOUT = layoutFor("2026-11-01");
 const ready = (layout = LAYOUT) => readyPlayer(readyPlayer(joinGame(newGame("test", alice, 0, layout), bob), alice.id, 0), bob.id, 0);
 const racing = (layout = LAYOUT) => advanceGame(ready(layout), COUNTDOWN_MS);
 const rotate = <T extends { x: number; y: number }>(p: T, size: number) => ({ x: size - 1 - p.x, y: size - 1 - p.y });
+
+const opposite = (d: keyof typeof DIRECTIONS) => ({ up: "down", down: "up", left: "right", right: "left" } as const)[d];
 
 // Positions a player directly, bypassing movement, to set up a rule check.
 const place = (game: Game, id: string, at: { x: number; y: number }): Game =>
@@ -33,6 +35,14 @@ describe("daily maze generation", () => {
         expect(layout.maze[gate.y][gate.x]).toBe("#");
         expect(layout.gates).toContainEqual({ ...rotate(gate, size), switch: 1 - gate.switch, openWhen: gate.openWhen });
       }
+      expect(layout.pulses.length === 0 || layout.pulses.length === 2).toBe(true);
+      for (const pulse of layout.pulses) {
+        expect(layout.maze[pulse.y][pulse.x]).toBe("#");
+        expect(layout.pulses).toContainEqual({ ...rotate(pulse, size), openMs: pulse.openMs, closedMs: pulse.closedMs });
+        expect(layout.gates.some((g) => g.x === pulse.x && g.y === pulse.y)).toBe(false);
+      }
+      // No time given: pulse gates count as closed, so this proves reachability
+      // in every pulse phase too (opening one only adds a passage).
       for (const switchOn of [[false, false], [true, false], [false, true], [true, true]]) {
         const board = { ...layout, switchOn };
         for (const slot of [0, 1]) {
@@ -43,6 +53,40 @@ describe("daily maze generation", () => {
         }
       }
     }
+  });
+
+  it("over 200 seeds: a rotationally paired rift pair on open cells, worth taking, with equal routes for both players", () => {
+    let missing = 0;
+    for (let day = 0; day < 200; day++) {
+      const layout = generate(`seed-${day}`), size = layout.maze.length;
+      if (!layout.rifts.length) { missing++; continue; }
+      const [a, b] = layout.rifts;
+      expect(b).toEqual(rotate(a, size));
+      for (const r of layout.rifts) {
+        expect(layout.maze[r.y][r.x]).toBe(".");
+        expect(layout.switches).not.toContainEqual(r);
+      }
+      for (const switchOn of [[false, false], [true, true]]) {
+        const board = { ...layout, switchOn };
+        const there = route(board).length, back = route(board, entrance(board, 1), entrance(board, 0)).length;
+        expect(there).toBe(back);
+        // Worth taking with the switches as the race starts; a flipped switch may beat it.
+        if (!switchOn[0]) expect(there).toBeLessThanOrEqual(route({ ...board, rifts: [] }).length - 4);
+      }
+    }
+    expect(missing).toBeLessThan(10);
+  });
+
+  it("gives nearly every day a pulse pair, without changing the maze, switches or gates", () => {
+    let missing = 0;
+    for (let day = 0; day < 200; day++) if (!generate(`seed-${day}`).pulses.length) missing++;
+    expect(missing).toBeLessThan(20);
+    // Switches and gates for this date as generated before pulses existed.
+    const { switches, gates } = generate("2026-11-01");
+    expect({ switches, gates }).toEqual({
+      switches: [{ x: 5, y: 5 }, { x: 9, y: 9 }],
+      gates: [{ x: 10, y: 11, switch: 0, openWhen: true }, { x: 8, y: 9, switch: 0, openWhen: false }, { x: 4, y: 3, switch: 1, openWhen: true }, { x: 6, y: 5, switch: 1, openWhen: false }],
+    });
   });
 
   it("gives each player the same shortest distance whatever the switches", () => {
@@ -122,6 +166,24 @@ describe("race rules", () => {
     expect(applyActions(open, alice.id, 1, [step], COUNTDOWN_MS).game.players[0]).toMatchObject({ x: gate.x, y: gate.y });
   });
 
+  it("opens pulse gates for openMs then closes them for closedMs, from the race start", () => {
+    const layout = generate("seed-0");
+    const game = racing(layout), pulse = game.pulses![0], cycle = pulse.openMs + pulse.closedMs;
+    const step = (Object.keys(DIRECTIONS) as (keyof typeof DIRECTIONS)[]).find((d) => {
+      const [dx, dy] = DIRECTIONS[d];
+      return layout.maze[pulse.y - dy]?.[pulse.x - dx] === ".";
+    })!;
+    const [dx, dy] = DIRECTIONS[step];
+    const before = place(game, alice.id, { x: pulse.x - dx, y: pulse.y - dy });
+    expect(applyActions(before, alice.id, 1, [step], COUNTDOWN_MS).game.players[0]).toMatchObject({ x: pulse.x, y: pulse.y });
+    expect(applyActions(before, alice.id, 1, [step], COUNTDOWN_MS + pulse.openMs - 1).error).toBeNull();
+    expect(applyActions(before, alice.id, 1, [step], COUNTDOWN_MS + pulse.openMs).error?.message).toMatch(/gate is closed/);
+    expect(applyActions(before, alice.id, 1, [step], COUNTDOWN_MS + cycle).error).toBeNull();
+    // A gate closing on a player never traps them: they can step back out.
+    const inside = place(game, alice.id, pulse);
+    expect(applyActions(inside, alice.id, 1, [opposite(step)], COUNTDOWN_MS + pulse.openMs).error).toBeNull();
+  });
+
   it("allows players to cross, settles one winner, and refuses subsequent moves", () => {
     let game: Game = racing();
     const path = route(game);
@@ -138,6 +200,48 @@ describe("race rules", () => {
 
   it("ends abandoned races after the fixed time limit", () => {
     expect(advanceGame(ready(), COUNTDOWN_MS + RACE_LIMIT_MS)).toMatchObject({ status: "interrupted", interruption: "time_limit", winnerId: null });
+  });
+});
+
+describe("rifts", () => {
+  it("moves a player stepping onto a rift to its partner in one step, logged as a rift", () => {
+    const layout = generate("seed-0"), game = racing(layout);
+    const [a, b] = game.rifts!;
+    const step = (Object.keys(DIRECTIONS) as (keyof typeof DIRECTIONS)[]).find((d) => {
+      const [dx, dy] = DIRECTIONS[d];
+      return layout.maze[a.y - dy]?.[a.x - dx] === ".";
+    })!;
+    const [dx, dy] = DIRECTIONS[step];
+    const before = place(game, alice.id, { x: a.x - dx, y: a.y - dy });
+    const jumped = applyActions(before, alice.id, 1, [step], COUNTDOWN_MS);
+    expect(jumped.error).toBeNull();
+    expect(jumped.game.players[0]).toMatchObject({ x: b.x, y: b.y, sequence: 1 });
+    expect(jumped.log[0]).toMatchObject({ kind: "rift", x: b.x, y: b.y });
+    // Standing on the arrival rift does not bounce back; stepping off is a normal step.
+    const off = (Object.keys(DIRECTIONS) as (keyof typeof DIRECTIONS)[]).find((d) => {
+      const [ex, ey] = DIRECTIONS[d];
+      return layout.maze[b.y + ey]?.[b.x + ex] === ".";
+    })!;
+    const later = applyActions(jumped.game, alice.id, 2, [off], COUNTDOWN_MS + MOVE_INTERVAL_MS);
+    expect(later.log[0]).toMatchObject({ kind: "step" });
+  });
+});
+
+describe("fog sight", () => {
+  it("sees within three steps in a straight line, and everything with no viewer", () => {
+    const me = { x: 5, y: 5 };
+    expect(inSight(me, 8, 5)).toBe(true);
+    expect(inSight(me, 9, 5)).toBe(false);
+    expect(inSight(me, 7, 7)).toBe(true);
+    expect(inSight(me, 8, 8)).toBe(false);
+    expect(inSight(null, 0, 0)).toBe(true);
+  });
+  it("is saved only when chosen, and never changes the rules", () => {
+    expect(newGame("c", alice, 0, LAYOUT).fog).toBeUndefined();
+    const fog = newGame("f", alice, 0, LAYOUT, undefined, true);
+    expect(fog.fog).toBe(true);
+    const { fog: _f, ...rest } = fog;
+    expect(rest).toEqual({ ...newGame("f", alice, 0, LAYOUT) });
   });
 });
 

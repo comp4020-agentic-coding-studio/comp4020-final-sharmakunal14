@@ -1,6 +1,6 @@
 import { generate, sydneyDate } from "./maze-gen.ts";
-import type { Gate, Layout, Point } from "./maze-gen.ts";
-import { DIRECTIONS, gateOpen, goalOf, passable, switchAt } from "./public/maze-rules.js";
+import type { Gate, Layout, Point, Pulse } from "./maze-gen.ts";
+import { DIRECTIONS, gateOpen, goalOf, landing, passable, switchAt } from "./public/maze-rules.js";
 import { defaultLook } from "./public/maze-look.js";
 import { cleanText, MAX_CHAT, REACTIONS } from "./public/maze-chat-rules.js";
 import type { Look } from "./public/maze-look.js";
@@ -27,6 +27,12 @@ export type Game = {
   maze: readonly string[];
   switches: Point[];
   gates: Gate[];
+  // Limited sight for both players (decision 0011). Presentation only.
+  fog?: boolean;
+  // Timed gates (decision 0010). Absent in races saved before they existed.
+  pulses?: Pulse[];
+  // A linked pair of teleporting cells (decision 0012). Absent in older races.
+  rifts?: Point[];
   switchOn: boolean[];
   switchAt: number[];
   players: Player[];
@@ -50,17 +56,19 @@ export type Game = {
 
 // What a spectator or an outside visitor may see: the race, not the players'
 // private chat or rematch plans.
-export type PublicGame = Omit<Game, "chat" | "rematchId" | "rematchBy">;
+// `rematched` tells a spectator to follow the link to the next race, without
+// revealing the new race's id (which would let anyone take a seat).
+export type PublicGame = Omit<Game, "chat" | "rematchId" | "rematchBy"> & { rematched?: true };
 export function publicGame(game: Game): PublicGame {
   const { chat: _chat, rematchId: _id, rematchBy: _by, ...rest } = game;
-  return rest;
+  return game.rematchId ? { ...rest, rematched: true } : rest;
 }
 export type ChatLine = { n: number; at: number; slot: 0 | 1; kind: "text" | "reaction"; text: string };
 export const CHAT_KEEP = 30;
 export const CHAT_GAP_MS = 400;
 export const CHAT_BURST = 5;
 export const CHAT_WINDOW_MS = 10_000;
-export type LogEntry = { at: number; slot: 0 | 1; kind: "step" | "flip"; x: number; y: number; switch: number | null; on: boolean | null };
+export type LogEntry = { at: number; slot: 0 | 1; kind: "step" | "flip" | "rift"; x: number; y: number; switch: number | null; on: boolean | null };
 
 export class GameError extends Error {
   readonly code: string;
@@ -92,13 +100,13 @@ function player(game: Pick<Game, "maze">, identity: Identity, slot: 0 | 1, look?
   return { ...identity, slot, ...entrance(game, slot), ready: false, sequence: 0, tokens: 0, tokensAt: 0, look: look ?? defaultLook(slot) };
 }
 
-export function newGame(id: string, identity: Identity, now: number, layout = todaysLayout(now), look?: Look): Game {
+export function newGame(id: string, identity: Identity, now: number, layout = todaysLayout(now), look?: Look, fog = false): Game {
   const base = {
-    id, mazeId: layout.mazeId, maze: layout.maze, switches: layout.switches, gates: layout.gates,
+    id, mazeId: layout.mazeId, maze: layout.maze, switches: layout.switches, gates: layout.gates, pulses: layout.pulses, rifts: layout.rifts,
     switchOn: layout.switches.map(() => false), switchAt: layout.switches.map(() => 0),
   };
   return {
-    ...base, players: [player(base, identity, 0, look)], status: "waiting", revision: 1,
+    ...base, ...(fog ? { fog: true } : {}), players: [player(base, identity, 0, look)], status: "waiting", revision: 1,
     createdAt: now, startsAt: null, finishedAt: null, winnerId: null, interruption: null,
   };
 }
@@ -203,19 +211,21 @@ function act(game: Game, actorId: string, action: Action, sequence: number, now:
   if (tokens < 1) throw new GameError("TOO_FAST", "Move a little more slowly.", 429);
   const [dx, dy] = DIRECTIONS[action];
   const x = current.x + dx, y = current.y + dy;
-  if (!passable(game, x, y)) {
-    const gate = game.gates.some((g: Gate) => g.x === x && g.y === y);
+  if (!passable(game, x, y, now)) {
+    const gate = [...game.gates, ...(game.pulses ?? [])].some((g: Point) => g.x === x && g.y === y);
     throw new GameError("WALL", gate ? "That gate is closed." : "There is a wall in that direction.");
   }
+  // A step onto a rift lands on its partner; still one step for speed.
+  const to = landing(game, x, y);
   const goal = entrance(game, 1 - current.slot);
-  const won = x === goal.x && y === goal.y;
+  const won = to.x === goal.x && to.y === goal.y;
   return {
     game: {
       ...game, revision: game.revision + 1,
-      players: game.players.map((p) => p.id === actorId ? { ...p, x, y, sequence, tokens: tokens - 1, tokensAt: now } : p),
+      players: game.players.map((p) => p.id === actorId ? { ...p, x: to.x, y: to.y, sequence, tokens: tokens - 1, tokensAt: now } : p),
       status: won ? "finished" : "racing", winnerId: won ? actorId : null, finishedAt: won ? now : null,
     },
-    entry: { at: now, slot: current.slot, kind: "step", x, y, switch: null, on: null },
+    entry: { at: now, slot: current.slot, kind: to.rift ? "rift" : "step", x: to.x, y: to.y, switch: null, on: null },
   };
 }
 

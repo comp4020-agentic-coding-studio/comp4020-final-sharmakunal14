@@ -1,9 +1,13 @@
 export type Point = { x: number; y: number };
 export type Gate = Point & { switch: number; openWhen: boolean };
-export type Layout = { mazeId: string; maze: string[]; switches: Point[]; gates: Gate[] };
+// A wall that opens for openMs then closes for closedMs, repeating from the race start.
+export type Pulse = Point & { openMs: number; closedMs: number };
+export type Layout = { mazeId: string; maze: string[]; switches: Point[]; gates: Gate[]; pulses: Pulse[]; rifts: Point[] };
 
 export const CELLS = 7;
 export const SIZE = CELLS * 2 + 1;
+export const PULSE_OPEN_MS = 2_500;
+export const PULSE_CLOSED_MS = 2_500;
 
 export function sydneyDate(now: number): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Australia/Sydney" }).format(now);
@@ -37,17 +41,36 @@ function distances(grid: string[][], from: Point, open = new Set<string>()): Map
   return seen;
 }
 
+// Breadth-first distance on the base grid where a step onto rift a lands on b
+// and vice versa. Null when the goal cannot be reached.
+function riftDistance(grid: string[][], from: Point, to: Point, a: Point | null, b: Point | null, open = new Set<string>()): number | null {
+  const seen = new Map([[key(from), 0]]), queue = [from];
+  for (const p of queue) {
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      let n = { x: p.x + dx, y: p.y + dy };
+      if (grid[n.y]?.[n.x] !== "." && !open.has(key(n))) continue;
+      if (a && b) { if (key(n) === key(a)) n = b; else if (key(n) === key(b)) n = a; }
+      if (seen.has(key(n))) continue;
+      seen.set(key(n), seen.get(key(p))! + 1);
+      queue.push(n);
+    }
+  }
+  return seen.get(key(to)) ?? null;
+}
+
 export function generate(mazeId: string): Layout {
-  const rand = random(mazeId);
+  // Pulses draw from their own stream so adding them left every date's
+  // maze, switches and gates exactly as before.
+  const rand = random(mazeId), pulseRand = random(`${mazeId}:pulse`), riftRand = random(`${mazeId}:rift`);
   // Deterministic retries on the same stream until a layout has a switch pair.
   for (let attempt = 0; attempt < 50; attempt++) {
-    const layout = attemptLayout(mazeId, rand);
+    const layout = attemptLayout(mazeId, rand, pulseRand, riftRand);
     if (layout.gates.length) return layout;
   }
   throw new Error(`No playable layout for ${mazeId}`);
 }
 
-function attemptLayout(mazeId: string, rand: () => number): Layout {
+function attemptLayout(mazeId: string, rand: () => number, pulseRand: () => number, riftRand: () => number): Layout {
   const grid = Array.from({ length: SIZE }, () => Array<string>(SIZE).fill("#"));
   for (let y = 1; y < SIZE; y += 2) for (let x = 1; x < SIZE; x += 2) grid[y][x] = ".";
 
@@ -116,5 +139,47 @@ function attemptLayout(mazeId: string, rand: () => number): Layout {
       );
     }
   }
-  return { mazeId, maze: grid.map((row) => row.join("")), switches, gates };
+
+  // One symmetric pulse pair: a shortcut away from the switch gates and both
+  // entrances. Closed, it is just a wall, so it can never disconnect the maze.
+  const pulses: Pulse[] = [];
+  const clear = (w: Point, others: Point[], gap: number) =>
+    others.every((o) => Math.abs(o.x - w.x) + Math.abs(o.y - w.y) >= gap);
+  const taken = gates.flatMap((g) => [g, rot(g)]);
+  const pulseOptions = walls.filter((w) => grid[w.y][w.x] === "#" && key(w) !== key(rot(w))
+    && clear(w, taken, 2) && clear(rot(w), taken, 2) && clear(w, [start, goal], 2) && clear(w, [rot(w)], 2))
+    .map((w) => ({ w, saving: base - distances(grid, start, new Set([key(w), key(rot(w))])).get(key(goal))! }))
+    .filter((c) => c.saving >= 1)
+    .sort((a, b) => b.saving - a.saving);
+  // Choose among the best few so the shortcut is worth timing.
+  const pick = pulseOptions[Math.floor(pulseRand() * Math.min(3, pulseOptions.length))];
+  if (pick) {
+    for (const p of [pick.w, rot(pick.w)]) pulses.push({ ...p, openMs: PULSE_OPEN_MS, closedMs: PULSE_CLOSED_MS });
+  }
+
+  // One linked rift pair (decision 0012) on two open cells that are each
+  // other's 180° rotation, so the pair is its own mirror and both players get
+  // the same jump. A rift only adds an edge, so reachability is unchanged.
+  const rifts: Point[] = [];
+  const busy = [start, goal, ...switches, ...gates, ...pulses];
+  const riftOptions: { p: Point; saving: number }[] = [];
+  // Savings are measured as the race starts: switches off, so gates with
+  // openWhen false are open.
+  const startOpen = new Set(gates.filter((g) => !g.openWhen).map(key));
+  const startBase = riftDistance(grid, start, goal, null, null, startOpen)!;
+  for (let y = 1; y < SIZE - 1; y += 2) for (let x = 1; x < SIZE - 1; x += 2) {
+    const p = { x, y }, r = rot(p);
+    if (p.y > r.y || (p.y === r.y && p.x >= r.x)) continue; // each pair once, and never the centre
+    if (!clear(p, busy, 3) || !clear(r, busy, 3) || Math.abs(p.x - r.x) + Math.abs(p.y - r.y) < 6) continue;
+    // Stepping onto either rift always lands on the other, so a rift cell can
+    // never be walked through; measure the real route under that rule.
+    const best = riftDistance(grid, start, goal, p, r, startOpen);
+    if (best === null) continue;
+    riftOptions.push({ p, saving: startBase - best });
+  }
+  riftOptions.sort((a, b) => b.saving - a.saving);
+  const worth = riftOptions.filter((o) => o.saving >= 4);
+  const riftPick = worth[Math.floor(riftRand() * Math.min(4, worth.length))];
+  if (riftPick) rifts.push(riftPick.p, rot(riftPick.p));
+  return { mazeId, maze: grid.map((row) => row.join("")), switches, gates, pulses, rifts };
 }

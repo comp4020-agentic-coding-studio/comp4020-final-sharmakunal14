@@ -200,7 +200,7 @@ fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
   .hud-pad { right: 10px; bottom: 10px; gap: 8px; }
   .dpad { grid-template-columns: repeat(3, 52px); grid-template-rows: repeat(3, 52px); gap: 5px; }
   .flip-btn { width: 64px; height: 64px; }
-  .hud-hint { bottom: auto; top: 108px; max-width: calc(100% - 20px); font-size: 13px; }
+  .hud-hint { bottom: auto; top: 136px; max-width: calc(100% - 20px); font-size: 13px; }
   .hud-key { display: none; }
   .card { padding: 18px; }
   .how ol, .keys { grid-template-columns: 1fr; }
@@ -519,3 +519,15 @@ body[data-phase="finished"] .hud-key, body[data-phase="interrupted"] .hud-key { 
   body[data-mode="spectator"] .hud-views { top: 64px; right: 10px; bottom: auto; left: auto; }
   body[data-mode="spectator"] #connection { top: 120px; }
 }
+
+/* Race visibility choice (decision 0011) */
+.mode-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 0 12px; padding: 0; border: 0; }
+.mode-pick legend { font-family: var(--font-mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+.mode-pick label { position: relative; cursor: pointer; }
+.mode-pick input { position: absolute; opacity: 0; inset: 0; }
+.mode-pick span { display: grid; gap: 2px; min-height: 44px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); background: rgba(255, 255, 255, .04); transition: border-color .2s, background .2s; }
+.mode-pick small { color: var(--muted); font-size: 12px; }
+.mode-pick input:checked + span { border-color: var(--cyan); background: rgba(47, 216, 255, .12); }
+.mode-pick input:focus-visible + span { outline: 2px solid var(--cyan); outline-offset: 2px; }
+.fog-tag { font-family: var(--font-mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--cyan); }
+.race-mode { margin: 4px 0 0; color: var(--cyan); }

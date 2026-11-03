@@ -1,6 +1,6 @@
 import { ApiError, request } from "./maze-api.js";
 import { createSender, setupControls } from "./maze-controls.js";
-import { DIRECTIONS, goalOf, passable, switchAt } from "./maze-rules.js";
+import { DIRECTIONS, goalOf, landing, passable, pulseOpen, pulseRemaining, switchAt } from "./maze-rules.js";
 import { raceCues } from "./maze-audio-events.js";
 import { setupChat } from "./maze-chat.js";
 import { celebrate } from "./maze-celebrate.js";
@@ -16,6 +16,8 @@ export function mountRace(initial, mazeView, showError, audio) {
   let countdownSecond = null, rematching = false, resultShown = false;
   const me = initial.me, path = `/api/maze/matches/${game.id}`;
   const confirmed = () => game.players.find((player) => player.id === me);
+  // Estimated server time; pulse gates are predicted with it and the server corrects.
+  const serverNow = () => serverAt + performance.now() - observedAt;
   // The player as drawn: the server position plus unconfirmed predicted steps.
   function predicted() {
     let p = { ...confirmed() }, board = game;
@@ -26,9 +28,9 @@ export function mountRace(initial, mazeView, showError, audio) {
         continue;
       }
       const [dx, dy] = DIRECTIONS[action];
-      if (passable(board, p.x + dx, p.y + dy)) p = { ...p, x: p.x + dx, y: p.y + dy };
+      if (passable(board, p.x + dx, p.y + dy, serverNow())) p = { ...p, ...landing(board, p.x + dx, p.y + dy) };
     }
-    return { player: p, board };
+    return { player: p, board: { ...board, now: serverNow() } };
   }
   const self = () => predicted().player;
   const chat = setupChat({
@@ -43,8 +45,23 @@ export function mountRace(initial, mazeView, showError, audio) {
   $("race-code").textContent = game.id.slice(0, 8).toUpperCase();
   $("race-link").value = `${location.origin}/race/${game.id}`;
 
+  // Next to a timed gate, say whether it is open and for how long.
+  function pulseHint() {
+    if (game.status !== "racing") return "";
+    const p = self(), now = serverNow();
+    const near = (game.pulses ?? []).find((g) => Math.abs(g.x - p.x) + Math.abs(g.y - p.y) <= 1);
+    if (!near) return "";
+    const left = Math.max(0.1, Math.ceil(pulseRemaining(game, near, now) / 100) / 10).toFixed(1);
+    return pulseOpen(game, near, now) ? `Timed gate open — closes in ${left} s.` : `Timed gate closed — opens in ${left} s.`;
+  }
+
   function renderClock() {
-    const now = serverAt + performance.now() - observedAt;
+    const now = serverNow();
+    // Timed gates change without a server message, so redraw them on the clock.
+    if (game.pulses?.length && game.status === "racing") {
+      mazeView.pulseTime?.(now);
+      if ($("flip").hidden) text("switch-hint", pulseHint());
+    }
     if (game.status === "countdown") {
       const second = Math.max(1, Math.ceil((game.startsAt - now) / 1_000));
       text("countdown-number", String(second));
@@ -142,8 +159,12 @@ export function mountRace(initial, mazeView, showError, audio) {
     $("maze").setAttribute("aria-label", `Maze. You are player ${player.slot === 0 ? "A" : "B"}, row ${player.y}, column ${player.x}. Your goal is entrance ${goal}. Use the directional controls to move.`);
     $("flip").hidden = !onSwitch;
     $("flip").disabled = !canMove();
-    text("switch-hint", onSwitch ? "You’re on a switch. Press E or Space to flip it — it changes gates for both of you." : "");
-    mazeView.update(game.maze, game.players.map((p) => p.id === me ? { ...view.player, mine: true } : { ...p, mine: false }), view.board);
+    $("race-mode").hidden = !game.fog;
+    text("race-mode", game.fog ? "Fog race: you see only 3 steps around you. Your rival sees the same." : "");
+    text("switch-hint", onSwitch ? "You’re on a switch. Press E or Space to flip it — it changes gates for both of you." : pulseHint());
+    // Fog limits sight only while racing; the waiting room and result show the maze.
+    const viewer = game.fog && game.status === "racing" ? view.player : null;
+    mazeView.update(game.maze, game.players.map((p) => p.id === me ? { ...view.player, mine: true } : { ...p, mine: false }), { ...view.board, viewer });
     renderClock();
   }
 
@@ -259,7 +280,12 @@ export function mountRace(initial, mazeView, showError, audio) {
       if (switchAt(board, player.x, player.y) < 0) { audio.play("bump"); return false; }
     } else {
       const [dx, dy] = DIRECTIONS[action];
-      if (!passable(board, player.x + dx, player.y + dy)) { text("announcement", "There is a wall in that direction."); audio.play("bump"); return false; }
+      if (!passable(board, player.x + dx, player.y + dy, serverNow())) {
+        const pulse = (board.pulses ?? []).some((g) => g.x === player.x + dx && g.y === player.y + dy);
+        text("announcement", pulse ? "That timed gate is closed. It opens again shortly." : "There is a wall in that direction.");
+        audio.play("bump");
+        return false;
+      }
     }
     if (sender.unconfirmed.length >= 8) return false;
     sender.push(action);
@@ -267,7 +293,9 @@ export function mountRace(initial, mazeView, showError, audio) {
       audio.play("step");
       // Stepping onto the opposite portal gets its own whoosh before the result.
       const [sx, sy] = DIRECTIONS[action], goal = goalOf(board, player.slot);
-      if (player.x + sx === goal.x && player.y + sy === goal.y) audio.play("portal");
+      const to = landing(board, player.x + sx, player.y + sy);
+      if (to.x === goal.x && to.y === goal.y) audio.play("portal");
+      if (to.rift) { audio.play("portal"); text("announcement", "Through the rift."); }
     }
     render();
   };
