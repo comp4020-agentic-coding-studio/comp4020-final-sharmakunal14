@@ -276,3 +276,30 @@ Raw material, not prose. Decision record: [0008](decisions/0008-spectators-stats
   [fog 2D](evidence/2026-11-03-fog-2d.png), [fog choice](evidence/2026-11-03-fog-choice.png),
   [rift 3D](evidence/2026-11-03-rift-3d.png), [rift 2D](evidence/2026-11-03-rift-2d.png),
   scripts `evidence/2026-11-03-*-check.mjs`.
+
+## 0013 worlds and levels; merge to main (2026-11-03)
+
+- Trigger: the author asked to implement the worlds "as we had planned" and to
+  see a brief plan first. The agent proposed 4×3 levels from existing
+  mechanics, named what was dropped (footprints, rotating chamber, two floors,
+  shifting walls) and asked two questions (unlock rule; substitutions). The
+  author chose "finish unlocks" and approved.
+- Key design reasons (for the README argument): levels are fixed so times are
+  comparable; progress derived from saved races (same pattern as the streak);
+  unlock by finishing so the weaker player is not stuck (from the original
+  brief); invited player can join any level; one shared rematch/next link so
+  players never split up.
+- Correction worth citing in PROCESS: a throwaway seed-search script gave a
+  false "all levels fine" because it used a different seed string from the
+  real code; the permanent test found it. Lesson: check with the same code
+  path the app uses. Fix is visible in `public/maze-levels.js` (`seed`).
+- Correction: a flaky check (best times) depends on test-database state; noted
+  rather than hidden.
+- Merge: PR #2 passed CI; live API verified to serve pulses and rifts.
+- Evidence: [picker](evidence/2026-11-03-worlds-picker.png),
+  [four worlds](evidence/2026-11-03-worlds-themes.png),
+  [next level](evidence/2026-11-03-worlds-next-level.png),
+  [2D level](evidence/2026-11-03-worlds-2d.png),
+  [script](evidence/2026-11-03-worlds-check.mjs).
+- Open questions for playtest: are world 1 levels too easy to matter? Is 4-3
+  (fog + everything) fun or just confusing?

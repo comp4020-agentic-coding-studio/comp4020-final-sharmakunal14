@@ -763,3 +763,50 @@ and [0012](docs/decisions/0012-rifts.md).
 - Fog and rifts not tried by a human; Safari and Firefox untried.
 - Fog is not secret: a player can read the layout from the API (by design, 0011).
 - The table upgrade has not run against the production volume yet.
+
+## 2026-11-03 — Merge to main, and four worlds of levels (branch `worlds`)
+
+**Merge.** PR #2 (pulse gates, fog, rifts, spectator rematch) passed CI and was
+merged; the deploy job succeeded. The live `/api/maze/today` now returns
+pulses and rifts, and the lobby has the fog choice. Not verified: the
+production step-log table upgrade (fly CLI not logged in on this machine; the
+server answered after start, which runs the upgrade first).
+
+**Worlds** ([decision 0013](docs/decisions/0013-worlds-and-levels.md)), as
+planned with the author; author chose "finishing unlocks the next level".
+
+| Work completed | Commit |
+| --- | --- |
+| Decision record before code. | `0e7bc8d` |
+| Generator takes a spec (size, switches, pulse rhythms, rifts, loops); daily unchanged. | `4b54e5e` |
+| Twelve levels, each checked for mechanics and fairness; fingerprints pinned. | `be2a9ca` |
+| Level races, unlocking by finishing, rematch keeps level, next level. | `15a3a99`, `267700f` |
+| Level layout endpoint; remembers a next-level invitation. | `e791273` |
+| World picker in the lobby. | `11fa993` |
+| World colours in 3D and 2D. | `d9c285f` |
+| Level title, Next level button and toast; spectators and replays themed. | `3348320` |
+
+| Check | Result |
+| --- | --- |
+| `pnpm check` against the new code on port 8090 with a fresh `DATA_DIR` | 140/140, typecheck clean |
+| Old vs new generator, 800 daily ids | 0 changed |
+| Agent-driven Chrome (3D and 2D): picker shows 11 locked; play 1-1, lose, Next level opens 1-2 for both | as intended, no page errors |
+| One level per world rendered in 3D | four distinct looks ([grid](docs/evidence/2026-11-03-worlds-themes.png)) |
+
+### Problems found
+
+- My first seed search used a different seed form than the real code, so it
+  claimed every level worked first time. The level test caught 3-1 with no
+  pulse gate. Three levels now carry an explicit, commented `seed`.
+- First world colours were murky (olive garden) and the desert hills stayed;
+  brightened, and hills recoloured per world.
+- The "today's best times" HTTP check fails on a reused test database once ten
+  faster runs exist there (routes got shorter with rifts). It passes on a
+  fresh `DATA_DIR`; the check depends on test-database state.
+
+### Not verified
+
+- No human has played a level; difficulty and time targets untested.
+- Levels 2-1 to 4-3 were checked by tests and one render each, not played
+  through in a browser.
+- World 4's caps take a pink tint from the sand texture.
