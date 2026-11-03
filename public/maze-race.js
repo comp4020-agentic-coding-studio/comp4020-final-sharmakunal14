@@ -5,6 +5,7 @@ import { raceCues } from "./maze-audio-events.js";
 import { setupChat } from "./maze-chat.js";
 import { celebrate } from "./maze-celebrate.js";
 import { lookOf } from "./maze-look.js";
+import { levelById, nextLevel, worldOf } from "./maze-levels.js";
 
 const $ = (id) => document.getElementById(id);
 const clock = (ms) => `${Math.floor(ms / 60_000).toString().padStart(2, "0")}:${((ms % 60_000) / 1_000).toFixed(1).padStart(4, "0")}`;
@@ -43,6 +44,12 @@ export function mountRace(initial, mazeView, showError, audio) {
   document.body.dataset.inRace = "true";
   $("race-panel").hidden = false;
   $("race-code").textContent = game.id.slice(0, 8).toUpperCase();
+  // A level race names its world and level; the daily maze keeps its title.
+  const level = game.level ? levelById(game.level) : null;
+  if (level) {
+    $("arena-title").textContent = `${level.id} ${level.name}`;
+    $("board-size").textContent = `${game.maze.length} × ${game.maze.length} · ${worldOf(level).name.toUpperCase()}`;
+  }
   $("race-link").value = `${location.origin}/race/${game.id}`;
 
   // Next to a timed gate, say whether it is open and for how long.
@@ -143,11 +150,16 @@ export function mountRace(initial, mazeView, showError, audio) {
     $("another-race").hidden = !done;
     $("rematch").hidden = !done || game.players.length < 2;
     $("rematch").disabled = rematching;
+    // A finished level offers the next one (decision 0013); a forfeit does not.
+    const following = game.level && game.status === "finished" ? nextLevel(game.level) : null;
+    $("next-level").hidden = !following || game.players.length < 2 || (game.rematchId && !game.rematchLevel);
+    $("next-level").disabled = rematching;
+    if (following) text("next-level-label", `Next: ${following.id} ${following.name}`);
     // The other player is told with a card that slides in; the first asker is not.
     const asked = done && game.rematchId && game.rematchBy && game.rematchBy !== me;
-    if (asked) showRematch(opponent?.name ?? "Your rival", game.rematchId);
+    if (asked) showRematch(opponent?.name ?? "Your rival", game.rematchId, game.rematchLevel);
     else if (!done || !game.rematchId) hideRematch();
-    text("rematch-note", done && game.rematchId && game.rematchBy === me ? "Rematch sent. Waiting for your rival…" : "");
+    text("rematch-note", done && game.rematchId && game.rematchBy === me ? (game.rematchLevel ? `Level ${game.rematchLevel} is ready. Waiting for your rival…` : "Rematch sent. Waiting for your rival…") : "");
     $("copy-replay").hidden = game.status !== "finished";
     if (game.status === "finished") showResult();
     $("watch-replay").hidden = !done;
@@ -164,7 +176,7 @@ export function mountRace(initial, mazeView, showError, audio) {
     text("switch-hint", onSwitch ? "You’re on a switch. Press E or Space to flip it — it changes gates for both of you." : pulseHint());
     // Fog limits sight only while racing; the waiting room and result show the maze.
     const viewer = game.fog && game.status === "racing" ? view.player : null;
-    mazeView.update(game.maze, game.players.map((p) => p.id === me ? { ...view.player, mine: true } : { ...p, mine: false }), { ...view.board, viewer });
+    mazeView.update(game.maze, game.players.map((p) => p.id === me ? { ...view.player, mine: true } : { ...p, mine: false }), { ...view.board, viewer, world: game.level ? levelById(game.level)?.world : null });
     renderClock();
   }
 
@@ -187,10 +199,11 @@ export function mountRace(initial, mazeView, showError, audio) {
   }
 
   let toastFor = null, toastDismissed = null;
-  function showRematch(name, id) {
+  function showRematch(name, id, level) {
     if (toastDismissed === id) return;
-    if (toastFor !== id) { toastFor = id; audio.play("join"); text("announcement", `${name} wants a rematch.`); }
-    text("toast-title", `${name} wants a rematch`);
+    const ask = level ? `${name} wants to play level ${level}` : `${name} wants a rematch`;
+    if (toastFor !== id) { toastFor = id; audio.play("join"); text("announcement", `${ask}.`); }
+    text("toast-title", ask);
     text("toast-body", "Tap to jump straight into the next race.");
     $("rematch-toast").hidden = false;
     requestAnimationFrame(() => $("rematch-toast").classList.add("in"));
@@ -344,10 +357,12 @@ export function mountRace(initial, mazeView, showError, audio) {
     try { apply(await request(`${path}/look`, { look: event.detail })); }
     catch (error) { showError(error); }
   });
-  $("rematch").addEventListener("click", async () => {
+  // Rematch and Next level both go to the race the server links; whoever asks
+  // first decides which, so both players always end up together.
+  for (const [button, action] of [["rematch", "rematch"], ["next-level", "next"]]) $(button).addEventListener("click", async () => {
     rematching = true;
     render();
-    try { location.assign(`/race/${(await request(`${path}/rematch`, {})).game.id}`); }
+    try { location.assign(`/race/${(await request(`${path}/${action}`, {})).game.id}`); }
     catch (error) { rematching = false; showError(error); render(); }
   });
   $("copy-replay").addEventListener("click", async () => {
