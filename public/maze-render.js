@@ -1,5 +1,6 @@
 import { lookColor, lookOf } from "./maze-look.js";
 import { inSight, pulseOpen, pulseRemaining } from "./maze-rules.js";
+import { WORLDS } from "./maze-levels.js";
 const WIDTH = 880, HEIGHT = 640;
 const COLORS = ["#c7ee89", "#efb17b"];
 
@@ -146,6 +147,8 @@ export class MazeView {
     }
     ctx.setTransform(width / WIDTH, 0, 0, height / HEIGHT, 0, 0);
     const n = this.maze.length, { gates = [], switches = [], switchOn = [], trails = [] } = this.board ?? {};
+    // A world recolours walls (presentation only, decision 0013).
+    const theme = WORLDS.find((w) => w.id === this.board?.world)?.theme ?? null;
     scale = 13 / n;
     ctx.clearRect(0, 0, WIDTH, HEIGHT);
     ctx.save();
@@ -198,7 +201,7 @@ export class MazeView {
           continue;
         }
         const gate = gates.find((g) => g.x === x && g.y === y);
-        if (!gate) this.tile(x, y, (x + y) % 3 === 0 ? "#526546" : "#4a5e40", 0.5);
+        if (!gate) this.tile(x, y, theme ? ((x + y) % 3 === 0 ? theme.top : theme.wall) : (x + y) % 3 === 0 ? "#526546" : "#4a5e40", 0.5);
         else if ((switchOn[gate.switch] ?? false) === gate.openWhen) this.gateTile(x, y, SWITCH_COLORS[gate.switch], false);
         else this.gateTile(x, y, SWITCH_COLORS[gate.switch], true);
       }

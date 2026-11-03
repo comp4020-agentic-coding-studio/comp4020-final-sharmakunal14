@@ -6,13 +6,13 @@
 
 export const WORLDS = [
   { id: 1, name: "The Forgotten Gardens", tag: "Easy · learning navigation",
-    theme: { wall: "#5f8a4e", top: "#86b26b", floor: "#c9b98d", sky: ["#bfe6ff", "#f3f7d9"], fog: "#d7e8cf", ground: "#7da35f" } },
+    theme: { wall: "#9fd38a", top: "#b8f08f", floor: "#f2e3bd", sky: ["#5fb6ff", "#d9f3ff"], fog: "#e1f2d8", ground: "#a9d77f", hills: "#6fa860" } },
   { id: 2, name: "The Temple of Choices", tag: "Medium · strategy and switches",
-    theme: { wall: "#8b8478", top: "#b3ab9b", floor: "#d6c7a6", sky: ["#2b2440", "#c98f5a"], fog: "#c9b8a0", ground: "#9a8a6c" } },
+    theme: { wall: "#d9d0bf", top: "#efe6d3", floor: "#e8d6ae", sky: ["#3b2f5c", "#f0a868"], fog: "#d9c3a3", ground: "#c4ab7f", hills: "#8a7558" } },
   { id: 3, name: "The Clockwork Citadel", tag: "Hard · timing",
-    theme: { wall: "#6b5338", top: "#b8893f", floor: "#4d4a44", sky: ["#3a3f4b", "#b4835a"], fog: "#9d927f", ground: "#3b3833" } },
+    theme: { wall: "#c79a5c", top: "#f0c060", floor: "#8f8a80", sky: ["#2e3442", "#d49a62"], fog: "#a89c86", ground: "#5b5750", hills: "#4a4640" } },
   { id: 4, name: "The Fractured Dimension", tag: "Expert · mastery",
-    theme: { wall: "#2c2450", top: "#7b5cff", floor: "#1b1a2e", sky: ["#07061a", "#3b1c6b"], fog: "#3a2d63", ground: "#141225" } },
+    theme: { wall: "#6b5cc8", top: "#a98bff", floor: "#4a4670", sky: ["#07061a", "#4b237f"], fog: "#3a2d63", ground: "#1d1a36", hills: "#2b2350" } },
 ];
 
 const P = [2_500, 2_500];
