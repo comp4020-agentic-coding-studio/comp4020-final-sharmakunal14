@@ -303,3 +303,6 @@ Raw material, not prose. Decision record: [0008](decisions/0008-spectators-stats
   [script](evidence/2026-11-03-worlds-check.mjs).
 - Open questions for playtest: are world 1 levels too easy to matter? Is 4-3
   (fog + everything) fun or just confusing?
+- Deployed via PR #3. A live browser check first looked like a bug (race
+  page stuck in the lobby); it was the test's fixed 1.5 s wait against slow
+  software WebGL. Lesson for PROCESS: wait for a state, not a time.

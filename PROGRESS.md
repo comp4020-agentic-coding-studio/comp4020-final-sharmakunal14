@@ -810,3 +810,17 @@ planned with the author; author chose "finishing unlocks the next level".
 - Levels 2-1 to 4-3 were checked by tests and one render each, not played
   through in a browser.
 - World 4's caps take a pink tint from the sand texture.
+
+### Deployed (same day)
+
+PR #3 passed CI, was merged (`367848b`) and the deploy job succeeded. Live
+checks: `/api/maze/level/4-3` returns a 15×15 maze with 4 gates, 4 pulse
+cells and 2 rifts; the lobby has the worlds button; the agent-driven browser
+flow (pick 1-1, lose, Next level, land on 1-2) passes against the live site
+([script](docs/evidence/2026-11-03-worlds-live-check.mjs)).
+
+False alarm worth recording: the first live browser run "failed" because the
+script waited 1.5 s for the race page, and software WebGL in headless Chrome
+took over 6 s to build the scene on the live page. Traced by watching every
+title write and request; the app was correct. The script now waits for the
+race view instead of a fixed delay.
