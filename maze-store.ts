@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
-import { advanceGame, GameError, joinGame, newGame } from "./maze-game.ts";
+import { advanceGame, GameError, joinGame, levelLayout, newGame } from "./maze-game.ts";
+import { levelById, LEVELS, nextLevel } from "./public/maze-levels.js";
 import { sydneyDate } from "./maze-gen.ts";
 import type { Look } from "./public/maze-look.js";
 import type { Game, Identity, LogEntry } from "./maze-game.ts";
@@ -95,12 +96,17 @@ export class MazeStore {
     return JSON.parse(row.state) as Game;
   }
 
-  create(identity: Identity, now = Date.now(), look?: Look, fog = false): Game {
+  create(identity: Identity, now = Date.now(), look?: Look, fog = false, level?: string): Game {
     return this.transaction(() => {
       const { total } = this.db.prepare("SELECT COUNT(*) AS total FROM maze_matches WHERE owner_id = ? AND created_at > ?")
         .get(identity.id, now - 3_600_000) as { total: number };
       if (total >= 20) throw new GameError("ROOM_LIMIT", "You have created 20 races this hour. Rejoin a recent race or try later.", 429);
-      const game = newGame(randomUUID(), identity, now, undefined, look, fog);
+      if (level !== undefined && !this.unlocked(identity.id).includes(level)) {
+        throw new GameError("LEVEL_LOCKED", "Finish the level before this one to unlock it.", 403);
+      }
+      // A level brings its own maze, and its own fog where the level asks for it.
+      const game = level === undefined ? newGame(randomUUID(), identity, now, undefined, look, fog)
+        : newGame(randomUUID(), identity, now, levelLayout(level), look, fog || Boolean(levelById(level)?.fog), level);
       this.db.prepare("INSERT INTO maze_matches (id, owner_id, created_at, state) VALUES (?, ?, ?, ?)")
         .run(game.id, identity.id, now, JSON.stringify(game));
       return game;
@@ -109,7 +115,9 @@ export class MazeStore {
 
   // A rematch is a new race with both players already seated. Asking twice
   // returns the same race, so the two players never end up in different ones.
-  rematch(id: string, actor: Identity, now = Date.now()): Game {
+  // `advance` makes the next race the following level instead of the same
+  // one. Whoever asks first decides; the other player is sent to that race.
+  rematch(id: string, actor: Identity, now = Date.now(), advance = false): Game {
     return this.transaction(() => {
       const old = this.get(id);
       if (!old.players.some((p) => p.id === actor.id)) throw new GameError("NOT_A_PLAYER", "Join this race first.", 403);
@@ -117,7 +125,18 @@ export class MazeStore {
       if (old.rematchId) return this.get(old.rematchId);
       const [first, second] = old.players;
       if (!second) throw new GameError("NO_RIVAL", "There is nobody to rematch.");
-      const seated = joinGame(newGame(randomUUID(), first, now, undefined, first.look, old.fog), second, second.look);
+      let level = old.level;
+      if (advance) {
+        const next = old.level ? nextLevel(old.level) : null;
+        if (!next) throw new GameError("NO_NEXT_LEVEL", old.level ? "That was the final level." : "Only a level race has a next level.");
+        // Finishing (not forfeiting) a level is what opens the next one.
+        if (old.status !== "finished") throw new GameError("LEVEL_LOCKED", "Finish this level to unlock the next one.", 403);
+        level = next.id;
+      }
+      // A rematch replays the same level; a daily rematch gets today's maze.
+      const layout = level ? levelLayout(level) : undefined;
+      const fog = level && level !== old.level ? Boolean(levelById(level)?.fog) : old.fog;
+      const seated = joinGame(newGame(randomUUID(), first, now, layout, first.look, fog, level), second, second.look);
       this.db.prepare("INSERT INTO maze_matches (id, owner_id, created_at, state) VALUES (?, ?, ?, ?)")
         .run(seated.id, first.id, now, JSON.stringify(seated));
       const linked: Game = { ...old, rematchId: seated.id, rematchBy: actor.id, revision: old.revision + 1 };
@@ -212,6 +231,28 @@ export class MazeStore {
       AND EXISTS (SELECT 1 FROM json_each(state, '$.players') WHERE json_extract(value, '$.id') = ?)`).all(actorId) as { day: string }[];
     const days = new Set(rows.map((r) => r.day)), today = sydneyDate(now);
     return { mazeId: today, streak: streakFrom(days, today), playedToday: days.has(today), best: this.personalBest(actorId, today) };
+  }
+
+  // Levels this player has finished a race on, win or lose (decision 0013).
+  // Derived from saved races, never stored.
+  completedLevels(actorId: string): string[] {
+    const rows = this.db.prepare(`SELECT DISTINCT json_extract(state, '$.level') AS level FROM maze_matches
+      WHERE json_extract(state, '$.status') = 'finished' AND json_extract(state, '$.level') IS NOT NULL
+      AND EXISTS (SELECT 1 FROM json_each(state, '$.players') WHERE json_extract(value, '$.id') = ?)`).all(actorId) as { level: string }[];
+    return rows.map((r) => r.level);
+  }
+
+  // 1-1 is always open; each completed level opens the next.
+  unlocked(actorId: string): string[] {
+    const done = new Set(this.completedLevels(actorId));
+    return LEVELS.filter((level, i) => i === 0 || done.has(LEVELS[i - 1].id) || done.has(level.id)).map((l) => l.id);
+  }
+
+  // Best time per level for this player, for the level picker.
+  levelBests(actorId: string): Record<string, number> {
+    const rows = this.db.prepare(`SELECT maze_id, MIN(time_ms) AS best FROM maze_results
+      WHERE winner_id = ? AND maze_id LIKE 'level-%' GROUP BY maze_id`).all(actorId) as { maze_id: string; best: number }[];
+    return Object.fromEntries(rows.map((r) => [r.maze_id.slice(6), r.best]));
   }
 
   steps(id: string): LogEntry[] {
