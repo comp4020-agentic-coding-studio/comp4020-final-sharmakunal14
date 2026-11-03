@@ -115,7 +115,7 @@ Keep the earlier Shared Space routes and data working during the transition.
   players' lines, is rate-limited, and is drawn with `textContent`, never HTML.
   The win celebration is client-only, winner-only, live-only, and a still
   banner under reduced motion.
-- Spectators (decision 0008) hold a separate random token, never the race id.
+- Spectators (decision 0008) hold a separate random token, never the race id. The token follows the rematch chain to the newest race; non-players get only `rematched: true`, never the new id.
   They read and stream only: no join, ready, move, chat or rematch. Remove
   private fields (`publicGame`) from anything a non-player receives, and keep
   spectator limits separate from player stream limits. A streak is derived

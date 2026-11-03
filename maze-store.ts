@@ -183,10 +183,19 @@ export class MazeStore {
     });
   }
 
+  // A spectator link follows rematches: it resolves to the newest race in
+  // the chain, so the same link keeps working for the next game.
   matchForToken(token: string): string {
     const row = this.db.prepare("SELECT match_id FROM maze_spectators WHERE token = ?").get(token) as { match_id: string } | undefined;
     if (!row) throw new GameError("NOT_FOUND", "This spectator link is not valid.", 404);
-    return row.match_id;
+    let id = row.match_id;
+    // Bounded: a chain longer than this is not followed further.
+    for (let hops = 0; hops < 100; hops++) {
+      const next = this.get(id).rematchId;
+      if (!next) break;
+      id = next;
+    }
+    return id;
   }
 
   // Fastest win on one maze, optionally leaving one race out so a finished

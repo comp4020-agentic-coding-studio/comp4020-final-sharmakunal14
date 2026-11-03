@@ -56,10 +56,12 @@ export type Game = {
 
 // What a spectator or an outside visitor may see: the race, not the players'
 // private chat or rematch plans.
-export type PublicGame = Omit<Game, "chat" | "rematchId" | "rematchBy">;
+// `rematched` tells a spectator to follow the link to the next race, without
+// revealing the new race's id (which would let anyone take a seat).
+export type PublicGame = Omit<Game, "chat" | "rematchId" | "rematchBy"> & { rematched?: true };
 export function publicGame(game: Game): PublicGame {
   const { chat: _chat, rematchId: _id, rematchBy: _by, ...rest } = game;
-  return rest;
+  return game.rematchId ? { ...rest, rematched: true } : rest;
 }
 export type ChatLine = { n: number; at: number; slot: 0 | 1; kind: "text" | "reaction"; text: string };
 export const CHAT_KEEP = 30;

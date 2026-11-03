@@ -45,6 +45,12 @@ describe("stats and personal best in the store", () => {
     expect(store.spectatorToken(game.id)).toBe(token);
     expect(token).not.toBe(game.id);
     expect(store.matchForToken(token)).toBe(game.id);
+    // After a rematch the same token resolves to the new race.
+    const old = store.get(game.id);
+    db.prepare("UPDATE maze_matches SET state = ? WHERE id = ?").run(JSON.stringify({ ...old, rematchId: "next" }), game.id);
+    const next = store.create({ id: "alice", name: "Alice" }, 1);
+    db.prepare("UPDATE maze_matches SET id = 'next', state = json_set(state, '$.id', 'next') WHERE id = ?").run(next.id);
+    expect(store.matchForToken(token)).toBe("next");
     expect(() => store.matchForToken("00000000-0000-0000-0000-000000000000")).toThrow(/not valid/);
     db.close();
   });
@@ -54,7 +60,10 @@ describe("public game", () => {
   it("drops private chat and rematch fields and nothing else", () => {
     const game = { id: "g", chat: [{ n: 1 }], rematchId: "r", rematchBy: "a", status: "racing", players: [] } as unknown as Game;
     const shown = publicGame(game) as Record<string, unknown>;
-    expect(Object.keys(shown).sort()).toEqual(["id", "players", "status"]);
+    // Only a flag that a rematch exists, never its id (which would open a seat).
+    expect(Object.keys(shown).sort()).toEqual(["id", "players", "rematched", "status"]);
+    expect(shown.rematched).toBe(true);
+    expect(JSON.stringify(shown)).not.toContain('"r"');
     const typed: PublicGame = publicGame(game);
     expect(typed.id).toBe("g");
   });
@@ -94,6 +103,28 @@ describe("spectator link over HTTP", () => {
     const page = await fetch(new URL(`/watch/${token}`, base));
     expect(page.status).toBe(200);
     expect(await page.text()).toContain("Maze Duel");
+  });
+
+  it("follows the same link into a rematch, and the one after", async () => {
+    const alice = await person("Alice"), bob = await person("Bob");
+    const { game } = await (await api(alice, "matches", {})).json() as { game: Game };
+    let path = `matches/${game.id}`;
+    await api(bob, `${path}/join`, {});
+    const { token } = await (await api(alice, `${path}/spectate`)).json() as { token: string };
+    const watch = async () => (await (await fetch(new URL(`/api/maze/watch/${token}`, base))).json() as { game: PublicGame }).game;
+    let previous = game.id;
+    for (let round = 0; round < 2; round++) {
+      await api(alice, `${path}/ready`, {});
+      await api(bob, `${path}/ready`, {});
+      await api(bob, `${path}/forfeit`, {});
+      const next = await (await api(alice, `${path}/rematch`, {})).json() as { game: Game };
+      const seen = await watch();
+      expect(seen.id).toBe(next.game.id);
+      expect(seen.id).not.toBe(previous);
+      expect(seen.rematched).toBeUndefined();
+      previous = next.game.id;
+      path = `matches/${next.game.id}`;
+    }
   });
 
   it("streams a spectator the live race without chat and without counting as a player", async () => {
