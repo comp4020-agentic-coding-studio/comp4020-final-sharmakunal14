@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { DatabaseSync } from "node:sqlite";
-import { addChat, applyActions, BURST, forfeitGame, GameError, isAction, joinGame, MAX_BATCH, MOVE_INTERVAL_MS, publicGame, readyPlayer, setLook, SWITCH_COOLDOWN_MS, todaysLayout } from "./maze-game.ts";
+import { levelById } from "./public/maze-levels.js";
+import { addChat, applyActions, BURST, forfeitGame, GameError, isAction, joinGame, levelLayout, MAX_BATCH, MOVE_INTERVAL_MS, publicGame, readyPlayer, setLook, SWITCH_COOLDOWN_MS, todaysLayout } from "./maze-game.ts";
 import type { Action } from "./maze-game.ts";
 import type { Game, Identity } from "./maze-game.ts";
 import type { Look } from "./public/maze-look.js";
@@ -66,6 +67,12 @@ export function createMazeHandler(db: DatabaseSync) {
   return async (req: IncomingMessage, res: ServerResponse, actor: Identity | null): Promise<void> => {
     try {
       const path = new URL(req.url ?? "/", "http://local").pathname;
+      // A campaign level's layout and its best times; public, like today's maze.
+      const levelPath = /^\/api\/maze\/level\/([1-4]-[1-3])$/.exec(path);
+      if (levelPath && req.method === "GET") {
+        const layout = levelLayout(levelPath[1]);
+        return send(res, 200, { ...layout, level: levelPath[1], best: store.best(layout.mazeId) });
+      }
       if ((path === "/api/maze/layout" || path === "/api/maze/today") && req.method === "GET") {
         const layout = todaysLayout();
         return send(res, 200, { ...layout, best: store.best(layout.mazeId) });
@@ -94,12 +101,16 @@ export function createMazeHandler(db: DatabaseSync) {
       if (path === "/api/maze/matches" && req.method === "POST") {
         const input = await body(req);
         if (input.fog !== undefined && typeof input.fog !== "boolean") throw new GameError("INVALID_FOG", "Fog must be on or off.", 400);
-        return send(res, 201, snapshot(store.create(actor, Date.now(), parseOptionalLook(input.look, 0), input.fog === true), actor));
+        if (input.level !== undefined && (typeof input.level !== "string" || !levelById(input.level))) throw new GameError("NO_LEVEL", "That level does not exist.", 400);
+        return send(res, 201, snapshot(store.create(actor, Date.now(), parseOptionalLook(input.look, 0), input.fog === true, input.level as string | undefined), actor));
+      }
+      if (path === "/api/maze/levels" && req.method === "GET") {
+        return send(res, 200, { unlocked: store.unlocked(actor.id), completed: store.completedLevels(actor.id), best: store.levelBests(actor.id) });
       }
       if (path === "/api/maze/matches" && req.method === "GET") {
         return send(res, 200, { matches: store.recent(actor.id) });
       }
-      const match = /^\/api\/maze\/matches\/([a-f0-9-]{36})(?:\/(join|ready|move|stream|replay|forfeit|rematch|look|chat|spectate))?$/.exec(path);
+      const match = /^\/api\/maze\/matches\/([a-f0-9-]{36})(?:\/(join|ready|move|stream|replay|forfeit|rematch|next|look|chat|spectate))?$/.exec(path);
       if (!match) throw new GameError("NOT_FOUND", "Unknown game address.", 404);
       const [, id, action] = match;
       if (req.method === "POST" && action === "join") {
@@ -137,8 +148,8 @@ export function createMazeHandler(db: DatabaseSync) {
       } else if (action === "forfeit") {
         store.current(id);
         game = store.update(id, (current) => forfeitGame(current, actor.id));
-      } else if (action === "rematch") {
-        const next = store.rematch(id, actor);
+      } else if (action === "rematch" || action === "next") {
+        const next = store.rematch(id, actor, Date.now(), action === "next");
         live.publish(store.get(id));
         return send(res, 201, snapshot(next, actor));
       } else if (action === "move") {

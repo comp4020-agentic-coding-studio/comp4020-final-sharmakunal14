@@ -26,7 +26,8 @@ create another race. Milestone 2 adds:
 - client-side prediction with batched commands;
 - a server step log, today's best times and replays.
 
-Decision 0010 adds one symmetric pair of pulse gates per maze that open for
+Decision 0013 adds a campaign of twelve fixed levels in four worlds; the daily
+maze stays the default and is unchanged. Decision 0010 adds one symmetric pair of pulse gates per maze that open for
 2.5 s and close for 2.5 s on the race clock.
 
 Accounts, power-ups, map reveals and a free 3D camera stay deferred.
@@ -146,6 +147,7 @@ be always correct. That needs human playtesting before more mechanics.
 - [0006: Audible, on-by-default audio](decisions/0006-audible-retro-audio.md) — louder levels, per-scene music, mute button, page-load unlock.
 - [0008: Spectators, streak and personal best, rematch card](decisions/0008-spectators-stats-rematch-card.md) — separate watch secret, private fields removed, derived streak, result screens for all, designer in front.
 - [0009: One step at a time flow](decisions/0009-one-step-at-a-time-flow.md) — full-bleed maze, one card per step, avatar step with Back, secondary content in dialogs.
+- [0013: Worlds and levels](decisions/0013-worlds-and-levels.md) — twelve fixed levels in four worlds, unlocked by finishing, beside the daily maze.
 - [0011: Fog option](decisions/0011-fog-option.md) — per-race limited sight, presentation only.
 - [0012: Rifts](decisions/0012-rifts.md) — one linked, rotation-paired teleport pair per maze.
 - [0010: Pulse gates](decisions/0010-pulse-gates.md) — one symmetric pair of timed gates per maze; why not rotating rooms, portals, reveal or trails.

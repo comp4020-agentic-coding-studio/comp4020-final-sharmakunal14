@@ -531,3 +531,17 @@ body[data-phase="finished"] .hud-key, body[data-phase="interrupted"] .hud-key { 
 .mode-pick input:focus-visible + span { outline: 2px solid var(--cyan); outline-offset: 2px; }
 .fog-tag { font-family: var(--font-mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--cyan); }
 .race-mode { margin: 4px 0 0; color: var(--cyan); }
+
+/* World and level picker (decision 0013) */
+.world-list { display: grid; gap: 10px; max-height: min(46vh, 420px); overflow-y: auto; margin: 6px 0 4px; padding-right: 2px; }
+.world { border-radius: 14px; border: 1px solid var(--line); padding: 10px 12px; background: linear-gradient(135deg, color-mix(in srgb, var(--w) 28%, transparent), rgba(255, 255, 255, .03)); }
+.world h3 { margin: 0; font-size: 14px; }
+.world .tag-line { margin: 2px 0 8px; font-size: 11px; color: var(--muted); font-family: var(--font-mono); letter-spacing: .06em; text-transform: uppercase; }
+.levels { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.level-btn { display: grid; gap: 2px; text-align: left; min-height: 56px; padding: 8px; border-radius: 10px; border: 1px solid var(--line); background: rgba(7, 11, 26, .45); color: var(--text); font-size: 12px; cursor: pointer; }
+.level-btn b { font-size: 12px; }
+.level-btn small { color: var(--muted); font-size: 11px; }
+.level-btn[aria-pressed="true"] { border-color: var(--cyan); background: rgba(47, 216, 255, .15); }
+.level-btn:disabled { opacity: .45; cursor: not-allowed; }
+.level-btn:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+.level-btn .done { color: var(--a); }

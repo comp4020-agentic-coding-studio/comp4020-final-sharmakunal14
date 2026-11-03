@@ -60,7 +60,7 @@ export function mountSpectator(token, mazeView, showError) {
     focus();
     mazeView.update(game.maze, game.players.map((p) => ({ ...p, mine: false })), {
       gates: game.gates, switches: game.switches, switchOn: game.switchOn,
-      pulses: game.pulses, rifts: game.rifts, startsAt: game.startsAt, now,
+      pulses: game.pulses, rifts: game.rifts, startsAt: game.startsAt, now, world: game.level ? Number(game.level[0]) : null,
     });
   }
 

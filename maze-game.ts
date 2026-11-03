@@ -1,5 +1,6 @@
 import { generate, sydneyDate } from "./maze-gen.ts";
-import type { Gate, Layout, Point, Pulse } from "./maze-gen.ts";
+import { levelById, mazeIdOf } from "./public/maze-levels.js";
+import type { Gate, Layout, Point, Pulse, Spec } from "./maze-gen.ts";
 import { DIRECTIONS, gateOpen, goalOf, landing, passable, switchAt } from "./public/maze-rules.js";
 import { defaultLook } from "./public/maze-look.js";
 import { cleanText, MAX_CHAT, REACTIONS } from "./public/maze-chat-rules.js";
@@ -29,6 +30,8 @@ export type Game = {
   gates: Gate[];
   // Limited sight for both players (decision 0011). Presentation only.
   fog?: boolean;
+  // The campaign level this race is on (decision 0013); absent for the daily maze.
+  level?: string;
   // Timed gates (decision 0010). Absent in races saved before they existed.
   pulses?: Pulse[];
   // A linked pair of teleporting cells (decision 0012). Absent in older races.
@@ -52,15 +55,17 @@ export type Game = {
   rematchId?: string;
   // Who asked first, so the other player can be told.
   rematchBy?: string;
+  // Set when the next race is the following level rather than the same one.
+  rematchLevel?: string;
 };
 
 // What a spectator or an outside visitor may see: the race, not the players'
 // private chat or rematch plans.
 // `rematched` tells a spectator to follow the link to the next race, without
 // revealing the new race's id (which would let anyone take a seat).
-export type PublicGame = Omit<Game, "chat" | "rematchId" | "rematchBy"> & { rematched?: true };
+export type PublicGame = Omit<Game, "chat" | "rematchId" | "rematchBy" | "rematchLevel"> & { rematched?: true };
 export function publicGame(game: Game): PublicGame {
-  const { chat: _chat, rematchId: _id, rematchBy: _by, ...rest } = game;
+  const { chat: _chat, rematchId: _id, rematchBy: _by, rematchLevel: _level, ...rest } = game;
   return game.rematchId ? { ...rest, rematched: true } : rest;
 }
 export type ChatLine = { n: number; at: number; slot: 0 | 1; kind: "text" | "reaction"; text: string };
@@ -83,8 +88,17 @@ export class GameError extends Error {
 const layouts = new Map<string, Layout>();
 export function layoutFor(mazeId: string): Layout {
   let layout = layouts.get(mazeId);
-  if (!layout) layouts.set(mazeId, layout = generate(mazeId));
+  if (!layout) {
+    // Level mazes (decision 0013) are `level-<id>` with the level's own spec.
+    const level = mazeId.startsWith("level-") ? levelById(mazeId.slice(6)) : null;
+    layouts.set(mazeId, layout = level ? generate(mazeId, level.spec as Spec, level.seed ?? mazeId) : generate(mazeId));
+  }
   return layout;
+}
+export function levelLayout(levelId: string): Layout {
+  const level = levelById(levelId);
+  if (!level) throw new GameError("NO_LEVEL", "That level does not exist.", 400);
+  return layoutFor(mazeIdOf(level));
 }
 export const todaysLayout = (now = Date.now()) => layoutFor(sydneyDate(now));
 
@@ -100,13 +114,13 @@ function player(game: Pick<Game, "maze">, identity: Identity, slot: 0 | 1, look?
   return { ...identity, slot, ...entrance(game, slot), ready: false, sequence: 0, tokens: 0, tokensAt: 0, look: look ?? defaultLook(slot) };
 }
 
-export function newGame(id: string, identity: Identity, now: number, layout = todaysLayout(now), look?: Look, fog = false): Game {
+export function newGame(id: string, identity: Identity, now: number, layout = todaysLayout(now), look?: Look, fog = false, level?: string): Game {
   const base = {
     id, mazeId: layout.mazeId, maze: layout.maze, switches: layout.switches, gates: layout.gates, pulses: layout.pulses, rifts: layout.rifts,
     switchOn: layout.switches.map(() => false), switchAt: layout.switches.map(() => 0),
   };
   return {
-    ...base, ...(fog ? { fog: true } : {}), players: [player(base, identity, 0, look)], status: "waiting", revision: 1,
+    ...base, ...(fog ? { fog: true } : {}), ...(level ? { level } : {}), players: [player(base, identity, 0, look)], status: "waiting", revision: 1,
     createdAt: now, startsAt: null, finishedAt: null, winnerId: null, interruption: null,
   };
 }

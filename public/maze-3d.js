@@ -1,6 +1,7 @@
 import * as THREE from "./vendor/three-0.170.0.module.min.js";
 import { lookOf } from "./maze-look.js";
 import { inSight, pulseOpen, pulseRemaining } from "./maze-rules.js";
+import { WORLDS } from "./maze-levels.js";
 
 // Presentation only: the server owns positions on a grid. One grid cell is
 // one world unit on x/z; walls stand on cells marked "#".
@@ -58,16 +59,14 @@ function sandTexture() {
   });
 }
 
-function skyTexture() {
+// The daily desert sky, or a world's two-colour sky (decision 0013).
+function skyTexture(stops = ["#1d6bff", "#5fb6ff", "#ffd6a0", "#ff9e6b"]) {
   const canvas = document.createElement("canvas");
   canvas.width = 2;
   canvas.height = 256;
   const ctx = canvas.getContext("2d");
   const g = ctx.createLinearGradient(0, 0, 0, 256);
-  g.addColorStop(0, "#1d6bff");
-  g.addColorStop(0.45, "#5fb6ff");
-  g.addColorStop(0.7, "#ffd6a0");
-  g.addColorStop(1, "#ff9e6b");
+  stops.forEach((c, i) => g.addColorStop(i / (stops.length - 1), c));
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, 2, 256);
   const texture = new THREE.CanvasTexture(canvas);
@@ -241,7 +240,7 @@ export class Maze3D {
     this.sun.shadow.normalBias = 0.04;
     this.scene.add(this.sun, this.sun.target);
 
-    const ground = new THREE.Mesh(new THREE.CircleGeometry(120, 64), new THREE.MeshStandardMaterial({ map: sandTexture(), roughness: 1 }));
+    const ground = this.ground = new THREE.Mesh(new THREE.CircleGeometry(120, 64), new THREE.MeshStandardMaterial({ map: sandTexture(), roughness: 1 }));
     ground.material.map.repeat.set(60, 60);
     ground.rotation.x = -Math.PI / 2;
     // Sits below the maze floor's top face; at the same height the two fought (z-fighting).
@@ -322,7 +321,13 @@ export class Maze3D {
     const center = (n - 1) / 2;
     this.center = new THREE.Vector3(center, 0, center);
 
-    const floor = new THREE.Mesh(new THREE.BoxGeometry(n + 0.6, 0.2, n + 0.6), new THREE.MeshStandardMaterial({ map: this.floorTex, color: 0xf0d2a0, roughness: 0.95 }));
+    // A world tints the same textures (presentation only, decision 0013).
+    const theme = WORLDS.find((w) => w.id === this.board.world)?.theme ?? null;
+    this.scene.background = theme ? skyTexture(theme.sky) : this.desertSky ??= this.scene.background;
+    this.ground.material.color.set(theme ? theme.ground : 0xffffff);
+    this.haze = theme ? theme.fog : 0xffcf9a;
+    this.scene.fog.color.set(this.haze);
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(n + 0.6, 0.2, n + 0.6), new THREE.MeshStandardMaterial({ map: this.floorTex, color: theme ? theme.floor : 0xf0d2a0, roughness: 0.95 }));
     floor.material.map = this.floorTex.clone();
     floor.material.map.repeat.set(n / 2, n / 2);
     floor.material.map.needsUpdate = true;
@@ -332,11 +337,11 @@ export class Maze3D {
 
     const wallTex = this.brick.clone();
     wallTex.needsUpdate = true;
-    const wallMat = new THREE.MeshStandardMaterial({ map: wallTex, roughness: 0.9 });
+    const wallMat = new THREE.MeshStandardMaterial({ map: wallTex, roughness: 0.9, color: theme ? theme.wall : 0xffffff });
     const capTex = this.floorTex.clone();
     capTex.repeat.set(0.5, 0.5);
     capTex.needsUpdate = true;
-    const capMat = new THREE.MeshStandardMaterial({ map: capTex, color: 0xd9c09a, roughness: 0.9 });
+    const capMat = new THREE.MeshStandardMaterial({ map: capTex, color: theme ? theme.top : 0xd9c09a, roughness: 0.9 });
     const gateCells = new Set([...(this.board.gates ?? []), ...(this.board.pulses ?? [])].map((g) => `${g.x},${g.y}`));
     const cells = [];
     for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) if (maze[y][x] === "#" && !gateCells.has(`${x},${y}`)) cells.push([x, y]);
@@ -460,7 +465,7 @@ export class Maze3D {
     this.portals[1].position.set(n - 2, 0, n - 2);
     this.world.add(...this.portals);
 
-    const greenery = new THREE.MeshStandardMaterial({ color: 0x3f9a4a, roughness: 0.8 });
+    const greenery = new THREE.MeshStandardMaterial({ color: theme ? theme.top : 0x3f9a4a, roughness: 0.8, emissive: this.board.world === 4 ? theme.top : 0x000000, emissiveIntensity: 0.4 });
     let s = n * 97;
     const rand = () => (s = (s * 16807) % 2147483647) / 2147483647;
     for (let i = 0; i < 26; i++) {
@@ -481,6 +486,7 @@ export class Maze3D {
       this.world.add(rock);
     }
     const hills = mountains(n * 2.2, 22, n * 31);
+    if (theme) hills.traverse((o) => { if (o.isMesh) o.material = o.material.clone(), o.material.color.set(theme.hills); });
     hills.position.copy(this.center);
     this.world.add(hills);
 
@@ -493,7 +499,7 @@ export class Maze3D {
 
   update(maze, players, board = {}) {
     this.board = board;
-    const key = maze.join("") + JSON.stringify(board.gates ?? []) + JSON.stringify(board.pulses ?? []);
+    const key = maze.join("") + JSON.stringify(board.gates ?? []) + JSON.stringify(board.pulses ?? []) + (board.world ?? "");
     if (board.now !== undefined) this.pulseClock = board.now;
     this.viewer = board.viewer ?? null;
     this.applySight();
@@ -723,7 +729,7 @@ export class Maze3D {
     if (key === this.sightKey) return;
     this.sightKey = key;
     this.cover.visible = Boolean(v);
-    this.scene.fog.color.set(v ? 0xc9c4d4 : 0xffcf9a);
+    this.scene.fog.color.set(v ? 0xc9c4d4 : this.haze ?? 0xffcf9a);
     // Beams rise above the cloud in fog so both goals stay findable.
     for (const p of this.portals ?? []) { p.userData.beam.scale.y = v ? 2.2 : 1; p.userData.beam.position.y = v ? 2.64 : 1.2; }
     const hide = (x, y) => v && !inSight(v, x, y);

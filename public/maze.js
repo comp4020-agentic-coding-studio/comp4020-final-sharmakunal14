@@ -7,6 +7,7 @@ import { setupAudio } from "./maze-audio-ui.js";
 import { setupAvatarPicker } from "./maze-avatar-ui.js";
 import { mountSpectator } from "./maze-spectate.js";
 import { reveal, setStep } from "./maze-flow.js";
+import { LEVELS, WORLDS } from "./maze-levels.js";
 
 export const formatTime = (ms) => `${Math.floor(ms / 60_000).toString().padStart(2, "0")}:${((ms % 60_000) / 1_000).toFixed(1).padStart(4, "0")}`;
 
@@ -48,7 +49,7 @@ async function enter(id) {
 
 // The wizard: name -> choose -> (join) , one pane at a time. Panes are stacked in
 // one grid cell and slide; only the current one is focusable or announced.
-const PANES = ["name", "choose", "join"];
+const PANES = ["name", "choose", "worlds", "join"];
 let pane = "name";
 function showPane(name, { focus = true } = {}) {
   const from = PANES.indexOf(pane), to = PANES.indexOf(name);
@@ -119,6 +120,58 @@ $("nickname").addEventListener("input", () => fieldError("name-error", $("nickna
 // Step 2: create or join. Both go through the avatar step, then straight to the waiting room.
 $("create-race").addEventListener("click", () => go(null));
 $("to-join").addEventListener("click", () => showPane("join"));
+
+// The campaign picker: four worlds, three levels each, with this player's progress.
+let chosenLevel = null;
+$("to-worlds").addEventListener("click", async () => {
+  showPane("worlds");
+  try { renderWorlds(await request("/api/maze/levels")); }
+  catch (error) { $("level-note").textContent = error.message; }
+});
+$("worlds-back").addEventListener("click", () => { chosenLevel = null; showPane("choose"); drawPreview(); });
+$("create-level").addEventListener("click", () => chosenLevel && go(null, chosenLevel));
+function renderWorlds(progress) {
+  const open = new Set(progress.unlocked), done = new Set(progress.completed);
+  $("world-list").replaceChildren(...WORLDS.map((world) => {
+    const box = document.createElement("section");
+    box.className = "world";
+    box.setAttribute("role", "listitem");
+    box.style.setProperty("--w", world.theme.top);
+    const title = document.createElement("h3"), tag = document.createElement("p"), row = document.createElement("div");
+    title.textContent = `${world.id} · ${world.name}`;
+    tag.className = "tag-line";
+    tag.textContent = world.tag;
+    row.className = "levels";
+    for (const level of LEVELS.filter((l) => l.world === world.id)) {
+      const button = document.createElement("button"), name = document.createElement("b"), note = document.createElement("small");
+      button.type = "button";
+      button.className = "level-btn";
+      button.disabled = !open.has(level.id);
+      button.setAttribute("aria-pressed", "false");
+      name.textContent = `${level.id} ${level.name}`;
+      const best = progress.best[level.id];
+      note.textContent = !open.has(level.id) ? "Locked" : best ? `Best ${formatTime(best)}` : done.has(level.id) ? "Done" : "Open";
+      if (done.has(level.id)) note.classList.add("done");
+      button.append(name, note);
+      button.setAttribute("aria-label", `Level ${level.id}, ${level.name}. ${note.textContent}. ${level.teaches}`);
+      button.addEventListener("click", () => chooseLevel(level, button));
+      row.append(button);
+    }
+    box.append(title, tag, row);
+    return box;
+  }));
+}
+async function chooseLevel(level, button) {
+  chosenLevel = level.id;
+  for (const b of document.querySelectorAll(".level-btn")) b.setAttribute("aria-pressed", String(b === button));
+  $("level-note").textContent = `${level.teaches}${level.fog ? " Fog race." : ""}`;
+  $("create-level").disabled = false;
+  $("create-level-label").textContent = `Play ${level.id} ${level.name}`;
+  try {
+    const layout = await request(`/api/maze/level/${level.id}`);
+    if (chosenLevel === level.id) drawPreview(layout);
+  } catch { /* The preview is decoration; the race still starts. */ }
+}
 $("join-back").addEventListener("click", () => showPane("choose"));
 $("invite").addEventListener("input", () => fieldError("join-error", $("invite"), null));
 $("join-form").addEventListener("submit", (event) => {
@@ -129,8 +182,8 @@ $("join-form").addEventListener("submit", (event) => {
 });
 
 // Step 3 and on: choose an avatar, then create or join and land in the waiting room.
-async function go(id) {
-  const button = id ? (invitationId ? $("name-next") : $("join-race")) : $("create-race");
+async function go(id, level = null) {
+  const button = id ? (invitationId ? $("name-next") : $("join-race")) : level ? $("create-level") : $("create-race");
   $("error").hidden = true;
   setStep(2);
   if (!(await askAvatar(id ? "Join the race" : "Create the race"))) { setStep(invitationId ? 0 : 1); return; }
@@ -139,7 +192,8 @@ async function go(id) {
   try {
     if (invitationId) return await enter(id);
     const fog = document.querySelector('input[name="fog"]:checked')?.value === "fog";
-    const view = await request(id ? `/api/maze/matches/${id}/join` : "/api/maze/matches", id ? { look: picker.chosen() } : { look: picker.chosen(), fog });
+    const body = id ? { look: picker.chosen() } : level ? { look: picker.chosen(), level } : { look: picker.chosen(), fog };
+    const view = await request(id ? `/api/maze/matches/${id}/join` : "/api/maze/matches", body);
     location.assign(`/race/${view.game.id}`);
   } catch (error) {
     setStep(invitationId ? 0 : 1);
@@ -204,12 +258,13 @@ async function createView(container) {
   }
 }
 
-function drawPreview() {
-  const n = today.maze.length;
-  mazeView.update(today.maze, [
+// Shows today's maze, or a chosen level's, behind the lobby.
+function drawPreview(layout = today) {
+  const n = layout.maze.length;
+  mazeView.update(layout.maze, [
     { id: "preview-a", slot: 0, x: 1, y: 1, look: picker.look() },
     { id: "preview-b", slot: 1, x: n - 2, y: n - 2 },
-  ], { gates: today.gates, switches: today.switches, switchOn: today.switches.map(() => false), pulses: today.pulses, rifts: today.rifts });
+  ], { gates: layout.gates, switches: layout.switches, switchOn: layout.switches.map(() => false), pulses: layout.pulses, rifts: layout.rifts, world: layout.level ? Number(layout.level[0]) : null });
 }
 
 async function initialize() {
@@ -221,7 +276,7 @@ async function initialize() {
   } else $("avatar-preview").hidden = true;
   picker = setupAvatarPicker(preview);
   // The maze preview shows the chosen avatar at entrance A until a race begins.
-  picker.onChange?.(() => { if (inLobby && today) drawPreview(); });
+  picker.onChange?.(() => { if (inLobby && today && !chosenLevel) drawPreview(); });
   document.body.dataset.step = "name";
   today = await request("/api/maze/today");
   const n = today.maze.length;
