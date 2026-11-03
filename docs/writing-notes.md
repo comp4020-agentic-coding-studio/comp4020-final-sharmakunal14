@@ -256,3 +256,23 @@ Raw material, not prose. Decision record: [0008](decisions/0008-spectators-stats
   [2D closed](evidence/2026-11-02-pulse-closed-2d.png),
   [phone hint](evidence/2026-11-02-pulse-phone-hint.png),
   [script](evidence/2026-11-02-pulse-check.mjs).
+
+## 0011 fog, 0012 rifts, spectator rematch (2026-11-03)
+
+- Trigger: author asked for "1 and 2" (fog and portals), then that the
+  spectator link should continue into a rematch.
+- Fog is a race option, not a daily mechanic, so players choose and daily
+  times stay comparable. Presentation only; honestly not secret (0011).
+- Rifts named to avoid a clash with the existing "portals" (the entrances).
+- Correction worth citing: the rift generator's first estimate was wrong in
+  two ways (rift cells walkable; gates open at start ignored). Found by a
+  200-seed test that compared real routes, not by looking at pictures.
+- Correction: SQLite CHECK on the step log needed a migration; test builds an
+  old-schema database and upgrades it.
+- Spectator design choice: follow the chain on the server, expose only
+  `rematched: true` so the new race id (a seat) never leaks to watchers.
+- Evidence: [fog map](evidence/2026-11-03-fog-3d-map.png),
+  [fog 3rd person](evidence/2026-11-03-fog-3d-third.png),
+  [fog 2D](evidence/2026-11-03-fog-2d.png), [fog choice](evidence/2026-11-03-fog-choice.png),
+  [rift 3D](evidence/2026-11-03-rift-3d.png), [rift 2D](evidence/2026-11-03-rift-2d.png),
+  scripts `evidence/2026-11-03-*-check.mjs`.

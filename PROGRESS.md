@@ -719,3 +719,47 @@ First: pulse gates, a symmetric pair of timed gates per maze ([decision 0010](do
 - Replay drawing of pulse gates was not checked in a browser.
 - The race clock still overlaps the "Live" chip at 390×844 (existing issue).
 - No human playtest of the 2.5 s rhythm; Safari and Firefox untried.
+
+## 2026-11-03 — Fog option, rifts, spectators follow rematches (local, pushed to `pulse-gates`)
+
+The author asked for fog and portals after pulse gates, then for spectator
+links to carry over into rematches. Decisions [0011](docs/decisions/0011-fog-option.md)
+and [0012](docs/decisions/0012-rifts.md).
+
+| Work completed | Commit |
+| --- | --- |
+| Decision records for fog and rifts, before code. | `eb654ea` |
+| Fog saved with the race, kept in rematches, marked on the board. | `143c587` |
+| Clear/Fog choice and waiting-room label. | `83b72c5` |
+| Fog drawing in 3D and 2D, goal beams as landmarks. | `d19f5d0` |
+| Rift pair per maze, rift-aware generator, step-log upgrade. | `50adeaa` |
+| Rift drawing, prediction, replay count, help text. | `cf546f0`, `d3aba96` |
+| HTTP rift check; batching check fails fast instead of hanging. | `b5b4d40` |
+| Spectator link follows rematches. | `3e22249`, `2f4d664` |
+
+| Check | Result |
+| --- | --- |
+| `pnpm check` against the new code on port 8090 | 132/132, typecheck clean |
+| Rematch-follow tests with the chain lookup disabled | both fail, as intended |
+| Committed vs new generator over 800 ids (excluding new fields) | 0 changed mazes/switches/gates |
+| Agent-driven Chrome: fog in 3D (map, 3rd) and 2D; rift jump in 3D and 2D; spectator page through a forfeit and rematch | all as intended, no page errors |
+
+### Problems found
+
+- Rift savings were wrong twice: first a rift cell was treated as walkable
+  (stepping on one always teleports), then savings ignored gates that start
+  open. Seed 1 had a rift saving nothing. Both fixed; a 200-seed test checks
+  every rift saves at least 4 steps at race start.
+- The step log's CHECK allowed only 'step' and 'flip'; deployed databases
+  need a one-time table copy, tested against an old-schema database.
+- First fog looked like a grey slab and washed out the map camera; changed
+  to cloud blocks with haze measured from the camera.
+- One full test run hung 439 s in the batching check, which re-sent a
+  refused batch forever. Not reproduced; the loop now fails with the code.
+- The spectator page did not draw pulses or rifts; fixed with the rematch work.
+
+### Not verified
+
+- Fog and rifts not tried by a human; Safari and Firefox untried.
+- Fog is not secret: a player can read the layout from the API (by design, 0011).
+- The table upgrade has not run against the production volume yet.
