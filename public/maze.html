@@ -186,11 +186,21 @@
               <label><input type="radio" name="fog" value="fog"><span><strong>Fog</strong><small>See 3 steps around you</small></span></label>
             </fieldset>
             <button id="create-race" class="btn btn-primary" type="button"><span>Create a race</span><svg aria-hidden="true"><use href="#i-arrow"/></svg></button>
+            <button id="to-worlds" class="btn btn-ghost" type="button"><span>Play the worlds</span><svg aria-hidden="true"><use href="#i-map"/></svg></button>
             <button id="to-join" class="btn btn-ghost" type="button"><span>Join with a link</span><svg aria-hidden="true"><use href="#i-arrow"/></svg></button>
             <div class="quick-links">
               <button type="button" class="link-btn" data-open="board-dialog"><svg aria-hidden="true"><use href="#i-trophy"/></svg>Leaderboard</button>
               <button type="button" class="link-btn" data-open="help-dialog"><svg aria-hidden="true"><use href="#i-help"/></svg>How to play</button>
             </div>
+          </div>
+
+          <div class="pane" data-pane="worlds" data-pos="after">
+            <button id="worlds-back" class="back-btn" type="button"><svg aria-hidden="true"><use href="#i-back"/></svg>Back</button>
+            <h2 class="display-sm">Four worlds</h2>
+            <p class="muted">Finish a level, win or lose, to open the next. A friend you invite can join any level.</p>
+            <div id="world-list" class="world-list" role="list"></div>
+            <p id="level-note" class="fine" role="status"></p>
+            <button id="create-level" class="btn btn-primary" type="button" disabled><span id="create-level-label">Choose a level</span><svg aria-hidden="true"><use href="#i-arrow"/></svg></button>
           </div>
 
           <div class="pane" data-pane="join" data-pos="after">
@@ -218,6 +228,7 @@
           <p id="result-card" class="result-card" hidden></p>
           <p id="stats-line" class="result-card stats-line" hidden></p>
           <button id="ready" type="button" class="btn btn-primary">I’m ready</button>
+          <button id="next-level" class="btn btn-primary" type="button" hidden><span id="next-level-label">Next level</span><svg aria-hidden="true"><use href="#i-arrow"/></svg></button>
           <button id="rematch" class="btn btn-primary" type="button" hidden><span>Rematch</span><svg aria-hidden="true"><use href="#i-arrow"/></svg></button>
           <p id="rematch-note" class="fine center" role="status"></p>
           <div class="action-row">

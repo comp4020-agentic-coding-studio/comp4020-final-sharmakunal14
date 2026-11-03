@@ -47,8 +47,8 @@ it("moves today's lists into a leaderboard dialog, off the first screen", () => 
 
 it("shows one step at a time: only the name pane starts in view, the rest wait beside it", () => {
   const d = doc(), panes = [...d.querySelectorAll(".pane")] as HTMLElement[];
-  expect(panes.map((p) => p.dataset.pane)).toEqual(["name", "choose", "join"]);
-  expect(panes.map((p) => p.dataset.pos)).toEqual(["current", "after", "after"]);
+  expect(panes.map((p) => p.dataset.pane)).toEqual(["name", "choose", "worlds", "join"]);
+  expect(panes.map((p) => p.dataset.pos)).toEqual(["current", "after", "after", "after"]);
   expect(d.querySelectorAll("#entry .btn-primary").length).toBeGreaterThan(0);
   expect(d.getElementById("avatar-back")).not.toBeNull(); // every step has a way back
   expect(d.getElementById("join-back")).not.toBeNull();
