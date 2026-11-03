@@ -109,6 +109,15 @@ Keep the earlier Shared Space routes and data working during the transition.
   and accounts stay out of scope: each adds unpredictability without making
   the opponent's choices matter more. Cameras are fixed views (map, 3rd,
   1st), not free-roam movement.
+- Levels (decision 0013) are fixed data in `public/maze-levels.js`; every level
+  must pass the same fairness and reachability checks as the daily maze and
+  contain the mechanics it names, and its layout fingerprint is pinned. If a
+  generator change moves a fingerprint, that changes a level everyone has
+  played: say so and update the pin on purpose. The daily maze must stay
+  byte-identical (compare against the previous generator, not a picture).
+- Progress is derived from finished races (win or lose), never stored; a
+  forfeit unlocks nothing. Rematch and Next level share one link: whoever
+  asks first decides, so both players always land in the same race.
 - Avatar looks and chat are presentation (decision 0007). A look is fixed
   names plus an integer hue, validated by the server and locked once the
   countdown starts; it never affects the rules. Chat shows only the two
