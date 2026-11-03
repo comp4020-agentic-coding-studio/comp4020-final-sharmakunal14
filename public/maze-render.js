@@ -32,7 +32,9 @@ export class MazeView {
     for (const player of players) {
       const old = this.positions.get(player.id);
       if (!old || old.x !== player.x || old.y !== player.y) {
-        this.positions.set(player.id, { x: player.x, y: player.y, fromX: old?.x ?? player.x, fromY: old?.y ?? player.y, at: now });
+        // A rift jump moves more than one cell: snap rather than slide over walls.
+        const jump = old && Math.abs(old.x - player.x) + Math.abs(old.y - player.y) > 1;
+        this.positions.set(player.id, { x: player.x, y: player.y, fromX: jump ? player.x : old?.x ?? player.x, fromY: jump ? player.y : old?.y ?? player.y, at: now });
       }
     }
     this.players = players;
@@ -200,6 +202,24 @@ export class MazeView {
         else if ((switchOn[gate.switch] ?? false) === gate.openWhen) this.gateTile(x, y, SWITCH_COLORS[gate.switch], false);
         else this.gateTile(x, y, SWITCH_COLORS[gate.switch], true);
       }
+    }
+    // Linked rifts (decision 0012): violet swirls on the floor.
+    for (const rift of this.board?.rifts ?? []) {
+      const [cx, cy] = project(rift.x + 0.5, rift.y + 0.5);
+      ctx.save();
+      ctx.shadowColor = "#9b5cff";
+      ctx.shadowBlur = 14;
+      ctx.strokeStyle = "#b98cff";
+      ctx.fillStyle = "#1a0d33";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, 17 * scale, 12 * scale, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, 9 * scale, 6 * scale, 0, 0.4, Math.PI * 1.8);
+      ctx.stroke();
+      ctx.restore();
     }
     // Fog race (decision 0011): cloud over every cell out of sight. The two
     // entrance portals are drawn after, as landmarks.

@@ -10,6 +10,7 @@ const SWITCH_COLORS = [0x2fd8ff, 0xff4fd8];
 const PULSE_COLOR = 0xff6a10;
 const PULSE_WARN_MS = 700;
 const FOG_COLOR = 0xb9b6c8;
+const RIFT_COLOR = 0x9b5cff;
 const TURN_MS = 160;
 const STEP_MS = 120;
 const HEADINGS = { up: Math.PI, right: Math.PI / 2, down: 0, left: -Math.PI / 2 };
@@ -419,6 +420,30 @@ export class Maze3D {
       return { sw, group, crystal, light, on: false };
     });
 
+    // Linked rifts (decision 0012): a violet swirl on the floor of each cell.
+    this.rifts = (this.board.rifts ?? []).map((rift) => {
+      const group = new THREE.Group();
+      group.position.set(rift.x, 0, rift.y);
+      const disc = new THREE.Mesh(new THREE.CircleGeometry(0.4, 40), new THREE.MeshBasicMaterial({ color: 0x1a0d33 }));
+      disc.rotation.x = -Math.PI / 2;
+      disc.position.y = 0.04;
+      const swirl = new THREE.Group();
+      for (const [r, w] of [[0.36, 0.04], [0.24, 0.035], [0.12, 0.03]]) {
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(r, w, 8, 40, Math.PI * 1.4), new THREE.MeshBasicMaterial({ color: RIFT_COLOR }));
+        ring.rotation.x = -Math.PI / 2;
+        ring.rotation.z = r * 9;
+        swirl.add(ring);
+      }
+      swirl.position.y = 0.07;
+      const glow = new THREE.PointLight(RIFT_COLOR, 1.4, 2.5, 2);
+      glow.position.y = 0.5;
+      const flash = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 1.6, 24, 1, true), new THREE.MeshBasicMaterial({ color: RIFT_COLOR, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false }));
+      flash.position.y = 0.8;
+      group.add(disc, swirl, glow, flash);
+      this.world.add(group);
+      return { rift, group, swirl, flash, flashAt: -1e9 };
+    });
+
     // Fog race cover (decision 0011): a cloud block over each unseen cell,
     // taller than the walls so the layout under it stays hidden. Blocks are
     // slightly wider than a cell and share one flat colour, so no face lies in
@@ -498,16 +523,24 @@ export class Maze3D {
       }
       const m = this.motion.get(player.id);
       if (m.x !== player.x || m.y !== player.y) {
-        const cur = this.position(m, now);
-        const dx = player.x - m.x, dy = player.y - m.y;
-        const target = Math.atan2(dx, dy);
-        m.headingFrom = this.heading(m, now);
-        let diff = target - m.headingFrom;
-        while (diff > Math.PI) diff -= Math.PI * 2;
-        while (diff < -Math.PI) diff += Math.PI * 2;
-        m.heading = m.headingFrom + diff;
-        m.turnAt = now;
-        Object.assign(m, { fromX: cur.x, fromY: cur.y, x: player.x, y: player.y, at: now });
+        // Arriving on a rift from a cell that is not next to it is a jump:
+        // snap instead of sliding through walls, keep facing, and flash both ends.
+        const jumped = Math.abs(player.x - m.x) + Math.abs(player.y - m.y) > 1 && (this.rifts ?? []).some((r) => r.rift.x === player.x && r.rift.y === player.y);
+        if (jumped) {
+          for (const r of this.rifts) r.flashAt = now;
+          Object.assign(m, { fromX: player.x, fromY: player.y, x: player.x, y: player.y, at: 0 });
+        } else {
+          const cur = this.position(m, now);
+          const dx = player.x - m.x, dy = player.y - m.y;
+          const target = Math.atan2(dx, dy);
+          m.headingFrom = this.heading(m, now);
+          let diff = target - m.headingFrom;
+          while (diff > Math.PI) diff -= Math.PI * 2;
+          while (diff < -Math.PI) diff += Math.PI * 2;
+          m.heading = m.headingFrom + diff;
+          m.turnAt = now;
+          Object.assign(m, { fromX: cur.x, fromY: cur.y, x: player.x, y: player.y, at: now });
+        }
       }
       m.mine = player.mine;
       a.userData.beacon.visible = true;
@@ -616,6 +649,12 @@ export class Maze3D {
       g.bars.visible ||= warning;
       if (warning) g.bars.position.y = -WALL_H * 0.75;
       g.barMat.emissiveIntensity = warning ? (calm ? 2.4 : 1.2 + 1.4 * (Math.sin(t * 40) > 0 ? 1 : 0)) : 1.2;
+    }
+    for (const r of this.rifts ?? []) {
+      r.swirl.rotation.y = calm ? 0 : -t * 2.5;
+      const f = Math.max(0, 1 - (now - r.flashAt) / 450);
+      r.flash.material.opacity = calm ? 0 : 0.55 * f;
+      r.flash.visible = f > 0 && !calm;
     }
     for (const s of this.switches ?? []) {
       s.crystal.rotation.y = calm ? 0 : t * (s.on ? 3 : 1);
