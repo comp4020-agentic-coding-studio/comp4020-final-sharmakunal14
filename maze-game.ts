@@ -1,5 +1,6 @@
 import { generate, sydneyDate } from "./maze-gen.ts";
-import type { Gate, Layout, Point, Pulse } from "./maze-gen.ts";
+import { levelById, mazeIdOf } from "./public/maze-levels.js";
+import type { Gate, Layout, Point, Pulse, Spec } from "./maze-gen.ts";
 import { DIRECTIONS, gateOpen, goalOf, landing, passable, switchAt } from "./public/maze-rules.js";
 import { defaultLook } from "./public/maze-look.js";
 import { cleanText, MAX_CHAT, REACTIONS } from "./public/maze-chat-rules.js";
@@ -29,6 +30,8 @@ export type Game = {
   gates: Gate[];
   // Limited sight for both players (decision 0011). Presentation only.
   fog?: boolean;
+  // The campaign level this race is on (decision 0013); absent for the daily maze.
+  level?: string;
   // Timed gates (decision 0010). Absent in races saved before they existed.
   pulses?: Pulse[];
   // A linked pair of teleporting cells (decision 0012). Absent in older races.
@@ -83,8 +86,17 @@ export class GameError extends Error {
 const layouts = new Map<string, Layout>();
 export function layoutFor(mazeId: string): Layout {
   let layout = layouts.get(mazeId);
-  if (!layout) layouts.set(mazeId, layout = generate(mazeId));
+  if (!layout) {
+    // Level mazes (decision 0013) are `level-<id>` with the level's own spec.
+    const level = mazeId.startsWith("level-") ? levelById(mazeId.slice(6)) : null;
+    layouts.set(mazeId, layout = level ? generate(mazeId, level.spec as Spec, level.seed ?? mazeId) : generate(mazeId));
+  }
   return layout;
+}
+export function levelLayout(levelId: string): Layout {
+  const level = levelById(levelId);
+  if (!level) throw new GameError("NO_LEVEL", "That level does not exist.", 400);
+  return layoutFor(mazeIdOf(level));
 }
 export const todaysLayout = (now = Date.now()) => layoutFor(sydneyDate(now));
 
@@ -100,13 +112,13 @@ function player(game: Pick<Game, "maze">, identity: Identity, slot: 0 | 1, look?
   return { ...identity, slot, ...entrance(game, slot), ready: false, sequence: 0, tokens: 0, tokensAt: 0, look: look ?? defaultLook(slot) };
 }
 
-export function newGame(id: string, identity: Identity, now: number, layout = todaysLayout(now), look?: Look, fog = false): Game {
+export function newGame(id: string, identity: Identity, now: number, layout = todaysLayout(now), look?: Look, fog = false, level?: string): Game {
   const base = {
     id, mazeId: layout.mazeId, maze: layout.maze, switches: layout.switches, gates: layout.gates, pulses: layout.pulses, rifts: layout.rifts,
     switchOn: layout.switches.map(() => false), switchAt: layout.switches.map(() => 0),
   };
   return {
-    ...base, ...(fog ? { fog: true } : {}), players: [player(base, identity, 0, look)], status: "waiting", revision: 1,
+    ...base, ...(fog ? { fog: true } : {}), ...(level ? { level } : {}), players: [player(base, identity, 0, look)], status: "waiting", revision: 1,
     createdAt: now, startsAt: null, finishedAt: null, winnerId: null, interruption: null,
   };
 }
