@@ -1108,3 +1108,12 @@ of the repository.
 - Author playtest screenshot: the rift was on the obvious corridor, and a side gate gave a quick way into the opponent's corner. Quick play now hides the rift off the shortest route, closes the second opening into each goal (reconnecting any pocket elsewhere), and keeps gates and pulses at least 5 from either entrance (decision 0012 revision 2). 25/200 seeds now have no rift; average rift landing 7.6 cells from the goal.
 - New check in `spec/maze-game.test.ts` over 200 seeds: one way into each goal, no gate or pulse beside an entrance, rift never on the walking route; existing reachability and symmetry checks still pass. The 2026-11-01 gate pin was updated on purpose. Levels unchanged.
 - `tsc --noEmit` clean; 146/146 tests against the branch server on port 8094.
+
+## 2026-11-09 — First observation that a switch changed a route
+
+The author reported that, playing the deployed game on 9 November, a switch
+changed their friend's route. This is the first observation of the README's
+central claim in play. Recorded as the author reported it: one race, informal,
+no notes of which switch or route. README "Judged" and the `CLAUDE.md`
+definition-of-good section now say so, and still treat how often switches
+change routes, and whether players return, as unjudged.
