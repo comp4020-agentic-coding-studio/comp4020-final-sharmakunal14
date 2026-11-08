@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { generate, sydneyDate } from "./maze-gen.ts";
 import { levelById, mazeIdOf } from "./public/maze-levels.js";
 import type { Gate, Layout, Point, Pulse, Spec } from "./maze-gen.ts";
@@ -63,10 +64,13 @@ export type Game = {
 // private chat or rematch plans.
 // `rematched` tells a spectator to follow the link to the next race, without
 // revealing the new race's id (which would let anyone take a seat).
-export type PublicGame = Omit<Game, "chat" | "rematchId" | "rematchBy" | "rematchLevel"> & { rematched?: true };
+// The race id is also the invitation (it opens /join), so it is never sent:
+// a spectator gets `race`, a one-way hash that only tells races apart.
+export type PublicGame = Omit<Game, "id" | "chat" | "rematchId" | "rematchBy" | "rematchLevel"> & { race: string; rematched?: true };
 export function publicGame(game: Game): PublicGame {
-  const { chat: _chat, rematchId: _id, rematchBy: _by, rematchLevel: _level, ...rest } = game;
-  return game.rematchId ? { ...rest, rematched: true } : rest;
+  const { id, chat: _chat, rematchId: _id, rematchBy: _by, rematchLevel: _level, ...rest } = game;
+  const race = createHash("sha256").update(`race:${id}`).digest("hex").slice(0, 16);
+  return game.rematchId ? { ...rest, race, rematched: true } : { ...rest, race };
 }
 export type ChatLine = { n: number; at: number; slot: 0 | 1; kind: "text" | "reaction"; text: string };
 export const CHAT_KEEP = 30;

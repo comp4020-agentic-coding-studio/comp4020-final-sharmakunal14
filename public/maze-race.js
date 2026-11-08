@@ -419,8 +419,10 @@ export function mountRace(initial, mazeView, showError, audio) {
     apply(JSON.parse(event.data), audible);
   });
   source.onerror = () => { connected = false; online = []; stopControls(); sender.clear(); render(); };
-  const clock = setInterval(renderClock, 100);
-  window.addEventListener("pagehide", () => { source.close(); clearInterval(clock); stopControls(); }, { once: true });
+  // Not called `clock`: that name is the time formatter, and shadowing it here
+  // once broke the "Personal best" note after a win that was not a new best.
+  const ticker = setInterval(renderClock, 100);
+  window.addEventListener("pagehide", () => { source.close(); clearInterval(ticker); stopControls(); }, { once: true });
   window.addEventListener("pageshow", (event) => { if (event.persisted) location.reload(); });
   render();
 }

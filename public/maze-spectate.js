@@ -66,7 +66,7 @@ export function mountSpectator(token, mazeView, showError) {
 
   function apply(view, announce) {
     // A rematch is a different race whose revision restarts at 1.
-    if (game && view.game.id === game.id && view.game.revision < game.revision) return;
+    if (game && view.game.race === game.race && view.game.revision < game.revision) return;
     const before = game;
     game = view.game;
     serverAt = view.serverNow; observedAt = performance.now();

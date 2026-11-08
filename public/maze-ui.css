@@ -509,6 +509,10 @@ body[data-phase="replay"] .hud-views { display: none; }
   .hud-clock { top: 64px; }
   .hud-views { top: auto; }
   .follow-btn span { display: inline; }
+  /* The race clock takes the top-right corner on a phone, so the connection
+     chip stacks under the title instead of sharing that corner with it. */
+  .hud-top { flex-direction: column; align-items: flex-start; gap: 6px; right: auto; }
+  .hud-players { top: 140px; }
 }
 
 /* Follow-up fixes from the browser check */

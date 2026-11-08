@@ -57,15 +57,19 @@ describe("stats and personal best in the store", () => {
 });
 
 describe("public game", () => {
-  it("drops private chat and rematch fields and nothing else", () => {
-    const game = { id: "g", chat: [{ n: 1 }], rematchId: "r", rematchBy: "a", status: "racing", players: [] } as unknown as Game;
+  it("drops the race id, private chat and rematch fields, and nothing else", () => {
+    const id = "11111111-2222-3333-4444-555555555555";
+    const game = { id, chat: [{ n: 1 }], rematchId: "r", rematchBy: "a", status: "racing", players: [] } as unknown as Game;
     const shown = publicGame(game) as Record<string, unknown>;
-    // Only a flag that a rematch exists, never its id (which would open a seat).
-    expect(Object.keys(shown).sort()).toEqual(["id", "players", "rematched", "status"]);
+    // The race id is the invitation: it opens /join, so a watcher never gets it.
+    // `race` only tells races apart; a rematch is a flag, never its id.
+    expect(Object.keys(shown).sort()).toEqual(["players", "race", "rematched", "status"]);
     expect(shown.rematched).toBe(true);
+    expect(JSON.stringify(shown)).not.toContain(id);
     expect(JSON.stringify(shown)).not.toContain('"r"');
     const typed: PublicGame = publicGame(game);
-    expect(typed.id).toBe("g");
+    expect(typed.race).toMatch(/^[0-9a-f]{16}$/);
+    expect(publicGame(game).race).toBe(typed.race);
   });
 });
 
@@ -91,7 +95,8 @@ describe("spectator link over HTTP", () => {
     const anonymous = await fetch(new URL(`/api/maze/watch/${token}`, base));
     expect(anonymous.status).toBe(200);
     const seen = await anonymous.json() as { game: Record<string, unknown> };
-    expect(seen.game.id).toBe(game.id);
+    expect(seen.game.id).toBeUndefined();
+    expect(JSON.stringify(seen)).not.toContain(game.id);
     expect(seen.game.chat).toBeUndefined();
     expect(JSON.stringify(seen)).not.toContain("secret plan");
 
@@ -105,6 +110,23 @@ describe("spectator link over HTTP", () => {
     expect(await page.text()).toContain("Maze Duel");
   });
 
+  it("never gives a watcher the race id, so the spectator link cannot take an empty seat", async () => {
+    const alice = await person("Alice");
+    const { game } = await (await api(alice, "matches", {})).json() as { game: Game };
+    const { token } = await (await api(alice, `matches/${game.id}/spectate`)).json() as { token: string };
+    const read = await (await fetch(new URL(`/api/maze/watch/${token}`, base))).text();
+    const controller = new AbortController();
+    const stream = await fetch(new URL(`/api/maze/watch/${token}/stream`, base), { signal: controller.signal });
+    const reader = stream.body!.getReader();
+    let streamed = "";
+    while (!streamed.includes("data: ")) streamed += new TextDecoder().decode((await reader.read()).value);
+    controller.abort();
+    for (const body of [read, streamed]) expect(body).not.toContain(game.id);
+    // The seat is still open, and only the invitation (the race id) fills it.
+    const view = await (await api(alice, `matches/${game.id}`)).json() as { game: Game };
+    expect(view.game.players).toHaveLength(1);
+  });
+
   it("follows the same link into a rematch, and the one after", async () => {
     const alice = await person("Alice"), bob = await person("Bob");
     const { game } = await (await api(alice, "matches", {})).json() as { game: Game };
@@ -112,17 +134,19 @@ describe("spectator link over HTTP", () => {
     await api(bob, `${path}/join`, {});
     const { token } = await (await api(alice, `${path}/spectate`)).json() as { token: string };
     const watch = async () => (await (await fetch(new URL(`/api/maze/watch/${token}`, base))).json() as { game: PublicGame }).game;
-    let previous = game.id;
+    let previous = (await watch()).race;
     for (let round = 0; round < 2; round++) {
       await api(alice, `${path}/ready`, {});
       await api(bob, `${path}/ready`, {});
       await api(bob, `${path}/forfeit`, {});
       const next = await (await api(alice, `${path}/rematch`, {})).json() as { game: Game };
       const seen = await watch();
-      expect(seen.id).toBe(next.game.id);
-      expect(seen.id).not.toBe(previous);
+      expect(seen.players.map((p) => p.name)).toEqual(["Alice", "Bob"]);
+      expect(seen.status).toBe("waiting");
+      expect(seen.race).not.toBe(previous);
       expect(seen.rematched).toBeUndefined();
-      previous = next.game.id;
+      expect(JSON.stringify(seen)).not.toContain(next.game.id);
+      previous = seen.race;
       path = `matches/${next.game.id}`;
     }
   });
