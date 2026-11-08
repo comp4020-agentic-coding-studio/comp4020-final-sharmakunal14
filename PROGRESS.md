@@ -1082,3 +1082,23 @@ list. `spec/maze-logs.test.ts` covers both refusals; it failed on the old code
 - The Markdown rendering and `git diff --check` passed. Application tests were
   not rerun for this wording-only edit. No application code, commit, push or
   deployment changed.
+
+## 2026-11-09 — Submission documents merged and revised
+
+The author's README, PROCESS.md, research note and three reflections were
+committed exactly as drafted, then revised by the agent at the author's
+request in separate commits, so each change can be read against the draft.
+
+| File | Agent revision | Why |
+| --- | --- | --- |
+| `CLAUDE.md` | Opening states the README's three-part definition of good, with the rules and `spec/` files for each, and what stays judged | The harness never stated the definition; its opening still described the Shared Space transition |
+| `README.md` | Names ranked play against strangers as the rejected alternative; the switch-free levels introduce one mechanic per world; claims the tested 300 ms behaviour; labels enforced and judged; best-time caveat moved to limits | Core argument kept; the draft conceded its own scope and did not argue against an alternative |
+| `PROCESS.md` | Adds why WebSockets lost, the branch/PR/CI-gated deploy case with the PR #12 catch, and what was discarded (most of the Rift Runners plan, device full screen); condenses the Shared Space opening and repeated caveats | Rubric asks why a call beat the obvious alternative and for judgement visible in what was thrown away |
+| `research-note.md` | DOIs for both papers; removes a claim that Böckeler "explicitly" left correctness unresolved | The UCL links return 403 to automated checks; the claim is not in her article |
+| `reflections/crit-10.md` | Closing line reworded | Three documents ended on the same sentence |
+
+Prose counts after revision (headings, link targets and commit-hash
+citations excluded): README 593, PROCESS 1097, research note 639,
+reflections 252/252/245. `pnpm check:evidence`: 34 cited commits, all
+resolve. `docs/submission-review.md` (an agent self-assessment) was left out
+of the repository.
