@@ -18,8 +18,8 @@ record before it is built.
 | **Losing does not stop you playing together again.** Rematch and Next level seat both players; a finished race unlocks the next level win or lose; watchers can follow. | Scope: progress, rematch, spectators | `maze-levels` (unlock win or lose), `maze-http` (rematch), `maze-spectate` |
 
 Enjoyment, how often switches change route choices, and equal perceived
-difficulty are judged with players, not checked (one friend's switch-changed
-route on 2026-11-09 is the only observation so far). Report agent-driven browser
+difficulty are judged with players, not checked (one observation so far: on
+2026-11-09 a friend flipped a switch in a quick-play race and it changed their route). Report agent-driven browser
 runs as such; never present them as playtests.
 
 ### Race invariants

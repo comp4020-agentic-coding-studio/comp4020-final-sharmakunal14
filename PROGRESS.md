@@ -1117,3 +1117,8 @@ central claim in play. Recorded as the author reported it: one race, informal,
 no notes of which switch or route. README "Judged" and the `CLAUDE.md`
 definition-of-good section now say so, and still treat how often switches
 change routes, and whether players return, as unjudged.
+- Detail added by the author: the friend flipped the switch themselves, in a
+  quick-play race (Create a race). README "Judged", PROCESS.md's judgment
+  section and `CLAUDE.md` now say so. To keep word ranges, PROCESS dropped two
+  minor lines (TypeScript build step, CI probe) and README shortened the camera
+  sentence. Counts: README 599, PROCESS 1091.
