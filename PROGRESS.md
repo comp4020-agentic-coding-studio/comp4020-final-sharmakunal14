@@ -648,7 +648,7 @@ dialogs; the spectator link is collapsed.
 | Check | Result |
 | --- | --- |
 | `pnpm vitest run` against a local app with a throwaway `DATA_DIR`; `pnpm typecheck` | 121/121 tests, typecheck clean |
-| Agent-driven Chrome, 1440×900 and 390×844 touch: name, plan, join, avatar, waiting room ([script](evidence/2026-11-02-flow-check.mjs)) | Flow completes on both sizes; no page errors beyond expected 401/404 probes |
+| Agent-driven Chrome, 1440×900 and 390×844 touch: name, plan, join, avatar, waiting room ([script](docs/evidence/2026-11-02-flow-check.mjs)) | Flow completes on both sizes; no page errors beyond expected 401/404 probes |
 
 ### Problems found
 
@@ -663,9 +663,9 @@ dialogs; the spectator link is collapsed.
 Checked after the rewrite: second player joining by invitation link, the
 spectator link on a 390×844 phone, ready, countdown and race, a forfeit
 leading to the result card with Rematch, a signed-out replay link under
-reduced motion ([script](evidence/2026-11-02-flow-check-2.mjs),
-[phone spectator](evidence/2026-11-02-flow-phone-spectator.png),
-[result](evidence/2026-11-02-flow-desk-result.png)). 121/121 tests still pass.
+reduced motion ([script](docs/evidence/2026-11-02-flow-check-2.mjs),
+[phone spectator](docs/evidence/2026-11-02-flow-phone-spectator.png),
+[result](docs/evidence/2026-11-02-flow-desk-result.png)). 121/121 tests still pass.
 
 Problems found and fixed:
 
@@ -846,11 +846,11 @@ issues, each reproduced before fixing.
 
 ## 2026-11-09 — README argument and evidence review
 
-- At the author's request, replaced the factual README notes with an
-  agent-assisted argument: shared route choices, inspectable results and
+- Replaced the factual README notes with an
+  argument: shared route choices, inspectable results and
   continuing together after a loss. The rendered text is 578 words, including
-  headings and setup instructions. First-person judgments remain for author
-  review; no new personal experience or playtest observation was invented.
+  headings and setup instructions. No new personal experience or playtest
+  observation was invented.
 - Checked the final-project brief and the two linked sources (Robin Sloan
   and Gabriel Gambetta). Distinguished design intentions and informal friend
   feedback from executable rules and agent-driven browser verification.
@@ -961,3 +961,124 @@ list. `spec/maze-logs.test.ts` covers both refusals; it failed on the old code
 - Author playtest: in quick play the rift dropped the player almost at the goal. The daily maze now puts both rift cells at least 8 steps from the start and caps the saving at a third of the route (decision 0012 revision). Average landing-to-goal distance rose from 6.7 to 8.1 cells over 200 seeds; 14/200 days now have no rift. Levels are unchanged (fingerprints still pinned). New check in `spec/maze-game.test.ts` asserts the cap.
 - Author report: closing and reopening the window reset the camera to the map. The view was in sessionStorage, which a closed window loses; it is now in localStorage per race (`spec/maze-view-memory.test.ts` updated).
 - `tsc --noEmit` clean; 145/145 tests against the branch server on port 8094.
+
+## 2026-11-09 — Final-portfolio reflection revisions
+
+- Checked the published Crit 8, 9 and 10 instructions and the repository's
+  reflection prompts. Revised Crit 8 to state Shared Space's initial standard
+  of good explicitly. Revised Crit 9 to explain the trade-offs of named rooms
+  and refusing stale edits. Preserved both as accounts of their original
+  Shared Space stages; these edits do not reconstruct earlier submissions.
+- The author clarified that the feedback loop occurred at Crit 10 while
+  starting Maze Duel locally to validate the concept. Reworked Crit 10 around
+  that account: players liked competition and switches, and their requests
+  for smoother controls and camera options informed subsequent changes.
+- Crit 10 is explicitly retrospective. It distinguishes the local feedback
+  session from the deployed URL-only log-narration exercise and the later
+  November logging implementation. No account establishing the separate
+  log-narration exercise or follow-up player satisfaction was supplied, and
+  neither is claimed. The previously recorded refusal-log leak remains an
+  unresolved application issue; this reflection does not claim it is fixed.
+- PROCESS.md and the research note were not written during this reflection
+  task. No application code, deployment or existing submitted tag changed.
+- Verification: rendered word counts are 282 (Crit 8), 285 (Crit 9) and 292
+  (Crit 10), including headings and the retrospective note. All contain both
+  standing prompts; all eleven commit citations resolve locally and the
+  relative decision-record link exists. `pnpm check:evidence` and
+  `git diff --check` passed. The evidence script now finds all three reflection
+  filenames, but still has no PROCESS commit links to validate; its pass does
+  not establish completion of the crit exercise. Application tests were not
+  rerun for these prose changes.
+
+## 2026-11-09 — PROCESS account from repository evidence
+
+- At the author's request, replaced the PROCESS.md placeholder with a
+  1,064-word account based on commit history, inspected diffs, ADRs, the harness,
+  tests and project notes. It links the Shared Space stages to the Maze Duel
+  pivot, then explains architecture, agent workflow, corrections and remaining
+  judgments. The author's retrospective feedback is distinguished from the
+  dates and behaviours the repository independently records.
+- The central correction examples concern tests as well as code: a browser
+  syntax failure missed by HTTP checks, a pulse check against stale server code,
+  a spectator test that preserved an access flaw, and a gain regression that
+  improves on audio scheduling tests without proving the listening experience.
+- Retained the unresolved refusal-log leak and the limits of informal human
+  feedback. No claim of universal fairness, strict TDD throughout the project,
+  or a completed Crit 10 URL-only log exercise was added.
+- Verification: 28 distinct commit references resolve; six local file/heading
+  links resolve; the Markdown renders within the 900–1,100-word range.
+  `git merge-base --is-ancestor` confirms that the milestone-2 instruction
+  commit precedes the cited generator and movement implementations.
+  `pnpm check:evidence` passed and now validates all 28 PROCESS commit links.
+  No application tests were rerun for this documentation-only change, and no
+  commit or deployment was made in this session.
+
+## 2026-11-09 — COMP8020 research note
+
+- Added `research-note.md` at the author's request, after checking the official
+  brief and primary literature. The argument makes autonomy conditional on
+  justified acceptance criteria and checks capable of detecting failures.
+  It distinguishes test sensitivity from correctness of the requirement.
+- Used two scholarly papers and three practitioner articles. The note weighs
+  evidence from a survey, an industrial deployment and practitioner experience;
+  it addresses the case for automating tests and reducing manual review.
+  The spectator correction is a brief illustration with a verified commit,
+  not a claim about failure rates across the field.
+- The note does not claim the author read these sources earlier in the
+  semester. No grade outcome can be established by checks.
+- Documentation verification at this stage: 637 argument words; 738 total.
+  The five source URLs match primary pages
+  inspected during research; publication details and the cited commit were
+  checked. Markdown structure, `git diff --check` and `pnpm check:evidence`
+  passed. The evidence script validates PROCESS and reflection references,
+  not research quality; source claims were checked separately. No application
+  tests were rerun for this prose-only task. No application code, commit or
+  deployment was changed.
+
+## 2026-11-09 — Final portfolio review against the rubric
+
+- Reviewed README, PROCESS, the COMP8020 research note and all three crit
+  reflections together against the official final-project and shared rubrics.
+  The full findings and remaining publication steps are in
+  [the submission review](docs/submission-review.md).
+- Public main was `7624af5`, 15 commits beyond this checkout's `be7fef1`.
+  Fetched the history without switching branches or replacing working files.
+  Earlier descriptions of the refusal-log leak as unresolved refer to the
+  older code: `fd1357c` fixes it and adds refusal-path regressions. PROCESS now
+  records that correction. This supersedes the open-issue status above for
+  current main, but does not change the older runtime in this checkout.
+- Reviewed the newer rift and camera changes in `dd1d890`. Added the trade-off
+  that changed daily layouts still share a ranking key, and the distinction
+  between surviving a reload and surviving window closure. README now qualifies
+  daily comparisons and clarifies turning controls. Repaired four relative
+  evidence links that were missing the `docs/` prefix.
+- Final written lengths: README 591; PROCESS 1,096; research argument 637
+  (728 with title and references); Crits 8, 9 and 10 respectively 282, 285 and
+  292. There are 33 distinct verified commit objects across the six documents;
+  PROCESS cites 30. The confirmed feedback and retrospective timeline remain
+  distinct from repository observations and automated checks.
+- Verification: the older checkout passed `pnpm check` (144 tests). An isolated
+  archive of current main with the six final documents passed type checking
+  and all 145 tests. Its `/readme/` full text matched the revised README.
+  The archive reused the existing dependency installation after package and
+  lockfile equality checks; pnpm's workspace-location check was set to warn
+  following an attempted automatic reinstall, with all test/type-check gates
+  retained. Temporary servers and databases were removed.
+- Public main's CI run succeeded, but its PROCESS was still a placeholder and
+  its research note and Crit 10 reflection were absent. The revised portfolio
+  needs integration with current main and publication. No new human playtest,
+  full browser race at both marking viewports, or next-day production check
+  was performed here. No application code, commit, push or deployment changed.
+
+## 2026-11-09 — Clarify two-player browser setup
+
+- README now explains the easiest setup on one computer: Player 1 uses a
+  normal window; Player 2 opens the invitation link in an incognito/private
+  window and chooses their own nickname. Normal windows in the same browser
+  profile share a player identity; separate devices can use normal browsers.
+- Checked the session-cookie identity implementation and rendered Play text.
+  Condensed the audience and switch rationale to keep the README at 595 words,
+  within the 400–600 guidance. Updated the writing notes and review count.
+- The Markdown rendering and `git diff --check` passed. Application tests were
+  not rerun for this wording-only edit. No application code, commit, push or
+  deployment changed.

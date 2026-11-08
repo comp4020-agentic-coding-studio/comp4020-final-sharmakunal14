@@ -7,34 +7,39 @@ inspectable, and losing does not prevent you from playing together again.
 ## Play
 
 [Open Maze Duel](https://comp4020-final-sharmakunal14.fly.dev/), choose a
-nickname, create a race and send the invitation to a friend in a separate
-browser profile or incognito window. Both press **I'm ready**. Race from
-opposite entrances to each other's starting point. Use WASD/arrows or the
-touch pad; in first/third person, left/right turn. **E/Space** flips a switch;
+nickname and create a race. Copy the invitation link.
+
+On one computer, **the easiest setup is Player 1 in a normal window and
+Player 2 opening the invitation link in an incognito/private window**, then
+choosing their own nickname. Two normal windows in the same browser profile
+share one player identity. On separate devices, both players can use normal
+browsers.
+
+Both press **I'm ready**. Race from opposite entrances to each other's
+starting point. Use WASD/arrows or the touch pad; in first/third person,
+forward walks and left/right/back turn. **E/Space** flips a switch;
 **V** changes camera; **M** mutes.
 
 ## Why this race
 
 Robin Sloan's [An app can be a home-cooked meal](https://www.robinsloan.com/notes/home-cooked-app/)
-offers a useful standard: software can succeed by serving a few people well.
-I take that seriously here. A rematch with a friend matters more than building
-a large audience. However, a small audience does not excuse ambiguous results
-or losing people's history.
+argues that software can succeed by serving a few people well. Here, rematches
+matter more than audience growth; clear results and saved history still matter.
 
-The daily maze makes that friendship consequential. A switch opens one gate
-and closes another for both players: a shortcut you create can help your rival
-too. I want players to reconsider routes because someone else is present.
-Switches remain optional shortcuts, so this creates an opportunity for
-interaction, not a requirement to cooperate or sabotage.
+Switches make that friendship consequential: each opens one gate and closes
+another for both players, so your shortcut can help your rival too. They remain
+optional: an opportunity to reconsider routes, not a requirement to cooperate
+or sabotage.
 
-One maze per Sydney day gives repeated races a shared reference. Saved replays
+A daily seed gives races a shared reference. A 9 November
+[rift revision](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/commit/dd1d890)
+left old and new layouts eligible for the same day's best-time records. Saved replays
 show accepted steps and flips, making the outcome something friends can
 discuss. Spectators get a separate read-only link without player chat.
 The twelve campaign levels introduce navigation, switches, timed gates
 and teleporting rifts; a completed race unlocks the next level for both players,
-win or lose. Seven levels have no switches. I kept them for practice and variety,
-but they do less to realise the central idea. Fog and timed gates challenge navigation;
-they do not demonstrate that the opponent matters.
+win or lose. Seven levels omit switches. Practice, fog and timed gates offer
+variety, but do less to realise the central idea.
 
 Gabriel Gambetta's [prediction and reconciliation](https://www.gabrielgambetta.com/client-side-prediction-server-reconciliation.html)
 explains how immediate feedback can coexist with server authority. Maze Duel

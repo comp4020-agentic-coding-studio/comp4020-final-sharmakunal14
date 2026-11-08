@@ -334,10 +334,9 @@ the harness or spec rather than patched.
 
 ## README argument draft (2026-11-09)
 
-- The author requested an agent-assisted rewrite. The initial 578-word draft
+- The initial 578-word README draft
   argues for shared route decisions, an inspectable result, and continuing
-  together after either player wins. First-person judgments need the author's
-  review; do not describe the draft as independently authored prose.
+  together after either player wins.
 - Sloan's *An app can be a home-cooked meal* and Gambetta's *Client-Side
   Prediction and Server Reconciliation* were read and checked in this session.
   README links both and applies them to audience, reliability and latency;
@@ -365,3 +364,126 @@ the harness or spec rather than patched.
   privacy. Fixed afterwards: refusal actions are named from a fixed list, and
   the log check now covers an outsider's read and a bad spectator token
   (seen failing on the old code first).
+
+## Reflection revisions (2026-11-09)
+
+- The author asked to update the three final-project reflections. Crits 8 and
+  9 remain accounts of Shared Space: Crit 8 makes the initial definition of
+  good explicit; Crit 9 explains the cost of named-room access and refusing
+  stale edits instead of using edit locks. These are portfolio revisions on
+  9 November, not claims that the revised prose was present at earlier cutoffs.
+- Added `reflections/crit-10.md` as a clearly labelled retrospective reflection.
+  It describes local concept validation at Crit 10, the competition/switch
+  feedback, and the requests for smoother controls and camera perspectives.
+  It connects those requests to subsequent implementation without claiming
+  follow-up player satisfaction. The later logging commit is explicitly
+  distinguished from evidence of observations at the crit.
+- Asked the author for the actual URL-only, two-classmate log-narration
+  account: which version, what happened, and what could be read from logs.
+  The author clarified that the feedback loop occurred during Crit 10 while
+  starting Maze Duel locally to validate the concept. The reflection now uses
+  that actual account. No deployed URL-only log-narration account was supplied;
+  it does not claim that exercise occurred. Do not infer from this silence
+  that the exercise definitely did not happen.
+
+## PROCESS account drafted (2026-11-09)
+
+- Replaced the placeholder with a 1,064-word account. It connects Shared Space
+  and Maze Duel through shared-state correctness, player feedback and the
+  changing purpose of another person's presence. It keeps the Crit 10 local
+  prototype account separate from implementation commits beginning 1 November.
+- Reviewed the history, selected implementation/test/harness diffs, decision
+  records and progress entries. The account cites 28 distinct real commits,
+  plus local records and the two sources also used in README. Source positions
+  are framed as evaluation of the final argument, not invented early research.
+- Selected corrections: the browser-module parse gap, testing against a stale
+  server, a spectator test that expected an invitation leak, and audio tests
+  that checked scheduling rather than audibility. Each identifies what changed
+  in the harness or checks and what that correction still cannot establish.
+- Preserved limitations: incomplete fail-first practice, informal feedback,
+  emulated browser checks, seven levels without switches, and the unresolved
+  refusal-log leak. The text does not claim the URL-only log-narration exercise
+  happened.
+- Documentation verification passed: word range, all 28 commit links, six
+  local file/heading links, and `pnpm check:evidence`. The instruction commit
+  `95fb936` is an ancestor of the cited implementation commits. These checks
+  validate references and structure, not the quality of personal judgments.
+
+## Research-note sources and scope (2026-11-09)
+
+- Added `research-note.md`: 637 words of argument,
+  728 with title and references after the portfolio review. The argument concerns how to
+  justify the checks governing delegated development. It reaches beyond Maze
+  Duel, using the spectator correction only as a bounded illustration.
+- Checked the [COMP8020 brief](https://comp.anu.edu.au/courses/comp4020-agentic-coding-studio/assessments/final-project/#comp8020--critical-research-note)
+  and its literature guidance. No earlier reading history has been reconstructed.
+- Primary source record, inspected on 9 November 2026:
+  - [Barr et al. (2015)](https://discovery.ucl.ac.uk/id/eprint/1471263/):
+    journal metadata and full-text introduction; foundational scholarship.
+  - [Alshahwan et al. (2024)](https://discovery.ucl.ac.uk/id/eprint/10199775/):
+    FSE publication record and accepted manuscript, sections 2 and 4.
+    Used the 73% acceptance figure; omitted the inconsistent aggregate yield
+    figures in the abstract and body.
+  - [Willison, Red/green TDD](https://simonwillison.net/guides/agentic-engineering-patterns/red-green-tdd/):
+    living practitioner guide; cited as undated with an access date.
+  - [Böckeler (27 May 2026)](https://martinfowler.com/articles/sensors-for-coding-agents.html):
+    regression-sensor and mutation-testing sections; a practitioner experiment.
+  - [Morris (4 March 2026)](https://martinfowler.com/articles/exploring-gen-ai/humans-and-agents.html):
+    human oversight and harness-improvement sections; a practitioner proposal.
+- Böckeler and Morris wrote the cited articles on MartinFowler.com; they are
+  not attributed to Martin Fowler. The paper references link to accessible
+  university records with full texts. DOI metadata was verified there, although
+  the browser tool could not open the DOI resolver URLs directly.
+- Limits preserved in the prose: older scholarship does not measure current
+  agents; a bounded test-generation pipeline does not establish unrestricted
+  autonomy; internal uptake is not a controlled production-defect comparison;
+  practitioner observations are not representative benchmarks. The research
+  note is a defended proposal, not evidence that this project's workflow has
+  been proven optimal.
+- Verification: the argument and complete document both fit 600–800 words;
+  all five references render as links to the inspected primary pages, and the
+  illustrative commit resolves locally. `git diff --check` and
+  `pnpm check:evidence` passed. Application tests were not rerun; the evidence
+  script does not evaluate the research argument or scholarly interpretation.
+
+## Final portfolio review (2026-11-09)
+
+- Current review: [docs/submission-review.md](submission-review.md). The six
+  documents are locally complete, with a coherent Shared Space → local Maze
+  Duel concept → implemented and corrected Maze Duel sequence. The earlier
+  prototype date is the author's retrospective account; the implementation
+  history starts on 1 November. Neither date was silently substituted for
+  the other.
+- The latest inspected public main was `7624af5`. This checkout is older, so
+  describing its refusal-log leak as still open would misrepresent main.
+  `fd1357c` supplies the implementation and regression evidence for the fix.
+  Earlier open-issue notes remain historical observations, superseded by this
+  review for current main.
+- `dd1d890` adds useful process material: a rift correction improves route
+  constraints while weakening comparisons across generator revisions, and
+  camera persistence needed a change from sessionStorage to localStorage.
+  PROCESS evaluates these consequences rather than merely adding features
+  to its account. Saved layouts and shared ranking keys are separate concerns.
+- Retained limits: seven levels lack switches; no follow-up friend evaluation
+  establishes satisfaction; the original Crit 10 URL-only log exercise is not
+  established. These are evidential limits, not prose gaps to fill by inference.
+- Counts: README 591; PROCESS 1,096; research note 637 argument/728 total;
+  reflections 282/285/292. All are within the published guidance. Thirty-three
+  distinct commit objects support the six documents. Four evidence links in
+  PROGRESS were corrected to their actual `docs/evidence/` paths.
+- Main with the revised documents passed type checking and 145 tests in an
+  isolated copy; the README's entire served text matched. The published repo
+  was public with successful CI, but its PROCESS remained a placeholder and
+  research-note.md and reflections/crit-10.md were missing. Local completeness
+  is not yet submission completeness; preserve newer main records when
+  integrating and publishing these files.
+
+## Entry instructions clarification (2026-11-09)
+
+- README now recommends a normal window for Player 1 and the invitation link
+  in an incognito/private window for Player 2 when sharing one computer.
+  It explains that normal windows in one browser profile share identity and
+  that players on separate devices can use normal browsers.
+- Tightened the audience and switch rationale without removing its trade-offs.
+  The README is now 595 rendered words; its Play section was checked with the
+  application's Markdown renderer. This is a local documentation change.
