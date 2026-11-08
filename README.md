@@ -12,8 +12,7 @@ nickname and create a race. Copy the invitation link.
 On one computer, **the easiest setup is Player 1 in a normal window and
 Player 2 opening the invitation link in an incognito/private window**, then
 choosing their own nickname. Two normal windows in the same browser profile
-share one player identity. On separate devices, both players can use normal
-browsers.
+share one player identity; separate devices need no incognito window.
 
 Both press **I'm ready**. Race from opposite entrances to each other's
 starting point. Use WASD/arrows or the touch pad; in first/third person,
