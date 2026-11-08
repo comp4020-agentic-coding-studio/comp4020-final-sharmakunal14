@@ -17,8 +17,9 @@ record before it is built.
 | **The result is inspectable.** The server decides the winner; every accepted step is saved before it is shown; replays come only from saved data. | Race invariants: server authority, step log, commit before broadcast | `maze-http` (one winner, concurrent finish, replays), `maze-restart`, `maze-store` |
 | **Losing does not stop you playing together again.** Rematch and Next level seat both players; a finished race unlocks the next level win or lose; watchers can follow. | Scope: progress, rematch, spectators | `maze-levels` (unlock win or lose), `maze-http` (rematch), `maze-spectate` |
 
-Enjoyment, whether switches change route choices, and equal perceived
-difficulty are judged with players, not checked. Report agent-driven browser
+Enjoyment, how often switches change route choices, and equal perceived
+difficulty are judged with players, not checked (one friend's switch-changed
+route on 2026-11-09 is the only observation so far). Report agent-driven browser
 runs as such; never present them as playtests.
 
 ### Race invariants

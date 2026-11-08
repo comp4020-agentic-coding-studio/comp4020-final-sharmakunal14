@@ -487,3 +487,12 @@ the harness or spec rather than patched.
 - Tightened the audience and switch rationale without removing its trade-offs.
   The README is now 595 rendered words; its Play section was checked with the
   application's Markdown renderer. This is a local documentation change.
+
+## Switch changed a friend's route (2026-11-09)
+
+- Author report: in a race on the deployed game, the switch changed the
+  friend's route. First human observation of the central claim ("another
+  person's choices can change your route"). One informal race; no record of
+  which switch, which route, or whether the friend flipped it or reacted to
+  the author's flip. If you can recall those details, they make the claim
+  stronger in PROCESS.md's judgment section.

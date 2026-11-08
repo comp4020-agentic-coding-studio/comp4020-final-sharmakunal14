@@ -35,7 +35,7 @@ or sabotage.
 
 A daily seed gives races a shared reference, and saved replays show accepted
 steps and flips, so friends can discuss an outcome rather than dispute it.
-Spectators get a separate read-only link without player chat. The twelve
+Spectators get a read-only link without player chat. The twelve
 campaign levels introduce one mechanic per world, and every world after the
 first ends in a switch level. A completed race unlocks the next level for both
 players, win or lose, so the weaker player is never left behind.
@@ -58,11 +58,12 @@ trip. SQLite stores results, layouts and replay actions before broadcast. A
 real server restart keeps identities and completed results, and interrupts an
 active race without awarding a winner. Browser disconnects do not pause the clock.
 
-**Judged.** Enjoyment and equal difficulty cannot be checked. Friends who
-played loved competing and the switches, but asked for smoother controls and
+**Judged.** Enjoyment and equal difficulty cannot be checked. Friends
+loved competing and the switches, but asked for smoother controls and
 different camera perspectives; that feedback shaped the control changes and
-the map, third-person and first-person views. Whether those changes satisfied
-them, and whether switches change route choices, remain for players to judge.
+the three camera views. On 9 November a friend's route
+changed because of a switch: one race shows the mechanic can work, not how
+often. Whether players return remains to be judged.
 
 ## Deliberate limits
 
