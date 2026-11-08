@@ -902,3 +902,18 @@ layout already fills the window with CSS.
 | Agent-driven Chrome at 1200×760: window and stage size in the waiting room, racing and on the result | 1200×760 throughout, never full screen ([result](docs/evidence/2026-11-09-window-result.png)) |
 | `spec/maze-window-size.test.ts` (no `requestFullscreen`/`exitFullscreen` in browser code) | passes |
 | `pnpm check` on a fresh `DATA_DIR` | 144 passed |
+
+## 2026-11-09 — Camera kept on reload; fog explained on the race screen
+
+The player reported two things: reloading mid-race dropped them back to the
+map camera, and a screenshot of a mostly grey "map". The grey was fog (a fog
+race): nothing on the race screen said so.
+
+| Change | Check |
+| --- | --- |
+| The chosen camera is remembered per race in `sessionStorage` and restored on reload; a fresh countdown still opens in first person | Agent-driven Chrome: 3rd, reload, still 3rd; Map, reload, still Map. `spec/maze-view-memory.test.ts` (per race, unknown values ignored, blocked storage safe) |
+| A "Fog race · you see 3 steps around you" note under the clock while racing | Same browser run ([screenshot](docs/evidence/2026-11-09-fog-note.png)) |
+
+First attempt dispatched a DOM event for camera changes; an existing jsdom
+audio test failed because jsdom's `dispatchEvent` rejected Node's `CustomEvent`.
+Replaced with a plain callback (`onViewChange`). 145/145 on a fresh database.
