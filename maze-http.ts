@@ -53,7 +53,17 @@ function send(res: ServerResponse, status: number, value: unknown): void {
   res.end(JSON.stringify(value));
 }
 
-export function createMazeHandler(db: DatabaseSync) {
+// One JSON line per maze action, after the change is committed: who, which race,
+// what, and the outcome. Never cookies, chat text or nicknames (CLAUDE.md).
+type LogLine = { action: string; outcome: string; actor?: string; race?: string } & Record<string, unknown>;
+export function mazeLog(fields: LogLine): void {
+  console.log(JSON.stringify({ at: new Date().toISOString(), ...fields }));
+}
+// The first eight characters identify a race in the logs without printing the
+// full id, which is also its invitation link.
+const short = (id: string) => id.slice(0, 8);
+
+export function createMazeHandler(db: DatabaseSync, log: (fields: LogLine) => void = mazeLog) {
   const store = new MazeStore(db);
   store.interruptActiveGames();
   const live = new MazeLive(store);
@@ -81,7 +91,10 @@ export function createMazeHandler(db: DatabaseSync) {
       const watch = /^\/api\/maze\/watch\/([a-f0-9-]{36})(?:\/(stream))?$/.exec(path);
       if (watch && req.method === "GET") {
         const raceId = store.matchForToken(watch[1]);
-        if (watch[2] === "stream") return live.watch(res, store.current(raceId));
+        if (watch[2] === "stream") {
+          live.watch(res, store.current(raceId));
+          return log({ action: "maze.watch", outcome: "ok", race: short(raceId) });
+        }
         return send(res, 200, { game: publicGame(store.current(raceId)), serverNow: Date.now(), ...rules });
       }
       if (!actor) throw new GameError("NO_SESSION", "Choose a nickname first.", 401);
@@ -102,7 +115,9 @@ export function createMazeHandler(db: DatabaseSync) {
         const input = await body(req);
         if (input.fog !== undefined && typeof input.fog !== "boolean") throw new GameError("INVALID_FOG", "Fog must be on or off.", 400);
         if (input.level !== undefined && (typeof input.level !== "string" || !levelById(input.level))) throw new GameError("NO_LEVEL", "That level does not exist.", 400);
-        return send(res, 201, snapshot(store.create(actor, Date.now(), parseOptionalLook(input.look, 0), input.fog === true, input.level as string | undefined), actor));
+        const created = store.create(actor, Date.now(), parseOptionalLook(input.look, 0), input.fog === true, input.level as string | undefined);
+        log({ action: "maze.created", outcome: "ok", actor: actor.id, race: short(created.id), maze: created.mazeId, fog: Boolean(created.fog) });
+        return send(res, 201, snapshot(created, actor));
       }
       if (path === "/api/maze/levels" && req.method === "GET") {
         return send(res, 200, { unlocked: store.unlocked(actor.id), completed: store.completedLevels(actor.id), best: store.levelBests(actor.id) });
@@ -117,6 +132,7 @@ export function createMazeHandler(db: DatabaseSync) {
         const input = await body(req);
         const look = parseOptionalLook(input.look, 1);
         const game = store.update(id, (current) => joinGame(current, actor, look));
+        log({ action: "maze.joined", outcome: "ok", actor: actor.id, race: short(id), slot: game.players.find((p) => p.id === actor.id)?.slot, players: game.players.length });
         live.publish(game);
         return send(res, 200, snapshot(game, actor));
       }
@@ -129,7 +145,10 @@ export function createMazeHandler(db: DatabaseSync) {
         return send(res, 200, { game: game.players.some((p) => p.id === actor.id) ? game : publicGame(game), steps: store.steps(id) });
       }
       requireMember(store.get(id), actor);
-      if (req.method === "GET" && action === "stream") return live.open(res, actor, store.current(id));
+      if (req.method === "GET" && action === "stream") {
+        live.open(res, actor, store.current(id));
+        return log({ action: "maze.stream", outcome: "ok", actor: actor.id, race: short(id) });
+      }
       if (req.method === "GET" && !action) return send(res, 200, snapshot(store.current(id), actor));
       if (req.method === "GET" && action === "spectate") return send(res, 200, { token: store.spectatorToken(id) });
       if (req.method !== "POST" || !action) throw new GameError("NOT_FOUND", "Unknown game action.", 404);
@@ -150,6 +169,7 @@ export function createMazeHandler(db: DatabaseSync) {
         game = store.update(id, (current) => forfeitGame(current, actor.id));
       } else if (action === "rematch" || action === "next") {
         const next = store.rematch(id, actor, Date.now(), action === "next");
+        log({ action: `maze.${action}`, outcome: "ok", actor: actor.id, race: short(id), next: short(next.id), maze: next.mazeId });
         live.publish(store.get(id));
         return send(res, 201, snapshot(next, actor));
       } else if (action === "move") {
@@ -160,17 +180,39 @@ export function createMazeHandler(db: DatabaseSync) {
           throw new GameError("INVALID_MOVE", `A move needs 1–${MAX_BATCH} actions and a positive sequence number.`, 400);
         }
         store.current(id);
+        const before = store.get(id);
         const result = store.record(id, (current) => applyActions(current, actor.id, sequence, actions as Action[], Date.now()));
         game = result.game;
+        const me = game.players.find((p) => p.id === actor.id)!;
+        // One line per batch: what was applied, where the player ended, any refusal.
+        log({
+          action: "maze.moved", outcome: result.error ? result.error.code : "ok", actor: actor.id, race: short(id),
+          sent: actions.length, steps: result.log.filter((e) => e.kind !== "flip").length,
+          rifts: result.log.filter((e) => e.kind === "rift").length, at: `${me.x},${me.y}`,
+        });
+        for (const flip of result.log.filter((e) => e.kind === "flip")) {
+          log({ action: "maze.flipped", outcome: "ok", actor: actor.id, race: short(id), switch: flip.switch, on: flip.on });
+        }
+        if (before.status !== "finished" && game.status === "finished") {
+          log({ action: "maze.finished", outcome: "ok", actor: game.winnerId!, race: short(id), maze: game.mazeId, timeMs: game.finishedAt! - game.startsAt! });
+        }
         if (result.error) {
           live.publish(game);
           return send(res, result.error.status, { code: result.error.code, message: result.error.message, ...snapshot(game, actor) });
         }
       } else throw new GameError("NOT_FOUND", "Unknown game action.", 404);
+      if (action === "ready") log({ action: "maze.ready", outcome: "ok", actor: actor.id, race: short(id), status: game.status });
+      else if (action === "forfeit") log({ action: "maze.forfeited", outcome: "ok", actor: actor.id, race: short(id) });
+      else if (action === "chat") log({ action: "maze.chat", outcome: "ok", actor: actor.id, race: short(id) });
+      else if (action === "look") log({ action: "maze.look", outcome: "ok", actor: actor.id, race: short(id) });
       live.publish(game);
       send(res, 200, snapshot(game, actor));
     } catch (error) {
       if (!(error instanceof GameError)) throw error;
+      // Refusals are logged too, with the code only: they are what a confused player hit.
+      const path = new URL(req.url ?? "/", "http://local").pathname;
+      const raceId = /\/matches\/([a-f0-9-]{36})/.exec(path)?.[1];
+      log({ action: `maze.${path.split("/").at(-1) ?? "request"}`, outcome: error.code, actor: actor?.id, race: raceId ? short(raceId) : undefined, status: error.status });
       send(res, error.status, { code: error.code, message: error.message });
     }
   };
