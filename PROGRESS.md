@@ -961,3 +961,9 @@ list. `spec/maze-logs.test.ts` covers both refusals; it failed on the old code
 - Author playtest: in quick play the rift dropped the player almost at the goal. The daily maze now puts both rift cells at least 8 steps from the start and caps the saving at a third of the route (decision 0012 revision). Average landing-to-goal distance rose from 6.7 to 8.1 cells over 200 seeds; 14/200 days now have no rift. Levels are unchanged (fingerprints still pinned). New check in `spec/maze-game.test.ts` asserts the cap.
 - Author report: closing and reopening the window reset the camera to the map. The view was in sessionStorage, which a closed window loses; it is now in localStorage per race (`spec/maze-view-memory.test.ts` updated).
 - `tsc --noEmit` clean; 145/145 tests against the branch server on port 8094.
+
+## 2026-11-09 — Hidden rift and a single way into each goal (quick play)
+
+- Author playtest screenshot: the rift was on the obvious corridor, and a side gate gave a quick way into the opponent's corner. Quick play now hides the rift off the shortest route, closes the second opening into each goal (reconnecting any pocket elsewhere), and keeps gates and pulses at least 5 from either entrance (decision 0012 revision 2). 30/200 seeds now have no rift.
+- New check in `spec/maze-game.test.ts` over 200 seeds: one way into each goal, no gate or pulse beside an entrance, rift never on the walking route; existing reachability and symmetry checks still pass. The 2026-11-01 gate pin was updated on purpose. Levels unchanged.
+- `tsc --noEmit` clean; 146/146 tests against the branch server on port 8094.

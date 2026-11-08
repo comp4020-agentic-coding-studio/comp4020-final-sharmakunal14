@@ -42,3 +42,15 @@ a third of the route (`RIFT_MAX_SHARE`). About 7% of days now have no rift:
 a plain maze rather than a free win. Levels keep their pinned layouts. Saved
 races keep their saved rifts, but today's maze changes from the deploy on,
 so today's best times mix the two layouts.
+
+## Revision 2 (2026-11-09): hidden rift, one way into each goal
+Playtest screenshot: the rift sat on the obvious corridor, and a gate beside
+the opponent's entrance let a player slip in from the side. In quick play now:
+- Each rift cell is at least `RIFT_HIDE` cell off the shortest walking route,
+  in a side branch, so it has to be searched for.
+- Each goal has one way in. A second opening is closed (with its 180°
+  partner); if that cuts a pocket off, the pocket is reconnected through a
+  symmetric wall away from both entrances.
+- No switch gate or pulse lies within `ENTRANCE_GAP` (5) of an entrance.
+Cost: about 15% of days (30/200 seeds) have no rift. The pinned 2026-11-01
+gates moved on purpose; saved races keep their saved layout.
