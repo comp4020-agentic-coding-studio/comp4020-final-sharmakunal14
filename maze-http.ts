@@ -210,9 +210,13 @@ export function createMazeHandler(db: DatabaseSync, log: (fields: LogLine) => vo
     } catch (error) {
       if (!(error instanceof GameError)) throw error;
       // Refusals are logged too, with the code only: they are what a confused player hit.
+      // The action name comes from a fixed list, never from the URL: a URL can
+      // end in a race id (the invitation) or a spectator token.
       const path = new URL(req.url ?? "/", "http://local").pathname;
       const raceId = /\/matches\/([a-f0-9-]{36})/.exec(path)?.[1];
-      log({ action: `maze.${path.split("/").at(-1) ?? "request"}`, outcome: error.code, actor: actor?.id, race: raceId ? short(raceId) : undefined, status: error.status });
+      const verb = /\/(join|ready|move|stream|replay|forfeit|rematch|next|look|chat|spectate)$/.exec(path)?.[1]
+        ?? (raceId ? "match" : path.includes("/watch/") ? "watch" : "request");
+      log({ action: `maze.${verb}`, outcome: error.code, actor: actor?.id, race: raceId ? short(raceId) : undefined, status: error.status });
       send(res, error.status, { code: error.code, message: error.message });
     }
   };

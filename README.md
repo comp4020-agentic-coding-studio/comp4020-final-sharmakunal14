@@ -1,123 +1,76 @@
 # Maze Duel
 
-Two players enter the same maze from opposite corners. Each races to the
-other player's entrance; the first valid finish accepted by the server wins.
-
-Each day brings one new maze. Each side has a switch that opens one gate and
-closes another for both players, so your shortcut may also be theirs. Finished
-races are saved with today's best times and can be replayed. This README is
-still factual notes, not yet the final argument about what makes the project good.
+Maze Duel is a two-player maze race for friends. My definition of good is a
+race where another person's choices can change your route, the result is
+inspectable, and losing does not prevent you from playing together again.
 
 ## Play
 
-Open `/`, choose a nickname and create a race. Send the invitation link to a
-friend using a separate browser or browser profile. Both players press
-**I'm ready**; a shared three-second countdown starts the race.
+[Open Maze Duel](https://comp4020-final-sharmakunal14.fly.dev/), choose a
+nickname, create a race and send the invitation to a friend in a separate
+browser profile or incognito window. Both press **I'm ready**. Race from
+opposite entrances to each other's starting point. Use WASD/arrows or the
+touch pad; in first/third person, left/right turn. **E/Space** flips a switch;
+**V** changes camera; **M** mutes.
 
-The maze is a 3D desert labyrinth. Press **V**, or use the Map / 3rd / 1st
-buttons, to switch between an orbitable map, a third-person chase camera and
-first person.
-- In map view, **WASD**, the **arrow keys** or the on-screen pad move you in
-  screen directions.
-- In third and first person, **W** walks forward, while **A**/**D** turn and
-  **S** turns around.
+## Why this race
 
-A starts at one portal and must reach the other; B takes the reverse journey.
-Players can pass through one another.
+Robin Sloan's [An app can be a home-cooked meal](https://www.robinsloan.com/notes/home-cooked-app/)
+offers a useful standard: software can succeed by serving a few people well.
+I take that seriously here. A rematch with a friend matters more than building
+a large audience. However, a small audience does not excuse ambiguous results
+or losing people's history.
 
-Standing on a switch (◆) lets you press **E**, **Space** or **Flip switch**.
-That opens the gates of its colour that are closed and closes those that are
-open, for both players.
+The daily maze makes that friendship consequential. A switch opens one gate
+and closes another for both players: a shortcut you create can help your rival
+too. I want players to reconsider routes because someone else is present.
+Switches remain optional shortcuts, so this creates an opportunity for
+interaction, not a requirement to cooperate or sabotage.
 
-A result ends the race for both players. **Watch the replay** shows both
-routes, dead ends included. Today's best times appear on the home page.
+One maze per Sydney day gives repeated races a shared reference. Saved replays
+show accepted steps and flips, making the outcome something friends can
+discuss. Spectators get a separate read-only link without player chat.
+The twelve campaign levels introduce navigation, switches, timed gates
+and teleporting rifts; a completed race unlocks the next level for both players,
+win or lose. Seven levels have no switches. I kept them for practice and variety,
+but they do less to realise the central idea. Fog and timed gates challenge navigation;
+they do not demonstrate that the opponent matters.
 
-Sound is on by default, in the style of a classic platform game. Your browser
-will not play any sound until you click or press a key once on the page.
-- **Music** changes with the game: a bouncy tune in the lobby, a calmer one in
-  the waiting room, a tense pulse at the countdown and a fast one in the race.
-- **Effects** cover steps, turns, wall bumps, flipping a switch, a rival
-  joining, ready, the countdown, the race start, reaching the portal, and the
-  win and lose jingles. Buttons click.
-- **Mute** with the speaker button in the top bar or the **M** key; the Sound
-  menu also has separate music and effects switches. Your choice is saved in
-  this browser when possible.
+Gabriel Gambetta's [prediction and reconciliation](https://www.gabrielgambetta.com/client-side-prediction-server-reconciliation.html)
+explains how immediate feedback can coexist with server authority. Maze Duel
+predicts movement locally, then reconciles it with accepted server state. I
+accept that compromise: responsiveness matters, but the browser cannot award
+itself a win. The first valid finish processed by the server wins; network
+delay can still decide a close race.
 
-Hidden tabs and disconnected races stop the music, and replays stay silent. All
-gameplay feedback remains visible without sound. All sounds are synthesised in
-the browser from original phrases; nothing is copied from a real game.
+## What the evidence supports
 
-Identity belongs to this browser's cookie, not to a verified account. Reusing
-a nickname in a different browser creates a different player. Clearing the
-cookie loses access to that identity's races. Anyone with an unused invitation
-can take the second seat; after that, only those two identities can access the
-match. Use fictional nicknames, not sensitive information.
+The [harness](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/blob/main/CLAUDE.md)
+turns these priorities into rules. The [checks](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/tree/main/spec)
+cover symmetry and reachability across switch states over 200 generated seeds
+and all twelve levels, legal movement, duplicate commands, concurrent finishes
+and spectator access. SQLite stores results, layouts and replay actions before
+broadcast. Persistence checks cover saved records and a real server restart.
+Active races are interrupted on restart without awarding a winner; completed
+results survive. Browser disconnects do not pause the clock.
 
-## Rules and limits
+These checks establish constraints, not enjoyment or equal difficulty. Friends
+who played said they loved the idea of competing and the switches, but asked
+for smoother controls and different camera perspectives. Their feedback
+informed control changes and the map, third-person and first-person views.
+Follow-up feedback is needed to judge whether those changes resolved their
+concerns. Whether switches change route decisions or encourage repeat play
+also remains unverified; agent-driven checks cannot establish those judgments.
 
-- One generated, rotationally symmetric 15×15 maze per Sydney day. In every
-  switch state, every passage reaches both goals; this is checked over 200 seeds.
-- The server validates each step, flip and gate, the countdown and a shared
-  speed allowance (140 ms per step on average, with up to four banked steps).
-  Commands carry sequence numbers, so a retried batch is not applied twice.
-- Your own steps are drawn straight away and sent in batches. A slow
-  connection delays confirmation but does not slow your average pace.
-- The first accepted finishing move wins. Network delay can influence close
-  finishes; this is not a latency-compensated competitive game.
-- A browser disconnect does not pause the clock. Reopening the invitation in
-  the same browser restores the saved position. Controls stay disabled while
-  the live connection is unavailable.
-- A server restart interrupts an active race without awarding a winner.
-  Completed results and waiting lobbies survive. Races end without a winner
-  after ten minutes if neither player finishes.
+## Deliberate limits
 
-Accounts, power-ups and map reveals are deliberately left out. Whether the
-switches create real decisions still needs independent playtesting. Keyboard and button controls do not establish full accessibility;
-the spatial maze remains a visual interaction.
+I left out power-ups and footprint trails to keep attention on routes and
+shared gates, and free-roam movement to keep grid rules inspectable. Cookie
+identity avoids account setup but loses access when cookies are cleared.
+Fog is a visual restriction, not secret information. Keyboard and touch controls
+do not make a spatial, visual maze fully accessible.
 
 ## Run locally
 
-Use the Node 24 and pnpm 11 versions in `mise.toml`:
-
-```sh
-pnpm install --frozen-lockfile
-pnpm dev
-```
-
-Open `http://localhost:8080`. `PORT` overrides the port; `DATA_DIR` selects the
-database directory (normally `./data` locally and `/data` on Fly.io). To run
-without file watching, use `pnpm start`. Watch-mode restarts interrupt races.
-
-The stack retains Node's HTTP server, SQLite and browser JavaScript, plus
-Three.js r170 vendored as a single file for the 3D view. Movement
-commands use HTTP; [server-sent events](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events)
-deliver authoritative snapshots. Browsers without WebGL fall back to a 2D
-projected view. No server runtime dependencies were added.
-Fly's existing single-machine and persistent-volume configuration is retained.
-
-## Development records
-
-- [Design](docs/design.md): current scope, architecture, rules and trade-offs.
-- `PROGRESS.md`: dated implementation work, commit references,
-  verification results and outstanding items.
-- [Initial decision record](docs/decisions/0002-maze-duel-first-playable.md):
-  why the first playable version uses this scope and runtime.
-- `CLAUDE.md`: the implementation standards, including keeping these records
-  current as work proceeds.
-- [Earlier prototype](docs/shared-space-readme.md): the project began as a
-  shared event-layout planner before becoming Maze Duel.
-
-## Verification
-
-With the app running:
-
-```sh
-pnpm check
-pnpm check:evidence
-```
-
-For a different address, set `APP_URL=http://localhost:8089`. The checks cover
-maze reachability, movement rules, two-player limits, access control, malformed
-requests, concurrent finishes, live updates, reconnect snapshots, stored
-results, actual server restart and keyboard-input safety. The evidence check
-validates document structure and cited commits.
+Use Node 24 and pnpm 11: `pnpm install --frozen-lockfile`, then `pnpm dev`.
+Open `http://localhost:8080`; run `pnpm check` against the running app.
