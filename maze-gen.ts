@@ -8,6 +8,9 @@ export const CELLS = 7;
 export const SIZE = CELLS * 2 + 1;
 export const PULSE_OPEN_MS = 2_500;
 export const PULSE_CLOSED_MS = 2_500;
+// Rift limits (decision 0012): walking steps from the start to the entrance, and the largest share of the route it may save.
+export const RIFT_DEPTH = 8;
+export const RIFT_MAX_SHARE = 1 / 3;
 
 // What a maze contains. The daily maze uses DAILY; levels (decision 0013)
 // choose their own size and mechanics.
@@ -19,8 +22,11 @@ export type Spec = {
   rifts: boolean;
   // Extra walls opened (in symmetric pairs) to add loops, as a share of walls left.
   loops?: number;
+  // Keep the rift a gamble (deep entrance, capped saving). Quick play only;
+  // levels keep the rifts their pinned layouts were tuned with.
+  riftLimit?: boolean;
 };
-export const DAILY: Spec = { cells: CELLS, switches: true, pulses: [[PULSE_OPEN_MS, PULSE_CLOSED_MS]], rifts: true };
+export const DAILY: Spec = { cells: CELLS, switches: true, pulses: [[PULSE_OPEN_MS, PULSE_CLOSED_MS]], rifts: true, riftLimit: true };
 
 export function sydneyDate(now: number): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Australia/Sydney" }).format(now);
@@ -205,8 +211,14 @@ function attemptLayout(mazeId: string, spec: Spec, rand: () => number, pulseRand
     if (best === null) continue;
     riftOptions.push({ p, saving: startBase - best });
   }
+  // The rift must be a gamble, not a free win: its entrance sits deep in the
+  // maze (both cells at least RIFT_DEPTH steps from the start), so by symmetry
+  // the landing is as far from the goal, and it saves at most a third of the route.
+  const walk = distances(grid, start, startOpen);
   riftOptions.sort((a, b) => b.saving - a.saving);
-  const worth = riftOptions.filter((o) => o.saving >= 4);
+  const worth = riftOptions.filter((o) => o.saving >= 4 && (!spec.riftLimit
+    || (o.saving <= Math.max(4, Math.floor(startBase * RIFT_MAX_SHARE))
+      && Math.min(walk.get(key(o.p)) ?? 0, walk.get(key(rot(o.p))) ?? 0) >= RIFT_DEPTH)));
   const riftPick = worth[Math.floor(riftRand() * Math.min(4, worth.length))];
   if (spec.rifts && riftPick) rifts.push(riftPick.p, rot(riftPick.p));
   return { mazeId, maze: grid.map((row) => row.join("")), switches, gates, pulses, rifts };

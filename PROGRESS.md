@@ -955,3 +955,9 @@ list. `spec/maze-logs.test.ts` covers both refusals; it failed on the old code
 - The replay card sat in the middle of the screen over the maze (author's screenshot). It now sits bottom-left on desktop with the maze shifted right, and full-width at the bottom on phones with the explored-cells lines hidden.
 - Agent-driven headless Chrome measured the card: 11% of a 1440×900 window, 16% of 1280×720, 36% of 390×844 (was centred over the board). Screenshot: `docs/evidence/replay-panel-desk.png`.
 - `tsc --noEmit` clean; 145/145 tests against the branch server on port 8093.
+
+## 2026-11-09 — Quick-play rifts made a gamble; camera kept after closing the window
+
+- Author playtest: in quick play the rift dropped the player almost at the goal. The daily maze now puts both rift cells at least 8 steps from the start and caps the saving at a third of the route (decision 0012 revision). Average landing-to-goal distance rose from 6.7 to 8.1 cells over 200 seeds; 14/200 days now have no rift. Levels are unchanged (fingerprints still pinned). New check in `spec/maze-game.test.ts` asserts the cap.
+- Author report: closing and reopening the window reset the camera to the map. The view was in sessionStorage, which a closed window loses; it is now in localStorage per race (`spec/maze-view-memory.test.ts` updated).
+- `tsc --noEmit` clean; 145/145 tests against the branch server on port 8094.
