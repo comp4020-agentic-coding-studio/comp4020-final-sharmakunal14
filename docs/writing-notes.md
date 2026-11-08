@@ -492,7 +492,6 @@ the harness or spec rather than patched.
 
 - Author report: in a race on the deployed game, the switch changed the
   friend's route. First human observation of the central claim ("another
-  person's choices can change your route"). One informal race; no record of
-  which switch, which route, or whether the friend flipped it or reacted to
-  the author's flip. If you can recall those details, they make the claim
-  stronger in PROCESS.md's judgment section.
+  person's choices can change your route"). One informal race. The author
+  later added: the friend flipped the switch themselves, in a quick-play race
+  (Create a race, today's maze). Which switch and which route were not noted.

@@ -24,8 +24,7 @@ from 1 November [`ca89fdd`](https://github.com/comp4020-agentic-coding-studio/co
 
 The course fixed one 256 MB machine and a persistent volume. I retained
 Node 24, built-in SQLite, plain browser modules and server-sent events,
-reusing working storage and live updates. Running TypeScript directly removed
-a build step, not the need for type checking. The costs are handwritten routing
+reusing working storage and live updates. The costs are handwritten routing
 and browser lifecycles, synchronous database work and a single-machine
 deployment ([decision 0002](docs/decisions/0002-maze-duel-first-playable.md), [`9f1a49f`](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/commit/9f1a49f)).
 
@@ -118,17 +117,17 @@ gave me a test of scope: does another feature serve these friends? I chose
 campaign progression after a completed race, win or lose, so the weaker player
 could continue ([`0e7bc8d`](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/commit/0e7bc8d), [`267700f`](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/commit/267700f)). Seven levels omit switches so each world
 introduces one mechanic first; whether that improves repeat play is untested.
+The central claim has one observation: in a quick-play race, a friend flipped
+a switch and it changed their route; one race, not a rate.
 
 Playtest-driven rift corrections capped, then hid, shortcuts but left one
 day's rankings mixing layouts ([`dd1d890`](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/commit/dd1d890), [`9667c54`](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/commit/9667c54)); saved replays stayed stable.
 
 Persistence has concrete checks: a real process restart preserves identities
 and interrupts an active race; database reopening preserves completed results
-([`f7533be`](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/commit/f7533be), [`b20005b`](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/commit/b20005b)). Camera choice moved from `sessionStorage` to per-race
-`localStorage` once closing the window lost it [`dd1d890`](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/commit/dd1d890). Browser runs in
-[PROGRESS.md](PROGRESS.md) are agent-driven, not playtests. The
-[CI workflow](.github/workflows/checks.yml) tests the Docker image before
-deployment; its final HTTP-200 probe shows availability, not playability.
+([`f7533be`](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/commit/f7533be), [`b20005b`](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/commit/b20005b)). Camera choice moved to per-race `localStorage` once
+closing the window lost it [`dd1d890`](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/commit/dd1d890). Browser runs in
+[PROGRESS.md](PROGRESS.md) are agent-driven, not playtests.
 
 Maze action logs arrived on 9 November [`27ce3b3`](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/commit/27ce3b3), after Crit 10, so they are
 not evidence of its log exercise. A later

@@ -12,8 +12,7 @@ nickname and create a race. Copy the invitation link.
 On one computer, **the easiest setup is Player 1 in a normal window and
 Player 2 opening the invitation link in an incognito/private window**, then
 choosing their own nickname. Two normal windows in the same browser profile
-share one player identity. On separate devices, both players can use normal
-browsers.
+share one player identity; separate devices need no incognito window.
 
 Both press **I'm ready**. Race from opposite entrances to each other's
 starting point. Use WASD/arrows or the touch pad; in first/third person,
@@ -59,11 +58,11 @@ real server restart keeps identities and completed results, and interrupts an
 active race without awarding a winner. Browser disconnects do not pause the clock.
 
 **Judged.** Enjoyment and equal difficulty cannot be checked. Friends
-loved competing and the switches, but asked for smoother controls and
-different camera perspectives; that feedback shaped the control changes and
-the three camera views. On 9 November a friend's route
-changed because of a switch: one race shows the mechanic can work, not how
-often. Whether players return remains to be judged.
+loved competing and the switches, but asked for smoother controls and more
+camera views, which shaped the controls and views. In a quick-play
+race on 9 November, a friend flipped a switch and it changed their route: one
+race shows the mechanic can work, not how often. Whether players return
+remains to be judged.
 
 ## Deliberate limits
 
