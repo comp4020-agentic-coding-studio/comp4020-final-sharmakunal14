@@ -553,3 +553,19 @@ body[data-phase="finished"] .hud-key, body[data-phase="interrupted"] .hud-key { 
 /* Fog race reminder under the race clock (decision 0011). */
 .hud-fog { top: 140px; left: 50%; transform: translateX(-50%); margin: 0; padding: 4px 12px; border-radius: 999px; font-family: var(--font-mono); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--text); background: var(--glass-strong); border: 1px solid var(--line); white-space: nowrap; }
 @media (max-width: 720px) { .hud-fog { top: 124px; left: auto; right: 10px; transform: none; } }
+
+/* Replay: the maze is the point, so the card stays compact in a corner and the
+   maze shifts right to sit beside it rather than under it. */
+body[data-phase="replay"] .scene { justify-content: flex-end; padding-bottom: 20px; }
+body[data-phase="replay"] #replay-panel { width: min(340px, 100%); padding: 16px 18px; }
+body[data-phase="replay"] #replay-panel .display-sm { font-size: 20px; margin-bottom: 2px; }
+body[data-phase="replay"] #replay-panel > * + * { margin-top: 8px; }
+body[data-phase="replay"] #replay-panel .btn { min-height: 44px; }
+@media (min-width: 901px) {
+  body[data-phase="replay"] .viewport { --stage-shift: .16; }
+  body[data-phase="replay"] .scene { padding-left: 20px; }
+}
+@media (max-width: 900px) {
+  body[data-phase="replay"] #replay-panel { width: 100%; padding: 12px 14px; }
+  body[data-phase="replay"] #replay-note, body[data-phase="replay"] #replay-explored { display: none; }
+}
