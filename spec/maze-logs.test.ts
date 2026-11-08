@@ -53,11 +53,17 @@ it("logs every maze action with actor, short race id and outcome, and never secr
       if (body.game.status === "finished") break;
     }
     await post(cookies[1], `${path}/rematch`);
+    // Refusals whose URL ends in a secret: an outsider reading the race, and a
+    // bad spectator token. Neither id may reach the log.
+    const outsider = (await (await fetch(`${url}/api/session`, { method: "POST", headers: { "content-type": "application/json" }, body: '{"name":"Evename"}' })).headers.get("set-cookie"))!.split(";")[0];
+    expect((await fetch(`${url}/api/maze/${path}`, { headers: { cookie: outsider } })).status).toBe(403);
+    const badToken = "00000000-1111-2222-3333-444444444444";
+    expect((await fetch(`${url}/api/maze/watch/${badToken}`)).status).toBe(404);
     await new Promise((resolve) => setTimeout(resolve, 100));
 
     const lines = output.split("\n").filter((l) => l.includes('"maze.')).map((l) => JSON.parse(l) as Record<string, unknown>);
     const actions = lines.map((l) => `${l.action}:${l.outcome}`);
-    for (const expected of ["maze.created:ok", "maze.joined:ok", "maze.chat:ok", "maze.moved:NOT_RACING", "maze.ready:ok", "maze.moved:ok", "maze.finished:ok", "maze.rematch:ok"]) {
+    for (const expected of ["maze.match:NOT_A_PLAYER", "maze.watch:NOT_FOUND", "maze.created:ok", "maze.joined:ok", "maze.chat:ok", "maze.moved:NOT_RACING", "maze.ready:ok", "maze.moved:ok", "maze.finished:ok", "maze.rematch:ok"]) {
       expect(actions, expected).toContain(expected);
     }
     for (const line of lines) {
@@ -68,7 +74,7 @@ it("logs every maze action with actor, short race id and outcome, and never secr
     expect(finished.timeMs).toBeGreaterThan(0);
     // Never secrets, chat text, nicknames or the full race id (it is the invitation).
     const raw = output.split("\n").filter((l) => l.includes('"maze.')).join("\n");
-    for (const forbidden of [...cookies.map((c) => c.split("=")[1]), "secret-chat-line", "Alicename", "Bobname", game.id]) {
+    for (const forbidden of [...cookies.map((c) => c.split("=")[1]), "secret-chat-line", "Alicename", "Bobname", "Evename", game.id, badToken]) {
       expect(raw).not.toContain(forbidden);
     }
   } finally {
