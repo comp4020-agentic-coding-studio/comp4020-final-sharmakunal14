@@ -306,3 +306,23 @@ Raw material, not prose. Decision record: [0008](decisions/0008-spectators-stats
 - Deployed via PR #3. A live browser check first looked like a bug (race
   page stuck in the lobby); it was the test's fixed 1.5 s wait against slow
   software WebGL. Lesson for PROCESS: wait for a state, not a time.
+
+## Review fixes (2026-11-09)
+
+Strong PROCESS material: each was found by review, reproduced, and fixed in
+the harness or spec rather than patched.
+
+- **A test locked in a security hole.** The spectator test asserted that the
+  public view contained the race id. The id is also the invitation, so a
+  watcher could join an empty seat. The test encoded the current output, not
+  the promise ("spectators are read-only"). Fix: `8b9b3fa`; rule in `CLAUDE.md`
+  ("check the promise, not the current output").
+- **Claimed capability with no evidence.** Crit 10 asks you to read the logs
+  while classmates play; Maze Duel logged nothing. Now every action and
+  refusal is logged, and a check reads a real server's output and fails if a
+  cookie, chat line, nickname or full race id leaks (`27ce3b3`). Do not claim
+  log narration from before this commit.
+- **A swallowed error hid a feature.** `clock` shadowed by `setInterval`;
+  `try/catch` hid the throw (`acba4f1`). Rule added about swallowed errors.
+- **An acknowledged bug stayed fixed only when measured.** Phone HUD overlap
+  checked by bounding boxes at three sizes (`a379de4`).

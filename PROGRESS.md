@@ -824,3 +824,22 @@ script waited 1.5 s for the race page, and software WebGL in headless Chrome
 took over 6 s to build the scene on the live page. Traced by watching every
 title write and request; the app was correct. The script now waits for the
 race view instead of a fixed delay.
+
+## 2026-11-09 — Review fixes: spectator seat, action logs, personal-best note, phone HUD
+
+A review of the code against `CLAUDE.md` and the crit 10 brief found four
+issues, each reproduced before fixing.
+
+| Issue | Fix | Check | Commit |
+| --- | --- | --- | --- |
+| A spectator could take an empty seat: `publicGame` sent the race id, which is also the invitation, and `/join` accepted it. The existing test *expected* the id. | Public view drops `id`, adds an opaque `race` key | New HTTP check over the read endpoint and the stream; test fixed to assert the promise | `8b9b3fa` |
+| Maze Duel did not log actions, so the crit 10 "read the logs" narration had nothing to read | `maze.*` JSON lines for every action and refusal, after commit | `spec/maze-logs.test.ts` reads a real server's stdout; fails on the old handler | `27ce3b3` |
+| The personal-best note vanished after a win that was not a new best: a timer named `clock` shadowed the formatter, and the error was swallowed | Timer renamed | `spec/maze-race-shadow.test.ts`, seen failing on the old file | `acba4f1` |
+| Phone race clock overlapped the connection chip | Chip stacks under the title on phones | Agent-driven Chrome measured box overlap at 390×844, 360×640, 1440×900: overlap on both phones before, none after ([script](docs/evidence/2026-11-09-hud-overlap-check.mjs), [after](docs/evidence/2026-11-09-phone-hud-fixed.png)) | `a379de4` |
+
+`pnpm check` 143/143 against the new code on port 8090 with a fresh `DATA_DIR`.
+
+### Not verified
+
+- The note fix was checked by the static test, not by playing two wins in a browser.
+- The logs have not been read on Fly yet (the fly CLI is not logged in here).
