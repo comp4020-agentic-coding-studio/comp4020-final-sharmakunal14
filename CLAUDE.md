@@ -41,6 +41,9 @@ Keep the earlier Shared Space routes and data working during the transition.
   a race. Lobby-sized player cards pushed controls below the board in the
   first browser check; use a compact active-race layout. Keep the page heading
   available to assistive technology even when the visual introduction hides.
+- The race fills the browser window with CSS, never device full screen. Exiting
+  full screen at the result resized the whole layout at once, which the player
+  found jarring; `spec/maze-window-size.test.ts` keeps the Fullscreen API out.
 - The 3D view is presentation only. Grid coordinates stay the authority, and
   avatar facing (1st/3rd person) is local and never sent to the server.
 - In 1st/3rd person, forward walks the way the avatar faces; left, right and

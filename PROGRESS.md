@@ -844,6 +844,36 @@ issues, each reproduced before fixing.
 - The note fix was checked by the static test, not by playing two wins in a browser.
 - The logs have not been read on Fly yet (the fly CLI is not logged in here).
 
+## 2026-11-09 — README argument and evidence review
+
+- At the author's request, replaced the factual README notes with an
+  agent-assisted argument: shared route choices, inspectable results and
+  continuing together after a loss. The rendered text is 578 words, including
+  headings and setup instructions. First-person judgments remain for author
+  review; no new personal experience or playtest observation was invented.
+- Checked the final-project brief and the two linked sources (Robin Sloan
+  and Gabriel Gambetta). Distinguished design intentions and informal friend
+  feedback from executable rules and agent-driven browser verification.
+- Named limits: seven campaign levels lack switches, latency can affect close
+  finishes, server restarts interrupt active races, cookie loss loses identity,
+  fog is not secret information, and visual navigation is not fully accessible.
+- Reviewed the four correction commits. A fresh temporary database/server
+  passed `pnpm check`: TypeScript and 143 tests across 21 files. The served
+  `/readme/` returned HTTP 200 and its full main text matched README.md, not
+  merely its headings. Agent-driven IAB inspection at 1920×1080 and 390×844
+  showed readable text and no horizontal overflow. These are local checks;
+  this documentation has not been deployed or committed in this session.
+- Additional isolated check found a remaining log leak: a non-player GET of
+  an existing match returned 403 (`NOT_A_PLAYER`), but `maze-http.ts` used the
+  final URL segment as the log action and exposed the full invitation id.
+  The new logging test does not cover this path. No credentials or invitation
+  values were printed in the check's report. Follow-up: use fixed action names
+  and cover forbidden match reads and invalid watch-token refusals; application
+  code was not changed during this writing session.
+- The personal-best regression remains a static name-shadowing check, not a
+  browser demonstration of two wins. The previous entry contains the phone-HUD
+  browser measurements; they were not rerun as gameplay checks here.
+
 ### Deployed (2026-11-09)
 
 PR #5 (Shared Space out of README and PROCESS.md, `38c3122`) and PR #6 (the
@@ -859,3 +889,16 @@ four review fixes, `834733b`) were merged; both deploy jobs succeeded.
 
 Not verified: the new `maze.*` log lines on Fly itself (fly CLI not logged in
 here); the log test ran against a local server.
+
+## 2026-11-09 — Race fills the browser window, not the device screen
+
+The player found the jump out of full screen at the end of a race jarring and
+asked for the game to use the Chrome window's size instead. The Fullscreen API
+calls (on Ready, at the countdown, on finish and on Exit) were removed; the race
+layout already fills the window with CSS.
+
+| Check | Result |
+| --- | --- |
+| Agent-driven Chrome at 1200×760: window and stage size in the waiting room, racing and on the result | 1200×760 throughout, never full screen ([result](docs/evidence/2026-11-09-window-result.png)) |
+| `spec/maze-window-size.test.ts` (no `requestFullscreen`/`exitFullscreen` in browser code) | passes |
+| `pnpm check` on a fresh `DATA_DIR` | 144 passed |
