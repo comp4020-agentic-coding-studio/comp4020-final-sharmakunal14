@@ -52,5 +52,5 @@ the opponent's entrance let a player slip in from the side. In quick play now:
   partner); if that cuts a pocket off, the pocket is reconnected through a
   symmetric wall away from both entrances.
 - No switch gate or pulse lies within `ENTRANCE_GAP` (5) of an entrance.
-Cost: about 15% of days (30/200 seeds) have no rift. The pinned 2026-11-01
+Cost: about 12% of days (25/200 seeds) have no rift. The pinned 2026-11-01
 gates moved on purpose; saved races keep their saved layout.
