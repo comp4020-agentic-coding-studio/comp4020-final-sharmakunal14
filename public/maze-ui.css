@@ -549,3 +549,7 @@ body[data-phase="finished"] .hud-key, body[data-phase="interrupted"] .hud-key { 
 .level-btn:disabled { opacity: .45; cursor: not-allowed; }
 .level-btn:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
 .level-btn .done { color: var(--a); }
+
+/* Fog race reminder under the race clock (decision 0011). */
+.hud-fog { top: 140px; left: 50%; transform: translateX(-50%); margin: 0; padding: 4px 12px; border-radius: 999px; font-family: var(--font-mono); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--text); background: var(--glass-strong); border: 1px solid var(--line); white-space: nowrap; }
+@media (max-width: 720px) { .hud-fog { top: 124px; left: auto; right: 10px; transform: none; } }

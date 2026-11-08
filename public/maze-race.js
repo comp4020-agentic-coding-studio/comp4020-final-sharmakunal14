@@ -5,6 +5,7 @@ import { raceCues } from "./maze-audio-events.js";
 import { setupChat } from "./maze-chat.js";
 import { celebrate } from "./maze-celebrate.js";
 import { lookOf } from "./maze-look.js";
+import { onViewChange, rememberView, savedView } from "./maze-views.js";
 import { levelById, nextLevel, worldOf } from "./maze-levels.js";
 
 const $ = (id) => document.getElementById(id);
@@ -44,6 +45,12 @@ export function mountRace(initial, mazeView, showError, audio) {
   document.body.dataset.inRace = "true";
   $("race-panel").hidden = false;
   $("race-code").textContent = game.id.slice(0, 8).toUpperCase();
+  // A reload returns the player to the camera they were using in this race.
+  const restored = savedView(game.id);
+  if (restored) document.querySelector(`[data-view="${restored}"]`)?.click();
+  onViewChange((name) => {
+    if (game.status === "countdown" || game.status === "racing") rememberView(game.id, name);
+  });
   // A level race names its world and level; the daily maze keeps its title.
   const level = game.level ? levelById(game.level) : null;
   if (level) {
@@ -86,8 +93,8 @@ export function mountRace(initial, mazeView, showError, audio) {
     if (document.body.dataset.phase !== game.status && game.status === "countdown" && matchMedia("(max-width: 700px)").matches) {
       document.querySelector(".stage")?.scrollIntoView({ block: "start" });
     }
-    if (document.body.dataset.phase !== game.status && game.status === "countdown") {
-      // The race opens in the player's own point of view. It fills the browser
+    if (document.body.dataset.phase !== game.status && game.status === "countdown" && !savedView(game.id)) {
+      // A new race opens in the player's own point of view. It fills the browser
       // window through CSS, never device full screen: leaving full screen at
       // the result jumped the whole layout to a new size.
       document.querySelector('[data-view="first"]')?.click();
@@ -172,6 +179,8 @@ export function mountRace(initial, mazeView, showError, audio) {
     $("flip").hidden = !onSwitch;
     $("flip").disabled = !canMove();
     $("race-mode").hidden = !game.fog;
+    // In a fog race the grey cover needs explaining on the race screen itself.
+    $("fog-note").hidden = !(game.fog && game.status === "racing");
     text("race-mode", game.fog ? "Fog race: you see only 3 steps around you. Your rival sees the same." : "");
     text("switch-hint", onSwitch ? "You’re on a switch. Press E or Space to flip it — it changes gates for both of you." : pulseHint());
     // Fog limits sight only while racing; the waiting room and result show the maze.
