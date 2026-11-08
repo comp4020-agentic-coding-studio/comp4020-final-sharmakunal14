@@ -119,8 +119,8 @@ campaign progression after a completed race, win or lose, so the weaker player
 could continue ([`0e7bc8d`](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/commit/0e7bc8d), [`267700f`](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/commit/267700f)). Seven levels omit switches so each world
 introduces one mechanic first; whether that improves repeat play is untested.
 
-A rift correction capped shortcuts but left two layouts sharing one day's
-rankings [`dd1d890`](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/commit/dd1d890); saved replays stayed stable.
+Playtest-driven rift corrections capped, then hid, shortcuts but left one
+day's rankings mixing layouts ([`dd1d890`](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/commit/dd1d890), [`9667c54`](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/commit/9667c54)); saved replays stayed stable.
 
 Persistence has concrete checks: a real process restart preserves identities
 and interrupts an active race; database reopening preserves completed results
