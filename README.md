@@ -6,11 +6,7 @@ other player's entrance; the first valid finish accepted by the server wins.
 Each day brings one new maze. Each side has a switch that opens one gate and
 closes another for both players, so your shortcut may also be theirs. Finished
 races are saved with today's best times and can be replayed. This README is
-still factual notes, not yet the final argument about what makes the project good. The earlier Shared Space application remains
-available at `/shared-space/`; its original README is preserved in
-[the earlier project notes](docs/shared-space-readme.md). `PROCESS.md` and the
-crit reflections still describe that earlier work and need an author-written
-account of the change in direction.
+still factual notes, not yet the final argument about what makes the project good.
 
 ## Play
 
@@ -108,6 +104,8 @@ Fly's existing single-machine and persistent-volume configuration is retained.
   why the first playable version uses this scope and runtime.
 - `CLAUDE.md`: the implementation standards, including keeping these records
   current as work proceeds.
+- [Earlier prototype](docs/shared-space-readme.md): the project began as a
+  shared event-layout planner before becoming Maze Duel.
 
 ## Verification
 
@@ -121,7 +119,5 @@ pnpm check:evidence
 For a different address, set `APP_URL=http://localhost:8089`. The checks cover
 maze reachability, movement rules, two-player limits, access control, malformed
 requests, concurrent finishes, live updates, reconnect snapshots, stored
-results, actual server restart and keyboard-input safety. The earlier Shared
-Space checks remain. The evidence check validates document structure and cited
-commits; it does not establish that the old process narrative describes this
-new implementation.
+results, actual server restart and keyboard-input safety. The evidence check
+validates document structure and cited commits.
