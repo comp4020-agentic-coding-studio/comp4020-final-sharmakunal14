@@ -1,5 +1,23 @@
 const VIEWS = ["overview", "third", "first"];
 
+// The chosen camera is remembered per race for this tab, so a reload puts the
+// player back in the view they were using. Storage can be unavailable; then
+// the view simply is not remembered.
+const viewKey = (race) => `maze-view:${race}`;
+export function savedView(race) {
+  try {
+    const name = sessionStorage.getItem(viewKey(race));
+    return VIEWS.includes(name) ? name : null;
+  } catch { return null; }
+}
+export function rememberView(race, name) {
+  try { sessionStorage.setItem(viewKey(race), name); } catch { /* not remembered */ }
+}
+
+// Pages that need to know when the camera changes (the race remembers it).
+const listeners = new Set();
+export function onViewChange(listener) { listeners.add(listener); }
+
 // Camera switcher: buttons on the stage plus the V key.
 export function setupViews(view, onChange = () => {}) {
   if (!view.setView) {
@@ -12,6 +30,7 @@ export function setupViews(view, onChange = () => {}) {
     view.setView(name);
     document.body.dataset.view = name;
     for (const b of buttons) b.setAttribute("aria-pressed", String(b.dataset.view === name));
+    listeners.forEach((listener) => listener(name));
     const label = { overview: "Map view", third: "Third-person view", first: "First-person view" }[name];
     const announcement = document.getElementById("announcement");
     if (announcement) announcement.textContent = label;
