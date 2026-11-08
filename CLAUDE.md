@@ -2,12 +2,24 @@
 
 ## Current project: Maze Duel
 
-The project is moving from Shared Space to a two-player maze race. The first
-playable version proved the race loop (two identities, ready-up, countdown,
-live movement, one winner). Milestone 2 (decision 0003) makes the shared maze
-matter: a daily seeded layout, switches that open one gate and close another
-for both players, latency-tolerant movement, per-maze best times and replays.
-Keep the earlier Shared Space routes and data working during the transition.
+Maze Duel is a two-player maze race for friends. Shared Space, the earlier
+prototype, stays reachable on its own routes; keep its routes and data working.
+
+### What good means here (from README.md)
+
+The README argues one idea; every rule below serves one of its three parts.
+When a change does not serve any of them, it needs a reason in a decision
+record before it is built.
+
+| Part of good | Rules in this file | Checks in `spec/` |
+| --- | --- | --- |
+| **Another person's choices can change your route.** Switches flip gates for both players; layouts are symmetric and always passable. | Race invariants: switches, symmetry, reachability | `maze-game` (200-seed sweep over switch states), `maze-levels` |
+| **The result is inspectable.** The server decides the winner; every accepted step is saved before it is shown; replays come only from saved data. | Race invariants: server authority, step log, commit before broadcast | `maze-http` (one winner, concurrent finish, replays), `maze-restart`, `maze-store` |
+| **Losing does not stop you playing together again.** Rematch and Next level seat both players; a finished race unlocks the next level win or lose; watchers can follow. | Scope: progress, rematch, spectators | `maze-levels` (unlock win or lose), `maze-http` (rematch), `maze-spectate` |
+
+Enjoyment, whether switches change route choices, and equal perceived
+difficulty are judged with players, not checked. Report agent-driven browser
+runs as such; never present them as playtests.
 
 ### Race invariants
 
@@ -87,7 +99,7 @@ Keep the earlier Shared Space routes and data working during the transition.
   The new page must retry the unlock when the visitor has already interacted,
   and fall back to the next click. Test the waiting room after a real
   navigation, not only in-page.
-- - Never copy a real game's melody or recordings. Write original tunes in the
+- Never copy a real game's melody or recordings. Write original tunes in the
   same style (bright square lead, triangle bass, noise percussion, coin and
   jump blips).
 - Walking sounds may follow prediction; shared flips and results require a
