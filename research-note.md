@@ -1,82 +1,73 @@
-# Agentic autonomy needs a defensible standard of correctness
+# Agent autonomy needs independently justified checks
 
-I argue that autonomy in software development should depend on checks grounded
-outside the implementation being judged. An agent can write code, generate
-tests and report success while preserving a mistaken interpretation of the
-requirement. Good practice therefore needs two kinds of scrutiny: whether
-checks detect broken behaviour, and whether the behaviour they protect is
-actually wanted. Appointing another agent as reviewer does not, by itself,
-establish either. The standard of correctness needs its own justification.
+A coding agent should get more freedom only when there is a good reason to
+trust the checks guiding it. Code and tests can agree while both misunderstand
+what the software should do. I argue for reviewing two things separately:
+whether a test catches a failure, and why its expected result is correct.
+A second agent can help with that review, but agreement between agents does
+not settle the requirement.
 
 [Barr et al. (2015)](https://doi.org/10.1109/TSE.2014.2372785)
-describe the test oracle problem: determining whether observed behaviour is
-correct. Their survey predates coding agents, so it cannot establish their
-failure rates. Its distinction remains useful, however: generating inputs and
-executing code do not settle what the expected result should be. My inference
-is that an agentic workflow can automate execution successfully while leaving
-the central judgment unresolved. More passing tests cannot compensate for
-an incorrect expectation shared by tests and implementation.
+describe this as the test oracle problem: deciding whether observed behaviour
+is correct. Their survey predates coding agents, so I use it to frame the
+problem, not to estimate how often agents fail. Its relevance is that running
+a test and deciding what it should assert are different tasks. Faster test
+generation leaves the second task unresolved when expectations come from
+the same mistaken reading as the implementation.
 
-Practitioner techniques address part of this problem.
 [Simon Willison's red/green TDD](https://simonwillison.net/guides/agentic-engineering-patterns/red-green-tdd/)
-requires observing tests fail before implementing the change. This helps
-establish that the test detects the missing behaviour, but cannot establish
-that the requested behaviour is right. Similarly,
-[Birgitta Böckeler (2026)](https://martinfowler.com/articles/sensors-for-coding-agents.html)
-reports a file with 100% statement coverage where thirteen deliberate code
-mutations left the test suite passing. Her experiment illustrates why executing code and
-checking its effects differ; it is not a representative benchmark. Mutation
-testing strengthens tests' ability to detect changes; it says nothing about
-whether the behaviour being protected is the right one.
+addresses one part of this. Seeing a test fail before implementing a change
+helps show that it detects the missing behaviour. However, it can still
+require the wrong behaviour. [Birgitta Böckeler (2026)](https://martinfowler.com/articles/sensors-for-coding-agents.html)
+shows another weakness: a file had 100% statement coverage, yet thirteen
+mutations to its code left the tests passing. This was one practitioner
+experiment, so it cannot establish how common the problem is. It does show
+why coverage is weak evidence of detection. Mutation testing probes that
+gap; deciding what behaviour deserves protection remains a separate question.
 
-Maze Duel supplied a small example: its spectator test expected an identifier
-that also allowed someone to join a race. The
-[correction](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/commit/8b9b3fa6141a8eda384b476977a18562d6e31e42)
-required revisiting the read-only promise and changing the expectation.
-This illustrates the failure mechanism; one project cannot establish its
-prevalence across agentic development.
+I encountered that distinction in Maze Duel. A spectator test expected an
+identifier that also let someone join a race. Fixing it meant returning to
+the read-only rule and [changing the expectation](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/commit/8b9b3fa6141a8eda384b476977a18562d6e31e42).
+More tests copying the existing response would have preserved the mistake.
+This illustrates a failure mechanism, rather than a general rate of agent errors.
 
-Nevertheless, requiring people to author every test would discard demonstrated
-value. In Meta's deployment study,
+There is also a strong case for delegating test writing.
 [Alshahwan et al. (2024)](https://doi.org/10.1145/3663529.3663839)
-report engineers accepting 73% of TestGen-LLM's test improvements. The tool
-filters generated tests for successful builds, repeated passing runs and
-additional coverage. Crucially, it discards initially failing tests because
-it cannot automatically distinguish a discovered bug from an incorrect
-assertion. Its success supports automated regression protection, rather than
-establishing intended behaviour. This distinction limits the authors' broad
-language of assurance: acceptance and coverage gains in an internal deployment
-are not a controlled demonstration of fewer production defects. The study
-supports delegating test production while stating precisely what its filters
-establish. It is a bounded generation pipeline, not evidence about unrestricted
-coding agents.
+report that Meta engineers accepted 73% of TestGen-LLM's test improvements.
+Its filters require generated tests to build, pass repeatedly and increase
+coverage. But the tool discards a test if it fails on its first run: without
+an oracle, it cannot distinguish
+a real bug from a wrong assertion. This narrows the authors' assurance claim.
+They improve regression protection for existing behaviour; acceptance and
+coverage do not establish fewer production defects or the correctness of that
+behaviour. The study
+concerns a constrained test-generation pipeline, not unrestricted coding agents.
 
-Willison's fail-first advice and TestGen-LLM's passing-test filter serve
-different purposes: specifying a change and preserving existing behaviour.
-Selecting between them requires a judgment about what is being established.
-A workflow cannot choose that purpose merely by finding whichever check
-turns green.
+TestGen-LLM's passing-test filter and Willison's fail-first approach are not
+contradictory. One preserves existing behaviour; the other checks a proposed
+change. A reviewer must decide which job is needed. Treating a green result
+as sufficient for either would miss the distinction that makes both useful.
 
 [Kief Morris (2026)](https://martinfowler.com/articles/exploring-gen-ai/humans-and-agents.html)
-offers a stronger countercase to intensive oversight: humans should improve
-the harness governing agents rather than inspect every generated line. I agree
-that review effort must scale. However, his suggestion that agents could
-eventually score and automatically apply harness improvements needs a boundary.
-Changing an implementation and changing the criteria that accept it are
-different decisions. An easier check can manufacture apparent improvement.
-Morris offers a useful design direction, not measured evidence that this
-feedback loop reliably improves itself.
+argues for improving the harness instead of inspecting every generated line.
+I agree with the need to avoid making human review the bottleneck. His further
+proposal, letting agents score recommendations and automatically apply some
+harness changes, needs more caution. An agent could make its results look
+better by weakening the check. Morris presents a direction for development,
+not measurements showing that this feedback loop reliably improves itself.
+I would therefore require a separate explanation for changes to acceptance
+criteria, even when implementation changes can proceed automatically.
 
-My proposed boundary is practical. Agents can iterate autonomously on routine,
-reversible changes against established checks. For permissions and shared
-state, reviewers should justify expected outcomes against explicit product
-rules and challenge tests with deliberately broken implementations. Changes
-to acceptance criteria need separate, visible justification. This costs time,
-and mutation testing consumes resources; concentrating review on consequential
-rules is more feasible than inspecting every generated line. Human judgments
-also remain fallible, so ambiguous requirements need examples and user feedback.
-Whether competition is enjoyable still requires players. Autonomy should grow
-with the strength of the evidence and the recoverability of mistakes.
+This does not mean people must write every assertion. Agents can work on
+routine, reversible changes within established rules. Review should focus on
+consequential boundaries such as permissions and shared state: trace expected
+results to a requirement, try a deliberately broken implementation, and make
+changes to the requirement visible. These checks cost time and computation,
+so applying them where mistakes matter most is more realistic than reviewing
+every line. Human reviewers can also be wrong. Examples and feedback from
+users remain necessary when the requirement itself is uncertain. I would
+expand autonomy as this evidence improves and mistakes become easier to undo,
+rather than because the agent produces more passing tests.
 
 ## References
 
