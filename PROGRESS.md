@@ -949,3 +949,9 @@ actions were named after the last URL segment. A bad spectator link would
 have logged the token the same way. Refusal actions now come from a fixed
 list. `spec/maze-logs.test.ts` covers both refusals; it failed on the old code
 (`maze.match:NOT_A_PLAYER` missing) and passes now.
+
+## 2026-11-09 — Replay card no longer covers the maze
+
+- The replay card sat in the middle of the screen over the maze (author's screenshot). It now sits bottom-left on desktop with the maze shifted right, and full-width at the bottom on phones with the explored-cells lines hidden.
+- Agent-driven headless Chrome measured the card: 11% of a 1440×900 window, 16% of 1280×720, 36% of 390×844 (was centred over the board). Screenshot: `docs/evidence/replay-panel-desk.png`.
+- `tsc --noEmit` clean; 145/145 tests against the branch server on port 8093.
