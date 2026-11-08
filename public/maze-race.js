@@ -87,11 +87,11 @@ export function mountRace(initial, mazeView, showError, audio) {
       document.querySelector(".stage")?.scrollIntoView({ block: "start" });
     }
     if (document.body.dataset.phase !== game.status && game.status === "countdown") {
-      // The race opens in the player's own point of view, full screen.
+      // The race opens in the player's own point of view. It fills the browser
+      // window through CSS, never device full screen: leaving full screen at
+      // the result jumped the whole layout to a new size.
       document.querySelector('[data-view="first"]')?.click();
-      if (!document.fullscreenElement) document.documentElement.requestFullscreen?.().catch(() => {});
     }
-    if (done && document.fullscreenElement) document.exitFullscreen().catch(() => {});
     // The designer is only for the waiting room; the server locks looks after that.
     $("avatar-open").hidden = game.status !== "waiting";
     if (game.status !== "waiting" && $("avatar-card").open) $("avatar-card").close();
@@ -337,10 +337,7 @@ export function mountRace(initial, mazeView, showError, audio) {
   };
   document.querySelector(".panel-col")?.addEventListener("click", onUiClick);
 
-  const leave = () => {
-    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
-    location.assign("/");
-  };
+  const leave = () => location.assign("/");
   // Leaving a started race cancels it for both players, so ask first.
   $("exit-game").addEventListener("click", () => {
     if (game.status === "countdown" || game.status === "racing") { stopControls(); sender.clear(); $("exit-dialog").showModal(); }
@@ -372,8 +369,6 @@ export function mountRace(initial, mazeView, showError, audio) {
     } catch { text("replay-status", `Replay link: ${location.origin}/race/${game.id}/replay`); }
   });
   $("ready").addEventListener("click", async () => {
-    // A click is the gesture browsers need to allow full screen.
-    document.documentElement.requestFullscreen?.().catch(() => {});
     busy = true;
     $("error").hidden = true;
     render();
