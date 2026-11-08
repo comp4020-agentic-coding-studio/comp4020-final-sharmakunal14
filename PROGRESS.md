@@ -843,3 +843,19 @@ issues, each reproduced before fixing.
 
 - The note fix was checked by the static test, not by playing two wins in a browser.
 - The logs have not been read on Fly yet (the fly CLI is not logged in here).
+
+### Deployed (2026-11-09)
+
+PR #5 (Shared Space out of README and PROCESS.md, `38c3122`) and PR #6 (the
+four review fixes, `834733b`) were merged; both deploy jobs succeeded.
+
+| Live check | Result |
+| --- | --- |
+| `/readme/` | no "Shared Space"; headings Play, Rules and limits, Run locally, Development records, Verification |
+| Spectator read endpoint and stream | no race id in either; `race` key present |
+| Spectator page through a forfeit and rematch (agent-driven Chrome) | follows to the new race on the same link |
+| Phone HUD at 390×844 and 360×640 (bounding boxes) | no overlap ([screenshot](docs/evidence/2026-11-09-live-phone-hud.png)) |
+| `pnpm vitest run` with `APP_URL` set to the live site | 143/143 |
+
+Not verified: the new `maze.*` log lines on Fly itself (fly CLI not logged in
+here); the log test ran against a local server.
