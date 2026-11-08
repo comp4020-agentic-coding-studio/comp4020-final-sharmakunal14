@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { advanceGame, applyActions, BURST, COUNTDOWN_MS, entrance, forfeitGame, joinGame, layoutFor, MOVE_INTERVAL_MS, movePlayer, newGame, RACE_LIMIT_MS, readyPlayer, SWITCH_COOLDOWN_MS } from "../maze-game.ts";
 import type { Game } from "../maze-game.ts";
-import { generate, sydneyDate } from "../maze-gen.ts";
+import { ENTRANCE_GAP, generate, sydneyDate } from "../maze-gen.ts";
 import { DIRECTIONS, inSight } from "../public/maze-rules.js";
 import { reachable, route } from "./maze-path.ts";
 
@@ -79,19 +79,44 @@ describe("daily maze generation", () => {
         }
       }
     }
-    // Capping the saving leaves some days with no rift that fits: a plain maze, not a free win.
-    expect(missing).toBeLessThan(20);
+    // Capping the saving and hiding the rift off the route leaves some days with
+    // no rift that fits: a plain maze, not a free win.
+    expect(missing).toBeLessThan(40);
+  });
+
+  it("over 200 seeds (quick play): one way into each goal, nothing shortcut beside an entrance, and the rift off the shortest route", () => {
+    for (let day = 0; day < 200; day++) {
+      const layout = generate(`seed-${day}`), n = layout.maze.length;
+      const goal = { x: n - 2, y: n - 2 };
+      const ways = [layout.maze[goal.y - 1][goal.x], layout.maze[goal.y][goal.x - 1]].filter((c) => c === ".").length;
+      expect(ways, `seed-${day}`).toBe(1);
+      for (const g of [...layout.gates, ...layout.pulses]) {
+        for (const e of [{ x: 1, y: 1 }, goal]) expect(Math.abs(g.x - e.x) + Math.abs(g.y - e.y), `seed-${day}`).toBeGreaterThanOrEqual(ENTRANCE_GAP);
+      }
+      if (!layout.rifts.length) continue;
+      // Without the rift, no shortest walking route passes over a rift cell.
+      const board = { ...layout, switchOn: [false, false], rifts: [] };
+      const path = route(board);
+      let p = { x: 1, y: 1 };
+      for (const dir of path) {
+        const [dx, dy] = DIRECTIONS[dir];
+        p = { x: p.x + dx, y: p.y + dy };
+        for (const r of layout.rifts) expect(p, `seed-${day}`).not.toEqual(r);
+      }
+    }
   });
 
   it("gives nearly every day a pulse pair, without changing the maze, switches or gates", () => {
     let missing = 0;
     for (let day = 0; day < 200; day++) if (!generate(`seed-${day}`).pulses.length) missing++;
     expect(missing).toBeLessThan(20);
-    // Switches and gates for this date as generated before pulses existed.
+    // Switches and gates for this date. Pulses did not move them; the
+    // 2026-11-09 quick-play revision (decision 0012) deliberately did, by
+    // keeping gates away from the entrances. Saved races keep their own.
     const { switches, gates } = generate("2026-11-01");
     expect({ switches, gates }).toEqual({
       switches: [{ x: 5, y: 5 }, { x: 9, y: 9 }],
-      gates: [{ x: 10, y: 11, switch: 0, openWhen: true }, { x: 8, y: 9, switch: 0, openWhen: false }, { x: 4, y: 3, switch: 1, openWhen: true }, { x: 6, y: 5, switch: 1, openWhen: false }],
+      gates: [{ x: 8, y: 7, switch: 0, openWhen: true }, { x: 9, y: 10, switch: 0, openWhen: false }, { x: 6, y: 7, switch: 1, openWhen: true }, { x: 5, y: 4, switch: 1, openWhen: false }],
     });
   });
 

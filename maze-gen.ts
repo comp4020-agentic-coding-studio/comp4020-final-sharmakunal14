@@ -11,6 +11,10 @@ export const PULSE_CLOSED_MS = 2_500;
 // Rift limits (decision 0012): walking steps from the start to the entrance, and the largest share of the route it may save.
 export const RIFT_DEPTH = 8;
 export const RIFT_MAX_SHARE = 1 / 3;
+// Quick play: rift cells sit at least this many cells off the shortest route, and
+// no gate or pulse lies within ENTRANCE_GAP of an entrance.
+export const RIFT_HIDE = 1;
+export const ENTRANCE_GAP = 5;
 
 // What a maze contains. The daily maze uses DAILY; levels (decision 0013)
 // choose their own size and mechanics.
@@ -133,6 +137,32 @@ function attemptLayout(mazeId: string, spec: Spec, rand: () => number, pulseRand
   }
 
   const start = { x: 1, y: 1 }, goal = { x: SIZE - 2, y: SIZE - 2 };
+  const clear = (w: Point, others: Point[], gap: number) =>
+    others.every((o) => Math.abs(o.x - w.x) + Math.abs(o.y - w.y) >= gap);
+  const cellKey = (i: number) => `${(i % CELLS) * 2 + 1},${Math.floor(i / CELLS) * 2 + 1}`;
+  // Quick play: one way into each goal. A second, side opening let a player
+  // slip in from wherever they happened to be; close it if the maze stays connected.
+  if (spec.riftLimit) {
+    const side = [{ x: goal.x, y: goal.y - 1 }, { x: goal.x - 1, y: goal.y }].filter((w) => grid[w.y][w.x] === ".");
+    const cells = (CELLS * CELLS);
+    const reached = () => [...distances(grid, start).keys()].filter((k) => { const [x, y] = k.split(",").map(Number); return x % 2 === 1 && y % 2 === 1; }).length;
+    for (const w of side.slice(1)) {
+      const was = grid.map((row) => [...row]);
+      grid[w.y][w.x] = "#";
+      grid[rot(w).y][rot(w).x] = "#";
+      // Closing it can cut a pocket off; reconnect that pocket through a wall
+      // away from both entrances (and its 180° partner), never via the goal.
+      for (let tries = 0; reached() < cells && tries < 20; tries++) {
+        const seen = distances(grid, start);
+        const door = walls.find((d) => grid[d.y][d.x] === "#" && key(d) !== key(rot(d))
+          && clear(d, [start, goal], 3) && ends(d).some((c) => !seen.has(cellKey(c))) && ends(d).some((c) => seen.has(cellKey(c))));
+        if (!door) break;
+        grid[door.y][door.x] = ".";
+        grid[rot(door).y][rot(door).x] = ".";
+      }
+      if (reached() < cells) for (let y = 0; y < SIZE; y++) grid[y] = was[y];
+    }
+  }
   const base = distances(grid, start).get(key(goal))!;
   const fromStart = distances(grid, start);
   const blocked = new Set([key(start), key(goal), key(rot(start))]);
@@ -144,7 +174,7 @@ function attemptLayout(mazeId: string, spec: Spec, rand: () => number, pulseRand
       const open = new Set([key(w), key(rot(w))]);
       return { w, saving: base - distances(grid, start, open).get(key(goal))! };
     })
-    .filter((c) => c.saving >= 2)
+    .filter((c) => c.saving >= 2 && (!spec.riftLimit || clear(c.w, [start, goal], ENTRANCE_GAP)))
     .sort((a, b) => b.saving - a.saving || rand() - 0.5);
   const chosen: Point[] = [];
   for (const { w } of candidates) {
@@ -175,12 +205,10 @@ function attemptLayout(mazeId: string, spec: Spec, rand: () => number, pulseRand
   // Symmetric pulse pairs: shortcuts away from the switch gates and both
   // entrances. Closed, each is just a wall, so it can never disconnect the maze.
   const pulses: Pulse[] = [];
-  const clear = (w: Point, others: Point[], gap: number) =>
-    others.every((o) => Math.abs(o.x - w.x) + Math.abs(o.y - w.y) >= gap);
   for (const [openMs, closedMs] of spec.pulses) {
     const taken = [...gates, ...pulses].flatMap((g) => [g, rot(g)]);
     const pulseOptions = walls.filter((w) => grid[w.y][w.x] === "#" && key(w) !== key(rot(w))
-      && clear(w, taken, 2) && clear(rot(w), taken, 2) && clear(w, [start, goal], 2) && clear(w, [rot(w)], 2))
+      && clear(w, taken, 2) && clear(rot(w), taken, 2) && clear(w, [start, goal], spec.riftLimit ? ENTRANCE_GAP : 2) && clear(w, [rot(w)], 2))
       .map((w) => ({ w, saving: base - distances(grid, start, new Set([key(w), key(rot(w))])).get(key(goal))! }))
       .filter((c) => c.saving >= 1)
       .sort((a, b) => b.saving - a.saving);
@@ -215,10 +243,23 @@ function attemptLayout(mazeId: string, spec: Spec, rand: () => number, pulseRand
   // maze (both cells at least RIFT_DEPTH steps from the start), so by symmetry
   // the landing is as far from the goal, and it saves at most a third of the route.
   const walk = distances(grid, start, startOpen);
+  // Hidden: each rift cell lies at least RIFT_HIDE cells down a side branch
+  // off the shortest walking route, so it must be searched for.
+  const route = new Set<string>();
+  const toGoal = distances(grid, goal, startOpen), fromA = distances(grid, start, startOpen);
+  for (const [k, d] of fromA) if (d + (toGoal.get(k) ?? Infinity) === startBase) route.add(k);
+  const offRoute = new Map<string, number>(), queue: Point[] = [];
+  for (const k of route) { const [x, y] = k.split(",").map(Number); offRoute.set(k, 0); queue.push({ x, y }); }
+  for (const p of queue) for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+    const n = { x: p.x + dx, y: p.y + dy };
+    if ((grid[n.y]?.[n.x] === "." || startOpen.has(key(n))) && !offRoute.has(key(n))) { offRoute.set(key(n), offRoute.get(key(p))! + 1); queue.push(n); }
+  }
+  const hidden = (p: Point) => (offRoute.get(key(p)) ?? 0) >= RIFT_HIDE * 2;
   riftOptions.sort((a, b) => b.saving - a.saving);
   const worth = riftOptions.filter((o) => o.saving >= 4 && (!spec.riftLimit
     || (o.saving <= Math.max(4, Math.floor(startBase * RIFT_MAX_SHARE))
-      && Math.min(walk.get(key(o.p)) ?? 0, walk.get(key(rot(o.p))) ?? 0) >= RIFT_DEPTH)));
+      && Math.min(walk.get(key(o.p)) ?? 0, walk.get(key(rot(o.p))) ?? 0) >= RIFT_DEPTH
+      && hidden(o.p) && hidden(rot(o.p)))));
   const riftPick = worth[Math.floor(riftRand() * Math.min(4, worth.length))];
   if (spec.rifts && riftPick) rifts.push(riftPick.p, rot(riftPick.p));
   return { mazeId, maze: grid.map((row) => row.join("")), switches, gates, pulses, rifts };

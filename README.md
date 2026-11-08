@@ -69,9 +69,9 @@ them, and whether switches change route choices, remain for players to judge.
 I left out power-ups and footprint trails to keep attention on routes and
 shared gates, and free-roam movement to keep grid rules inspectable. Cookie
 identity avoids account setup but loses access when cookies are cleared.
-Fog is a visual restriction, not secret information. A 9 November
-[rift revision](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/commit/dd1d890)
-changed that day's maze, so its best times mix two layouts. Keyboard and touch
+Fog is a visual restriction, not secret information. Two 9 November rift
+revisions ([one](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/commit/dd1d890), [two](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/commit/9667c54))
+changed that day's maze, so its best times mix layouts. Keyboard and touch
 controls do not make a spatial, visual maze fully accessible.
 
 ## Run locally

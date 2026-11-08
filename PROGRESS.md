@@ -1102,3 +1102,9 @@ citations excluded): README 593, PROCESS 1097, research note 639,
 reflections 252/252/245. `pnpm check:evidence`: 34 cited commits, all
 resolve. `docs/submission-review.md` (an agent self-assessment) was left out
 of the repository.
+
+## 2026-11-09 — Hidden rift and a single way into each goal (quick play)
+
+- Author playtest screenshot: the rift was on the obvious corridor, and a side gate gave a quick way into the opponent's corner. Quick play now hides the rift off the shortest route, closes the second opening into each goal (reconnecting any pocket elsewhere), and keeps gates and pulses at least 5 from either entrance (decision 0012 revision 2). 25/200 seeds now have no rift; average rift landing 7.6 cells from the goal.
+- New check in `spec/maze-game.test.ts` over 200 seeds: one way into each goal, no gate or pulse beside an entrance, rift never on the walking route; existing reachability and symmetry checks still pass. The 2026-11-01 gate pin was updated on purpose. Levels unchanged.
+- `tsc --noEmit` clean; 146/146 tests against the branch server on port 8094.
