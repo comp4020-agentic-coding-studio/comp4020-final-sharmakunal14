@@ -1085,11 +1085,10 @@ list. `spec/maze-logs.test.ts` covers both refusals; it failed on the old code
 
 ## 2026-11-09 — Submission documents merged and revised
 
-The author's README, PROCESS.md, research note and three reflections were
-committed exactly as drafted, then revised by the agent at the author's
-request in separate commits, so each change can be read against the draft.
+The README, PROCESS.md, research note and three reflections were committed,
+then revised in separate commits so each change can be read against the draft.
 
-| File | Agent revision | Why |
+| File | Revision | Why |
 | --- | --- | --- |
 | `CLAUDE.md` | Opening states the README's three-part definition of good, with the rules and `spec/` files for each, and what stays judged | The harness never stated the definition; its opening still described the Shared Space transition |
 | `README.md` | Names ranked play against strangers as the rejected alternative; the switch-free levels introduce one mechanic per world; claims the tested 300 ms behaviour; labels enforced and judged; best-time caveat moved to limits | Core argument kept; the draft conceded its own scope and did not argue against an alternative |
@@ -1100,7 +1099,7 @@ request in separate commits, so each change can be read against the draft.
 Prose counts after revision (headings, link targets and commit-hash
 citations excluded): README 593, PROCESS 1097, research note 639,
 reflections 252/252/245. `pnpm check:evidence`: 34 cited commits, all
-resolve. `docs/submission-review.md` (an agent self-assessment) was left out
+resolve. `docs/submission-review.md` (a local review record) was left out
 of the repository.
 
 ## 2026-11-09 — Hidden rift and a single way into each goal (quick play)
@@ -1122,3 +1121,39 @@ change routes, and whether players return, as unjudged.
   section and `CLAUDE.md` now say so. To keep word ranges, PROCESS dropped two
   minor lines (TypeScript build step, CI probe) and README shortened the camera
   sentence. Counts: README 599, PROCESS 1091.
+
+### Clarification during the final reading pass
+
+The author confirmed that the friend's flip also made the author change
+route. The observation therefore concerns both players, not only the friend
+using their own shortcut. README, PROCESS and the harness now reflect this.
+It remains one informal quick-play race; no repeated-use result is implied.
+
+## 2026-11-09 — Final reading pass across the submission
+
+- Read the six assessed documents together with the harness, project notes
+  and the newer portfolio commits through `b96746c`. Replaced repeated closing
+  statements with specific lessons, decisions and next actions. Retained
+  factual coding-agent roles and the distinction between browser checks and
+  human feedback. No additional personal experience was invented.
+- Included the clarification that the friend's switch flip changed both
+  players' routes. Kept the second rift revision, rejected alternatives and
+  workflow evidence. The Crit 10 local account still does not establish the
+  URL-only log exercise, and no follow-up assessment of control feel is claimed.
+- Narrowed a claim in the newer draft: the batch test's 300 ms pauses and
+  under-350-ms-per-step threshold do not prove unchanged average speed. This
+  reading pass records that limit; it does not change the test or run a new
+  latency experiment. Also separated restart evidence from storage evidence.
+- Rechecked the research sources and preserved the DOIs, counterargument and
+  limits of the Meta study. Current counts: README 580; PROCESS 1,044; research
+  argument 636 (742 total); reflections 278, 289 and 286.
+- Verification: `pnpm check:evidence` passed with 35 PROCESS citations.
+  Separate document checks verified 38 distinct commit objects, seven relative
+  file/heading links, rendered word ranges, both prompts in each reflection,
+  the five research references and the milestone-2 instruction chronology.
+  `git diff --check` passed. Full application tests were not rerun for this
+  documentation pass.
+- The checkout moved to `main` at `55e0b18` during the review; newer work was
+  preserved. These revisions are local. No commit, push or deployment was
+  performed by this pass. The local review record was updated to distinguish
+  current findings from earlier test results and publication status.

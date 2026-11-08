@@ -7,20 +7,20 @@ prototype, stays reachable on its own routes; keep its routes and data working.
 
 ### What good means here (from README.md)
 
-The README argues one idea; every rule below serves one of its three parts.
-When a change does not serve any of them, it needs a reason in a decision
-record before it is built.
+Use these three priorities from the README to judge changes. If a proposed
+feature serves none of them, explain the reason in a decision record first.
 
 | Part of good | Rules in this file | Checks in `spec/` |
 | --- | --- | --- |
-| **Another person's choices can change your route.** Switches flip gates for both players; layouts are symmetric and always passable. | Race invariants: switches, symmetry, reachability | `maze-game` (200-seed sweep over switch states), `maze-levels` |
-| **The result is inspectable.** The server decides the winner; every accepted step is saved before it is shown; replays come only from saved data. | Race invariants: server authority, step log, commit before broadcast | `maze-http` (one winner, concurrent finish, replays), `maze-restart`, `maze-store` |
-| **Losing does not stop you playing together again.** Rematch and Next level seat both players; a finished race unlocks the next level win or lose; watchers can follow. | Scope: progress, rematch, spectators | `maze-levels` (unlock win or lose), `maze-http` (rematch), `maze-spectate` |
+| **A switch your friend flips should make you rethink your route.** Switches flip gates for both players; layouts are symmetric and always passable. | Race invariants: switches, symmetry, reachability | `maze-game` (200-seed sweep over switch states), `maze-levels` |
+| **A result you can check.** The server decides the winner; every accepted step is saved before it is shown; replays come only from saved data. | Race invariants: server authority, step log, commit before broadcast | `maze-http` (one winner, concurrent finish, replays), `maze-restart`, `maze-store` |
+| **A way to keep playing together after either person loses.** Rematch and Next level seat both players; a finished race unlocks the next level win or lose; watchers can follow. | Scope: progress, rematch, spectators | `maze-levels` (unlock win or lose), `maze-http` (rematch), `maze-spectate` |
 
-Enjoyment, how often switches change route choices, and equal perceived
-difficulty are judged with players, not checked (one observation so far: on
-2026-11-09 a friend flipped a switch in a quick-play race and it changed their route). Report agent-driven browser
-runs as such; never present them as playtests.
+Use player feedback to assess enjoyment and perceived difficulty. On
+2026-11-09, the author reported that a friend's switch flip changed both
+players' routes in a quick-play race. This is one informal observation;
+how often it happens and whether players return still need investigation.
+Report agent-driven browser runs as such; never present them as playtests.
 
 ### Race invariants
 
@@ -135,7 +135,7 @@ runs as such; never present them as playtests.
   revisions 1 and 2), each from a playtest: a deep rift entrance and capped
   saving, then a rift hidden off the shortest route, one way into each goal
   and no gate beside an entrance. A rift or side door that hands out a free
-  win breaks "another person's choices change your route"; any other change
+  win breaks "a switch your friend flips should make you rethink your route"; any other change
   still needs a stated reason.
 - Progress is derived from finished races (win or lose), never stored; a
   forfeit unlocks nothing. Rematch and Next level share one link: whoever

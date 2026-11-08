@@ -491,7 +491,29 @@ the harness or spec rather than patched.
 ## Switch changed a friend's route (2026-11-09)
 
 - Author report: in a race on the deployed game, the switch changed the
-  friend's route. First human observation of the central claim ("another
-  person's choices can change your route"). One informal race. The author
-  later added: the friend flipped the switch themselves, in a quick-play race
-  (Create a race, today's maze). Which switch and which route were not noted.
+  friend's route. The friend flipped the switch in a quick-play race
+  (Create a race, today's maze). The author then clarified that the same flip
+  also made them change route. This supports the central idea in one informal
+  race. Which switch and which routes were not noted; frequency and repeat
+  play remain unknown.
+
+## Final reading pass (2026-11-09)
+
+- The six documents now use direct descriptions of decisions and failures,
+  with different, specific lessons in the three crit reflections. The repeated
+  “My responsibility is” endings are gone. This is an editorial judgement,
+  not a verified match to a separate academic writing sample.
+- Retained newer evidence through `b96746c`, including the second rift revision
+  and the branch/PR workflow. Added the author's clarification that the friend's
+  flip affected both routes. No broader playtest outcome follows from one race.
+- Corrected the latency claim: the HTTP test permits under 350 ms per step
+  after simulated 300 ms delays; it does not establish equality with the
+  140 ms movement allowance. PROCESS now states the limit.
+- Sources were checked again; the research note keeps the distinction between
+  tests detecting changes and expectations matching intended behaviour. Its
+  conclusions are a proposal supported by the literature, not a proven optimum.
+- Counts including rendered headings and citation labels: README 580, PROCESS
+  1,044, research 636 argument/742 total, Crits 8/9/10 278/289/286. Document
+  checks and `pnpm check:evidence` passed. Full application tests were not rerun.
+  The latest revisions remain local on `main`; the earlier publication warning
+  referred to an older commit and is superseded for file presence.
