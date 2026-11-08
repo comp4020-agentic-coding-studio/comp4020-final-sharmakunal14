@@ -125,6 +125,10 @@ Keep the earlier Shared Space routes and data working during the transition.
   The win celebration is client-only, winner-only, live-only, and a still
   banner under reduced motion.
 - Spectators (decision 0008) hold a separate random token, never the race id. The token follows the rematch chain to the newest race; non-players get only `rematched: true`, never the new id.
+  The race id is the invitation (it opens `/join`), so nothing a spectator or
+  outsider receives may contain it: `publicGame` drops `id` and gives an opaque
+  `race` key. A test once asserted the id *was* exposed, locking the hole in;
+  when a test encodes a promise, check the promise, not the current output.
   They read and stream only: no join, ready, move, chat or rematch. Remove
   private fields (`publicGame`) from anything a non-player receives, and keep
   spectator limits separate from player stream limits. A streak is derived
@@ -209,5 +213,11 @@ These rules continue to apply to the retained event-layout routes.
 - SSE responses must write something immediately after headers (Node buffers
   headers until the first write — this broke the stream once).
 - Server logs are JSON lines with an `action` and `outcome`; never log tokens,
-  cookies or comment text.
+  cookies or comment text. Every maze action and refusal is logged (`maze.*`)
+  with the actor id and the first eight characters of the race id, never the
+  full id (it is the invitation), nicknames or chat text. `spec/maze-logs.test.ts`
+  reads a real server's output to enforce this.
+- Do not reuse a module-level name inside a function in browser code: a
+  shadowed formatter once threw inside a `try/catch` and silently hid a result
+  note. Errors swallowed for "bonus" UI still need a test that the UI appears.
 - Commit in small, single-purpose units.
