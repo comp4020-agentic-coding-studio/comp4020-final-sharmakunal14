@@ -32,3 +32,13 @@ The code already calls the two entrances "portals", so these are called
 ## Consequences
 - The step log gains a new `kind`. Old replays have none and play as before.
 - Teleporting can confuse 1st-person orientation; the avatar keeps its facing.
+
+## Revision (2026-11-09): rifts were a free win in quick play
+Playtest: the rift landed the player almost at the goal (the opponent's
+entrance), making quick play too easy. In the daily maze (`riftLimit`), both
+rift cells must now be at least `RIFT_DEPTH` (8) steps from the start, so
+by symmetry the landing is as far from the goal. A rift may also save at most
+a third of the route (`RIFT_MAX_SHARE`). About 7% of days now have no rift:
+a plain maze rather than a free win. Levels keep their pinned layouts. Saved
+races keep their saved rifts, but today's maze changes from the deploy on,
+so today's best times mix the two layouts.

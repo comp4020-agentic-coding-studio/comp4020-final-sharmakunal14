@@ -71,10 +71,16 @@ describe("daily maze generation", () => {
         const there = route(board).length, back = route(board, entrance(board, 1), entrance(board, 0)).length;
         expect(there).toBe(back);
         // Worth taking with the switches as the race starts; a flipped switch may beat it.
-        if (!switchOn[0]) expect(there).toBeLessThanOrEqual(route({ ...board, rifts: [] }).length - 4);
+        if (!switchOn[0]) {
+          const walked = route({ ...board, rifts: [] }).length;
+          expect(there).toBeLessThanOrEqual(walked - 4);
+          // A gamble, not a free win: it saves at most a third of the route (or the minimum 4).
+          expect(walked - there).toBeLessThanOrEqual(Math.max(4, Math.floor(walked / 3)));
+        }
       }
     }
-    expect(missing).toBeLessThan(10);
+    // Capping the saving leaves some days with no rift that fits: a plain maze, not a free win.
+    expect(missing).toBeLessThan(20);
   });
 
   it("gives nearly every day a pulse pair, without changing the maze, switches or gates", () => {

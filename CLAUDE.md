@@ -118,6 +118,9 @@ Keep the earlier Shared Space routes and data working during the transition.
   generator change moves a fingerprint, that changes a level everyone has
   played: say so and update the pin on purpose. The daily maze must stay
   byte-identical (compare against the previous generator, not a picture).
+  Rifts in the daily maze were deliberately changed once (0012 revision,
+  2026-11-09: a deep entrance and capped saving, because a rift that lands
+  near the goal hands out free wins); any other change still needs a stated reason.
 - Progress is derived from finished races (win or lose), never stored; a
   forfeit unlocks nothing. Rematch and Next level share one link: whoever
   asks first decides, so both players always land in the same race.

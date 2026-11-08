@@ -1,17 +1,18 @@
 const VIEWS = ["overview", "third", "first"];
 
-// The chosen camera is remembered per race for this tab, so a reload puts the
-// player back in the view they were using. Storage can be unavailable; then
-// the view simply is not remembered.
+// The chosen camera is remembered per race in localStorage, so a reload or a
+// closed and reopened window puts the player back in the view they were using
+// (sessionStorage was lost when the window closed). Storage can be
+// unavailable; then the view simply is not remembered.
 const viewKey = (race) => `maze-view:${race}`;
 export function savedView(race) {
   try {
-    const name = sessionStorage.getItem(viewKey(race));
+    const name = localStorage.getItem(viewKey(race));
     return VIEWS.includes(name) ? name : null;
   } catch { return null; }
 }
 export function rememberView(race, name) {
-  try { sessionStorage.setItem(viewKey(race), name); } catch { /* not remembered */ }
+  try { localStorage.setItem(viewKey(race), name); } catch { /* not remembered */ }
 }
 
 // Pages that need to know when the camera changes (the race remembers it).
