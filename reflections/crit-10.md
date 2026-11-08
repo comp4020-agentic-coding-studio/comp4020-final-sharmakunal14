@@ -35,5 +35,5 @@ on 9 November
 ([`27ce3b3`](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/commit/27ce3b3));
 that commit is implementation evidence, not a record of observations at the crit.
 
-My responsibility is to judge both whether the agent built the rules correctly
-and whether those rules produce an experience people want to use.
+I now judge two things separately: whether the agent built the rules
+correctly, and whether those rules make something people want to play.

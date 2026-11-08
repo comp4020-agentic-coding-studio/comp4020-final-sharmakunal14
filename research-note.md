@@ -8,7 +8,7 @@ checks detect broken behaviour, and whether the behaviour they protect is
 actually wanted. Appointing another agent as reviewer does not, by itself,
 establish either. The standard of correctness needs its own justification.
 
-[Barr et al. (2015)](https://discovery.ucl.ac.uk/id/eprint/1471263/)
+[Barr et al. (2015)](https://doi.org/10.1109/TSE.2014.2372785)
 describe the test oracle problem: determining whether observed behaviour is
 correct. Their survey predates coding agents, so it cannot establish their
 failure rates. Its distinction remains useful, however: generating inputs and
@@ -26,8 +26,8 @@ that the requested behaviour is right. Similarly,
 reports a file with 100% statement coverage where thirteen deliberate code
 mutations left the test suite passing. Her experiment illustrates why executing code and
 checking its effects differ; it is not a representative benchmark. Mutation
-testing strengthens tests' ability to detect changes, while Böckeler explicitly
-leaves the correctness of the protected behaviour unresolved.
+testing strengthens tests' ability to detect changes; it says nothing about
+whether the behaviour being protected is the right one.
 
 Maze Duel supplied a small example: its spectator test expected an identifier
 that also allowed someone to join a race. The
@@ -38,7 +38,7 @@ prevalence across agentic development.
 
 Nevertheless, requiring people to author every test would discard demonstrated
 value. In Meta's deployment study,
-[Alshahwan et al. (2024)](https://discovery.ucl.ac.uk/id/eprint/10199775/)
+[Alshahwan et al. (2024)](https://doi.org/10.1145/3663529.3663839)
 report engineers accepting 73% of TestGen-LLM's test improvements. The tool
 filters generated tests for successful builds, repeated passing runs and
 additional coverage. Crucially, it discards initially failing tests because
@@ -81,11 +81,14 @@ with the strength of the evidence and the recoverability of mistakes.
 ## References
 
 - Barr, E. T., Harman, M., McMinn, P., Shahbaz, M. and Yoo, S. (2015).
-  [The Oracle Problem in Software Testing: A Survey](https://discovery.ucl.ac.uk/id/eprint/1471263/).
+  [The Oracle Problem in Software Testing: A Survey](https://doi.org/10.1109/TSE.2014.2372785).
   *IEEE Transactions on Software Engineering*, 41(5), 507–525.
+  doi:10.1109/TSE.2014.2372785.
 - Alshahwan, N. et al. (2024).
-  [Automated Unit Test Improvement using Large Language Models at Meta](https://discovery.ucl.ac.uk/id/eprint/10199775/).
-  *FSE Companion*, 185–196.
+  [Automated Unit Test Improvement using Large Language Models at Meta](https://doi.org/10.1145/3663529.3663839).
+  *Companion Proceedings of the 32nd ACM International Conference on the
+  Foundations of Software Engineering (FSE Companion '24)*, 185–196.
+  doi:10.1145/3663529.3663839.
 - Willison, S. (n.d.).
   [Red/green TDD](https://simonwillison.net/guides/agentic-engineering-patterns/red-green-tdd/).
   *Agentic Engineering Patterns*. Accessed 9 November 2026.
