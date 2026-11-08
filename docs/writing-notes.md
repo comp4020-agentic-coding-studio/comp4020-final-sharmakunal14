@@ -11,6 +11,10 @@ Targets: README 400–600 words, published at `/readme/`. PROCESS.md
 
 ## README: what "good" could mean for Maze Duel
 
+These early candidates are superseded by the 9 November README draft and
+notes below. In particular, server validation is not cheat prevention, and
+batching is not a guarantee that latency never affects speed or outcomes.
+
 A candidate thesis to argue or reject:
 
 > A two-person race is good when **what the other person does changes your
@@ -102,8 +106,9 @@ suggestions, not checked quotes):
 
 - Fail-first was **not** followed in milestone 2: tests were written with or
   after the code (PROGRESS.md says so).
-- All browser checks so far were agent-driven, with emulated phone and
-  latency. There have been no human playtests yet.
+- The recorded browser checks were agent-driven, with emulated phone and
+  latency. The author subsequently reported that friends played Maze Duel
+  and called the idea cool; no structured observations of their play were supplied.
 - The README "good" argument has not yet been tested against real players.
 
 ### Agent workflow notes
@@ -326,3 +331,37 @@ the harness or spec rather than patched.
   `try/catch` hid the throw (`acba4f1`). Rule added about swallowed errors.
 - **An acknowledged bug stayed fixed only when measured.** Phone HUD overlap
   checked by bounding boxes at three sizes (`a379de4`).
+
+## README argument draft (2026-11-09)
+
+- The author requested an agent-assisted rewrite. The initial 578-word draft
+  argues for shared route decisions, an inspectable result, and continuing
+  together after either player wins. First-person judgments need the author's
+  review; do not describe the draft as independently authored prose.
+- Sloan's *An app can be a home-cooked meal* and Gambetta's *Client-Side
+  Prediction and Server Reconciliation* were read and checked in this session.
+  README links both and applies them to audience, reliability and latency;
+  this does not establish that the author read them before implementation.
+- Bound the central claim: switches are optional, seven campaign levels have
+  none, and timed gates/fog are navigation challenges rather than evidence of
+  decisions about an opponent. Symmetry is not equal perceived difficulty.
+- Human evidence supplied by the author: classmates liked Shared Space but
+  found arranging objects plain and suggested a more creative game. The author
+  clarified that friends who played Maze Duel loved the idea of competing and
+  the switch concept. Players also asked for smoother controls and suggested
+  different camera perspectives. This supports appeal within the intended
+  audience and identifies concerns about control feel; no observations of route
+  changes or repeat play were supplied. The author subsequently confirmed that
+  this feedback preceded and informed the control and camera changes. The
+  camera implementation is recorded in `d77f9ea`; the connection to player
+  feedback comes from the author's retrospective account here, not from a
+  contemporaneous playtest record. No follow-up player evaluation of the
+  improvements has been supplied. Do not turn these accounts into structured
+  playtest observations or a claimed Crit 10 log exercise.
+- New limit to the logging correction above: an isolated non-player GET of an
+  existing match returned 403 but logged the complete invitation id in the
+  `action` field, through the catch block in `maze-http.ts`. The 143-test suite
+  passes without covering this refusal path. The README does not promise log
+  privacy. Fixed afterwards: refusal actions are named from a fixed list, and
+  the log check now covers an outsider's read and a bad spectator token
+  (seen failing on the old code first).

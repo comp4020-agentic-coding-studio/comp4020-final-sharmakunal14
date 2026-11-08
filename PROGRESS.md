@@ -873,6 +873,14 @@ issues, each reproduced before fixing.
 - The personal-best regression remains a static name-shadowing check, not a
   browser demonstration of two wins. The previous entry contains the phone-HUD
   browser measurements; they were not rerun as gameplay checks here.
+- Separate application edits appeared during writing: removal of device
+  fullscreen calls and a new window-size test. Left those changes intact;
+  reran the README invariants, browser-module syntax, window-size, formatter
+  shadowing and race-audio suites: 13/13 passed across five files. The full
+  143-test result above preceded these separate edits.
+- `git diff --check` passed. `pnpm check:evidence` passed, but only found
+  crits 8 and 9 and no PROCESS commit links to validate. This is a limited
+  structural check, not evidence that the remaining assessed writing is complete.
 
 ### Deployed (2026-11-09)
 
@@ -917,3 +925,27 @@ race): nothing on the race screen said so.
 First attempt dispatched a DOM event for camera changes; an existing jsdom
 audio test failed because jsdom's `dispatchEvent` rejected Node's `CustomEvent`.
 Replaced with a plain callback (`onViewChange`). 145/145 on a fresh database.
+
+## 2026-11-09 — Clarified feedback from friends
+
+The author clarified that friends who played Maze Duel loved the idea of
+competing and the switch concept. Updated README.md and writing notes to
+represent that more specific feedback. It supports appeal for the intended
+audience; it does not supply observations of strategic route changes or repeat
+play. The author also reported requests for smoother controls and suggestions
+for different camera perspectives, then confirmed that this feedback came
+before the changes and informed them. Updated the README to connect that
+feedback to control changes and the camera options. This causal account was
+supplied retrospectively by the author; no follow-up player evaluation of the
+improvements has been supplied. No application code changed. These wording
+edits do not add a new playtest, test-suite run or deployment to the evidence
+above.
+
+## 2026-11-09 — Refusal logs leaked the invitation id
+
+Found by the README evidence review above: an outsider's `GET` of a race was
+refused (403) but logged the full race id as its action name, because refusal
+actions were named after the last URL segment. A bad spectator link would
+have logged the token the same way. Refusal actions now come from a fixed
+list. `spec/maze-logs.test.ts` covers both refusals; it failed on the old code
+(`maze.match:NOT_A_PLAYER` missing) and passes now.
