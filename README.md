@@ -25,21 +25,20 @@ forward walks and left/right/back turn. **E/Space** flips a switch;
 Robin Sloan's [An app can be a home-cooked meal](https://www.robinsloan.com/notes/home-cooked-app/)
 argues that software can succeed by serving a few people well. Here, rematches
 matter more than audience growth; clear results and saved history still matter.
+That rules out the obvious alternative, ranked matchmaking against strangers,
+which gives no reason to race the same friend again.
 
 Switches make that friendship consequential: each opens one gate and closes
 another for both players, so your shortcut can help your rival too. They remain
 optional: an opportunity to reconsider routes, not a requirement to cooperate
 or sabotage.
 
-A daily seed gives races a shared reference. A 9 November
-[rift revision](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/commit/dd1d890)
-left old and new layouts eligible for the same day's best-time records. Saved replays
-show accepted steps and flips, making the outcome something friends can
-discuss. Spectators get a separate read-only link without player chat.
-The twelve campaign levels introduce navigation, switches, timed gates
-and teleporting rifts; a completed race unlocks the next level for both players,
-win or lose. Seven levels omit switches. Practice, fog and timed gates offer
-variety, but do less to realise the central idea.
+A daily seed gives races a shared reference, and saved replays show accepted
+steps and flips, so friends can discuss an outcome rather than dispute it.
+Spectators get a separate read-only link without player chat. The twelve
+campaign levels introduce one mechanic per world, and every world after the
+first ends in a switch level. A completed race unlocks the next level for both
+players, win or lose, so the weaker player is never left behind.
 
 Gabriel Gambetta's [prediction and reconciliation](https://www.gabrielgambetta.com/client-side-prediction-server-reconciliation.html)
 explains how immediate feedback can coexist with server authority. Maze Duel
@@ -50,30 +49,30 @@ delay can still decide a close race.
 
 ## What the evidence supports
 
-The [harness](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/blob/main/CLAUDE.md)
-turns these priorities into rules. The [checks](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/tree/main/spec)
-cover symmetry and reachability across switch states over 200 generated seeds
-and all twelve levels, legal movement, duplicate commands, concurrent finishes
-and spectator access. SQLite stores results, layouts and replay actions before
-broadcast. Persistence checks cover saved records and a real server restart.
-Active races are interrupted on restart without awarding a winner; completed
-results survive. Browser disconnects do not pause the clock.
+**Enforced.** The [harness](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/blob/main/CLAUDE.md)
+maps each part of this definition to rules, and the [checks](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/tree/main/spec)
+test them: symmetry and reachability in every switch state over 200 generated
+seeds and all twelve levels, legal movement, duplicate commands, concurrent
+finishes, spectator access, and unchanged average speed over a 300 ms round
+trip. SQLite stores results, layouts and replay actions before broadcast. A
+real server restart keeps identities and completed results, and interrupts an
+active race without awarding a winner. Browser disconnects do not pause the clock.
 
-These checks establish constraints, not enjoyment or equal difficulty. Friends
-who played said they loved the idea of competing and the switches, but asked
-for smoother controls and different camera perspectives. Their feedback
-informed control changes and the map, third-person and first-person views.
-Follow-up feedback is needed to judge whether those changes resolved their
-concerns. Whether switches change route decisions or encourage repeat play
-also remains unverified; agent-driven checks cannot establish those judgments.
+**Judged.** Enjoyment and equal difficulty cannot be checked. Friends who
+played loved competing and the switches, but asked for smoother controls and
+different camera perspectives; that feedback shaped the control changes and
+the map, third-person and first-person views. Whether those changes satisfied
+them, and whether switches change route choices, remain for players to judge.
 
 ## Deliberate limits
 
 I left out power-ups and footprint trails to keep attention on routes and
 shared gates, and free-roam movement to keep grid rules inspectable. Cookie
 identity avoids account setup but loses access when cookies are cleared.
-Fog is a visual restriction, not secret information. Keyboard and touch controls
-do not make a spatial, visual maze fully accessible.
+Fog is a visual restriction, not secret information. A 9 November
+[rift revision](https://github.com/comp4020-agentic-coding-studio/comp4020-final-sharmakunal14/commit/dd1d890)
+changed that day's maze, so its best times mix two layouts. Keyboard and touch
+controls do not make a spatial, visual maze fully accessible.
 
 ## Run locally
 
